@@ -1,15 +1,16 @@
 :root {
   --color-bg: #f7f8f6;
-  --color-panel-dark: #0f2c28;
+  --color-panel-dark: #000000;
   --color-ink: #1b2430;
   --color-ink-soft: #5b6b66;
-  --color-primary: #0f6b5c;
-  --color-primary-hover: #0c564a;
-  --color-accent: #e0a458;
+  --color-primary: #008000;
+  --color-primary-hover: #046b04;
+  --color-accent: #00ac00;
   --color-border: #dadfda;
   --color-danger-bg: #fbeae6;
   --color-danger-text: #9a3412;
-  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Poppins', system-ui, -apple-system, sans-serif;
+  --font-display: 'Anton', var(--font-sans);
 }
 
 * {
@@ -55,10 +56,18 @@ button {
   gap: 12px;
 }
 
+.login__logo {
+  height: 80px;
+  width: auto;
+  margin-bottom: 8px;
+}
+
 .login__brand {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 26px;
+  letter-spacing: 0.01em;
+  color: var(--color-accent);
 }
 
 .login__tagline {
@@ -111,8 +120,12 @@ button {
     padding: 64px;
   }
 
+  .login__logo {
+    height: 48px;
+  }
+
   .login__brand {
-    font-size: 28px;
+    font-size: 30px;
   }
 }
 

@@ -1,6 +1,7 @@
 import { SignIn } from '@clerk/clerk-react'
 import { useLocation } from 'react-router-dom'
 import type { RedirectReason } from './auth.types'
+import pragmaLogo from '../../assets/pragma-logo-dark.png'
 
 function reasonMessage(reason: RedirectReason): string {
   // 'forbidden' trae el message tal cual lo mandó la API en el 403
@@ -17,6 +18,7 @@ export function LoginPage() {
   return (
     <div className="login">
       <aside className="login__panel">
+        <img className="login__logo" src={pragmaLogo} alt="Farmacia Pragma" />
         <span className="login__brand">Pragma CRM</span>
         <p className="login__tagline">Panel de administración de Droguería Pragma.</p>
         <RouteMark />
@@ -39,11 +41,11 @@ export function LoginPage() {
             routing="hash"
             appearance={{
               variables: {
-                colorPrimary: '#0f6b5c',
+                colorPrimary: '#008000',
                 colorText: '#1b2430',
                 colorBackground: '#ffffff',
                 borderRadius: '8px',
-                fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+                fontFamily: "'Poppins', system-ui, sans-serif",
               },
               elements: {
                 card: { boxShadow: 'none', border: '1px solid #dadfda' },
@@ -61,13 +63,13 @@ function RouteMark() {
     <svg className="login__routemark" viewBox="0 0 220 120" fill="none" aria-hidden="true">
       <path
         d="M18 96 C 60 96, 60 40, 100 40 S 160 20, 202 20"
-        stroke="#e0a458"
+        stroke="#00ac00"
         strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="18" cy="96" r="5" fill="#e0a458" />
-      <circle cx="100" cy="40" r="5" fill="#e0a458" />
-      <circle cx="202" cy="20" r="5" fill="#e0a458" />
+      <circle cx="18" cy="96" r="5" fill="#00ac00" />
+      <circle cx="100" cy="40" r="5" fill="#00ac00" />
+      <circle cx="202" cy="20" r="5" fill="#00ac00" />
     </svg>
   )
 }
