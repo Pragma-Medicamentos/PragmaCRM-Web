@@ -1,43 +1,45 @@
 # CLAUDE.md — PragmaCRM-Web (contexto de este repo)
 
-Contexto específico del dashboard web. El contexto de proyecto completo (DER, RF/RNF, decisiones de negocio) vive en `CLAUDE.md` del repo `PragmaCRM-Api` — cárgalo también si la tarea lo requiere.
+Contexto específico del dashboard web. El contexto de proyecto completo (DER, RF/RNF, decisiones de negocio) vive en `CLAUDE.md` del repo `PragmaCRM-Api` — cárgalo también si la tarea lo requiere, en particular su sección 5.9 (Autenticación y autorización), que es la fuente de verdad del contrato.
 
-**Última actualización:** 10 de septiembre de 2026 — código migrado a la arquitectura vigente (ver abajo). Ya no queda `SupabaseProvider` ni `@supabase/supabase-js` en este repo; `useCurrentAppUser` llama a `GET /api/v1/me` en la API.
+**Última actualización:** 12 de septiembre de 2026 — migrado de Clerk a Supabase Auth (decisión confirmada el 11 de septiembre de 2026 en `PragmaCRM-Api`). Ya no queda `@clerk/clerk-react` en este repo.
 
 ---
 
 ## Decisión vigente de autenticación
 
-Toda validación de identidad y permisos ocurre en `PragmaCRM-Api`. **El frontend no habla con Supabase.** De Supabase solo se usa la base de datos, y únicamente la API se conecta a ella. Confirmado con un login de extremo a extremo contra la API real, con un token real de Clerk, sin nada de lo que sigue.
+**Supabase Auth** es el proveedor de identidad. El login del dashboard es email + contraseña contra `supabase-js` (`supabase.auth.signInWithPassword`) — ver `LoginPage.tsx`. Solo `Administrador` usa este dashboard (RF-01); `Vendedor` usa exclusivamente la app Android.
 
-Tres cosas que **no** hacen falta y que no bloquean el login — si aparecen en documentación previa (incluido el README de este repo), están obsoletas:
+Dos caminos hacia los datos, igual que en `PragmaCRM-Api`:
 
-- Activar *Third-Party Auth* de Clerk en Supabase. Solo aplicaría si el cliente consultara Supabase directamente, y no es el caso.
-- Cualquier policy RLS. La API se conecta con un rol que ignora RLS; una policy no afecta a ningún endpoint.
-- El webhook `user.created` / `user.updated` de Clerk. Es una tarea aparte, no bloqueante. Este sprint los usuarios se enlazan a mano en `app_user`.
+| Camino | Quién decide | Cuándo lo usa este repo |
+|---|---|---|
+| Cliente → Supabase (`supabase-js`) | Las políticas RLS | Solo Auth: login, logout, sesión |
+| Cliente → `PragmaCRM-Api` | `requireAuth` / `requireRole` | Todo lo demás: `/me`, alta de vendedores |
 
-Esto reemplaza también la sección 5.9 de `PragmaCRM-Api/CLAUDE.md` en lo que toca a estos tres puntos; esa sección tiene una corrección pendiente de mergear.
+Este repo **no** consulta tablas del dominio directamente contra Supabase (nada de `supabase.from(...)`); eso sigue siendo trabajo de la API, que se conecta con un rol que ignora RLS. `supabase-js` aquí es solo el cliente de Auth.
 
 ## Lo que sí tiene que hacer este repo
 
 1. **Variables de entorno** (`.env.example`):
 
    ```
-   VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+   VITE_SUPABASE_URL=http://127.0.0.1:54321
+   VITE_SUPABASE_ANON_KEY=...
    VITE_API_URL=http://localhost:3000
    ```
 
-   Nunca la secret key de Clerk: con Vite, toda variable `VITE_*` queda incrustada en el bundle y es pública; la secret key vive solo en la API. No se usan `VITE_SUPABASE_URL` ni anon key — este repo no habla con Supabase.
+   La anon key es pública por diseño (viaja en el bundle web); igual que con Clerk, la que **nunca** va aquí es la `service_role` key — esa es solo de servidor, vive en `PragmaCRM-Api`. Valores locales: `npx supabase status` en `PragmaCRM-Api`.
 
-2. **Login con el SDK de Clerk React** (`@clerk/clerk-react`). Clerk maneja pantallas, contraseñas, recuperación y persistencia de sesión — ver `LoginPage.tsx`.
+2. **Login con `supabase-js`** (`@supabase/supabase-js`). El cliente único vive en `src/lib/supabase/client.ts`. `LoginPage.tsx` implementa el formulario de email + contraseña a mano — no hay componente de UI prearmado como el `<SignIn/>` de Clerk, así que los estados de error (credenciales inválidas, etc.) se manejan aquí.
 
-3. **Enviar el token en cada petición a la API**, pedido con `getToken()` por petición — no una vez al inicio. Los tokens duran ~60 segundos y el SDK los renueva solo. Implementado en `lib/api/apiClient.ts`.
+3. **Enviar el access token en cada petición a la API**, tomado de la sesión vigente de Supabase — nunca cacheado más allá de lo que el propio SDK cachea. `useCurrentAppUser.ts` se suscribe a `supabase.auth.onAuthStateChange`, que entrega la sesión inicial y cada cambio posterior (login, logout, refresh de token). Implementado en `lib/api/apiClient.ts` / `features/auth/useCurrentAppUser.ts`.
 
    ```
-   Authorization: Bearer <token>
+   Authorization: Bearer <access_token>
    ```
 
-4. **Resolver el estado inicial con `GET /api/v1/me`.** Es el único endpoint necesario para el login — `useCurrentAppUser.ts` lo llama.
+4. **Resolver el estado inicial con `GET /api/v1/me`.** Es el único endpoint necesario para el login — `useCurrentAppUser.ts` lo llama con el token de la sesión de Supabase.
 
    Respuesta 200:
 
@@ -47,29 +49,66 @@ Esto reemplaza también la sección 5.9 de `PragmaCRM-Api/CLAUDE.md` en lo que t
      "message": "Sesión válida",
      "data": {
        "id": "8bbfcd4c-...",
-       "clerkUserId": "user_3J7T...",
+       "authUserId": "3f9a...-...-...-...-...",
        "role": "Administrador",
        "name": "Andrés Galán",
-       "email": "andres@..."
+       "email": "andres@...",
+       "passwordSetAt": "2026-09-11T12:00:00.000Z"
      }
    }
    ```
 
-   `role` es exactamente `"Administrador"` o `"Vendedor"`. No está en el token: sale de la base de datos vía este endpoint. No lo leas de los claims de Clerk.
+   `role` es exactamente `"Administrador"` o `"Vendedor"`. No está en el token: sale de la base de datos vía este endpoint. No lo leas de los claims de Supabase. `authUserId` es `auth.users.id` (el claim `sub`), no un id de Clerk. `passwordSetAt` es `null` mientras la cuenta no tiene contraseña fijada (relevante para el flujo de alta de vendedores desde la app; este dashboard no lo usa todavía).
 
 5. **Tratar 401 y 403 como cosas distintas:**
 
    | Código | Significa | Acción |
    |---|---|---|
-   | `401` | No hay sesión válida | Redirigir a `/login` |
+   | `401` | No hay sesión válida, o el JWT expiró/es inválido | Redirigir a `/login` |
    | `403` | Sesión válida, pero el usuario no puede operar (no está dado de alta en el CRM, está deshabilitado, o su rol no tiene permiso) | **No** redirigir al login — es un bucle infinito, porque volver a iniciar sesión no lo arregla. Mostrar el `message` de la respuesta |
+   | `503` | El JWKS de Supabase no responde (problema de red, no del token) | Tratar como error transitorio, no como sesión inválida |
 
    Todas las respuestas de la API usan el mismo envelope: `{ success, message, data?, errors? }`.
 
-## Tres cosas que van a morder durante la integración
+## Contrato de `/api/v1/sellers` (RF-01 / HU-01)
 
-**a) CORS todavía no está implementado en la API.** El navegador va a bloquear las llamadas desde `localhost:5173` hacia `localhost:3000` con un error de CORS. No es el token ni el código de este repo — falta configurarlo del lado de `PragmaCRM-Api`. Coordinar con backend antes de integrar.
+**Implementado en este repo:** pantalla de listado y alta de vendedores (`src/features/vendors/`), ruta `/vendedores`. **No implementado en este sprint:** editar y deshabilitar (CA2).
 
-**b) Un login exitoso puede devolver 403, y es lo esperado.** Mientras no exista el webhook, cada usuario de Clerk debe estar enlazado a mano con una fila de `app_user`. Si el usuario de prueba no está enlazado, Clerk da un token perfectamente válido y la API responde 403 "El usuario no está registrado en el CRM". Pedirle a backend que enlace el usuario de prueba, no depurar el frontend primero.
+Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services/seller.service.ts`) — ya implementado del lado del backend, a diferencia de la iteración anterior de este documento:
 
-**c) *Organizations* debe estar desactivado en Clerk.** Si la selección obligatoria de organización está activa, todos los inicios de sesión generan sesiones `pending`: el login parece exitoso, el token parece normal, y la API responde 401 a todo. Ya está desactivado en la instancia de desarrollo (10 de septiembre de 2026); si aparecen 401 sistemáticos con un login que en apariencia funcionó, revisar esto primero antes que el código.
+- **La cuenta nace sin contraseña.** El admin solo da de alta `name` + `email`; la API crea el usuario en Supabase Auth (`email_confirm: true`, sin password) y envía un código OTP de 6 dígitos al correo del vendedor. El vendedor lo verifica y fija su contraseña desde la app (`supabase.auth.verifyOtp` + `updateUser({ password })`) — este dashboard no participa en ese paso ni muestra ninguna contraseña.
+- El admin **no** elige ni genera una contraseña inicial. Esa decisión (registrada en una versión anterior de este documento) quedó reemplazada por el flujo de OTP al pasar la autenticación a Supabase.
+
+`GET /api/v1/sellers` — requiere `requireAuth` + `requireRole(ADMIN)`. Devuelve todos los `app_user` con `role = 'Vendedor'`, sin transformar las llaves (snake_case tal cual la base):
+
+```json
+{
+  "success": true,
+  "message": "Vendedores obtenidos correctamente",
+  "data": [
+    {
+      "id": "uuid",
+      "name": "...",
+      "email": "...",
+      "active": true,
+      "auth_user_id": "uuid",
+      "created_at": "2026-09-01T00:00:00.000Z",
+      "updated_at": "2026-09-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+`POST /api/v1/sellers` — mismo guard. Body: `{ "name": "...", "email": "..." }`. Responde 201 con el vendedor creado (mismo shape que un elemento del listado). Un correo duplicado responde con un error de envelope legible (409), no un 500.
+
+`POST /api/v1/sellers/:id/resend-otp` — reenvía el código si el vendedor no alcanzó a usarlo en los 10 minutos de vigencia. No implementado todavía en este dashboard.
+
+Validación que corre en el frontend (la API la repite, nunca hay que confiar solo en el cliente): `name` no vacío, `email` con formato válido.
+
+## Cosas a tener presentes durante la integración
+
+**a) CORS.** Si aparece un error de CORS en el navegador al llamar a `localhost:3000` desde `localhost:5173`, es configuración pendiente del lado de `PragmaCRM-Api`, no de este repo.
+
+**b) Un login exitoso puede devolver 403 de todas formas.** Si el usuario de prueba en Supabase Auth no está enlazado a una fila de `app_user` (`auth_user_id`), la API responde 403 "El usuario no está registrado en el CRM" con un token perfectamente válido. Pedirle a backend que enlace el usuario de prueba, no depurar el frontend primero.
+
+**c) La cuenta de prueba necesita contraseña fijada.** A diferencia de Clerk, Supabase Auth no tiene una pantalla de "olvidé mi contraseña" propia integrada en este dashboard: si un usuario admin de prueba no tiene contraseña (`passwordSetAt` null en `/me`, o directamente no puede iniciar sesión), hay que fijarla desde el dashboard de Supabase o con `supabase.auth.admin.updateUserById` — no hay flujo de recuperación implementado aquí todavía.

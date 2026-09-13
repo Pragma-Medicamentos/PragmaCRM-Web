@@ -4,10 +4,11 @@ export type AppUserRole = 'Administrador' | 'Vendedor'
 // Forma de GET /api/v1/me (data del envelope). Ver PragmaCRM-Web/CLAUDE.md.
 export interface AppUser {
   id: string
-  clerkUserId: string
+  authUserId: string
   role: AppUserRole
   name: string
-  email: string
+  email: string | null
+  passwordSetAt: string | null
 }
 
 // Motivo por el que AdminRoute devolvió a /login, usado por LoginPage

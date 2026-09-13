@@ -1,16 +1,18 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { ClerkProvider } from '@clerk/clerk-react'
 import App from './App'
 import './index.css'
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 const apiUrl = import.meta.env.VITE_API_URL
 
-if (!publishableKey) {
-  throw new Error(
-    'Falta VITE_CLERK_PUBLISHABLE_KEY. Copia .env.example a .env y completa las claves.'
-  )
+if (!supabaseUrl) {
+  throw new Error('Falta VITE_SUPABASE_URL. Copia .env.example a .env y completa las claves.')
+}
+
+if (!supabaseAnonKey) {
+  throw new Error('Falta VITE_SUPABASE_ANON_KEY. Copia .env.example a .env y completa las claves.')
 }
 
 if (!apiUrl) {
@@ -19,8 +21,6 @@ if (!apiUrl) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/login">
-      <App />
-    </ClerkProvider>
+    <App />
   </React.StrictMode>
 )

@@ -17,7 +17,7 @@ export class ApiError extends Error {
 const API_URL = import.meta.env.VITE_API_URL
 
 /**
- * Llama a la API adjuntando el token de Clerk como Bearer. Lanza ApiError
+ * Llama a la API adjuntando el access token de Supabase como Bearer. Lanza ApiError
  * con el `status` HTTP y el `message` del envelope ({ success, message,
  * data?, errors? }) para que el llamador distinga 401 (sin sesión válida)
  * de 403 (sesión válida, usuario sin permiso para operar).
@@ -40,4 +40,19 @@ export async function apiFetch<T>(path: string, token: string | null, init?: Req
     throw new ApiError(response.status, body?.message ?? 'Respuesta vacía de la API')
   }
   return body.data
+}
+
+/**
+ * Como apiFetch, pero para endpoints públicos que no devuelven `data` — hoy
+ * solo POST /api/v1/auth/otp, que únicamente confirma el envío del código.
+ * Devuelve el `message` del envelope.
+ */
+export async function apiCall(path: string, init?: RequestInit): Promise<string> {
+  const response = await fetch(`${API_URL}${path}`, init)
+  const body = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null
+
+  if (!response.ok) {
+    throw new ApiError(response.status, body?.message ?? `Error ${response.status} al contactar la API`)
+  }
+  return body?.message ?? ''
 }
