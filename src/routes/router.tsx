@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from '../features/auth/LoginPage'
 import { AdminRoute } from '../features/auth/AdminRoute'
 import { DashboardPlaceholder } from '../pages/DashboardPlaceholder'
+import { VendorsPage } from '../features/vendors/VendorsPage'
 
 export function AppRouter() {
   return (
@@ -14,6 +15,14 @@ export function AppRouter() {
             <AdminRoute>
               <DashboardPlaceholder />
             </AdminRoute>
+          }
+        />
+        <Route
+          path="/vendedores"
+          element={
+            // <AdminRoute>
+              <VendorsPage />
+            // </AdminRoute>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />

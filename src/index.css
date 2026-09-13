@@ -109,6 +109,12 @@ button {
   line-height: 1.4;
 }
 
+.login__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 @media (min-width: 900px) {
   .login {
     flex-direction: row;
@@ -162,36 +168,60 @@ button {
   }
 }
 
-/* ---------- Dashboard (placeholder) ---------- */
+/* ---------- App shell (topbar + nav) ---------- */
 
-.dashboard {
+.app-shell {
   min-height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.dashboard__topbar {
+.app-shell__topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 32px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--color-border);
   background: #fff;
 }
 
-.dashboard__brand {
+.app-shell__brand {
   font-weight: 600;
   color: var(--color-primary);
 }
 
-.dashboard__user {
+.app-shell__nav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.app-shell__nav-link {
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-shell__nav-link:hover {
+  color: var(--color-ink);
+}
+
+.app-shell__nav-link--active {
+  color: var(--color-primary);
+  background: var(--color-bg);
+  font-weight: 600;
+}
+
+.app-shell__user {
   display: flex;
   align-items: center;
   gap: 16px;
   font-size: 14px;
 }
 
-.dashboard__user button {
+.app-shell__user button {
   padding: 8px 14px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
@@ -200,17 +230,245 @@ button {
   cursor: pointer;
 }
 
-.dashboard__user button:hover {
+.app-shell__user button:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
-.dashboard__body {
+.app-shell__body {
   flex: 1;
+  padding: 32px;
+}
+
+.placeholder {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
   color: var(--color-ink-soft);
   text-align: center;
+}
+
+/* ---------- Buttons ---------- */
+
+.button {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button--primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.button--ghost {
+  background: transparent;
+}
+
+.button--ghost:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ---------- Vendedores (RF-01 / HU-01) ---------- */
+
+.vendors__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.vendors__header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.vendors__hint {
+  color: var(--color-ink-soft);
+}
+
+.vendors__error {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.table th {
+  color: var(--color-ink-soft);
+  font-weight: 600;
+  background: var(--color-bg);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge--active {
+  background: #e5f3e5;
+  color: var(--color-primary-hover);
+}
+
+.badge--inactive {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+/* ---------- Modal (alta de vendedor) ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 36, 48, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10;
+}
+
+.modal {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal__hint {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 14px;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.form-banner {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+
+.field input {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.field input[aria-invalid='true'] {
+  border-color: var(--color-danger-text);
+}
+
+.field__row {
+  display: flex;
+  gap: 8px;
+}
+
+.field__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.field__error {
+  font-size: 12px;
+  color: var(--color-danger-text);
+}
+
+.credentials {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.credentials dt {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  margin-top: 8px;
+}
+
+.credentials dt:first-child {
+  margin-top: 0;
+}
+
+.credentials dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+
+.credentials__password {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }

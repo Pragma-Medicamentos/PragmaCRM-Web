@@ -1,30 +1,15 @@
-import { useClerk } from '@clerk/clerk-react'
-import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
+import { AppShell } from '../components/AppShell'
 
 export function DashboardPlaceholder() {
-  const { signOut } = useClerk()
-  const state = useCurrentAppUser()
-  const name = state.status === 'ready' ? state.appUser.name : ''
-
   return (
-    <div className="dashboard">
-      <header className="dashboard__topbar">
-        <span className="dashboard__brand">Pragma CRM</span>
-        <div className="dashboard__user">
-          <span>{name}</span>
-          <button type="button" onClick={() => signOut()}>
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
-
-      <main className="dashboard__body">
+    <AppShell>
+      <div className="placeholder">
         <p>
           Sesión de Administrador verificada.
           <br />
-          Los módulos de gestión (vendedores, clientes, rutas) no están implementados todavía.
+          Los módulos de gestión de clientes y rutas no están implementados todavía.
         </p>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }
