@@ -627,3 +627,45 @@ button {
 .pending-backend__list code {
   font-family: 'Courier New', monospace;
 }
+
+/* ---------- Defaults del navegador que este CSS asume ---------- */
+
+/* Preflight (el reset de Tailwind, que entra con shadcn/ui) quita los estilos
+   por defecto del navegador. Las reglas de arriba que sí declaran la propiedad
+   ganan igual —este archivo está fuera de @layer y eso vence a cualquier capa—,
+   así que aquí solo se repone lo que antes venía del navegador. */
+
+.vendors__hint,
+.customers__hint,
+.session-gate p,
+.placeholder p,
+.customer-profile__section p {
+  margin: 1em 0;
+}
+
+.vendors__error,
+.vendors__notice,
+.customers__error,
+.customer-profile__error {
+  margin-top: 1em;
+}
+
+.pending-backend__list {
+  list-style: disc;
+}
+
+.vendors__header h1,
+.customers__header h1,
+.customer-profile__header h1,
+.modal h2,
+.customer-profile__section h2 {
+  font-weight: bold;
+}
+
+.field input {
+  background-color: #fff;
+}
+
+.app-shell__user button {
+  font-size: 14px;
+}
