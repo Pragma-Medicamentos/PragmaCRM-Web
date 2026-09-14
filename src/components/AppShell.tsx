@@ -26,6 +26,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavLink to="/clientes" className={navLinkClass}>
             Clientes
           </NavLink>
+          <NavLink to="/importar" className={navLinkClass}>
+            Importar datos
+          </NavLink>
         </nav>
         <div className="app-shell__user">
           <span>{name}</span>
