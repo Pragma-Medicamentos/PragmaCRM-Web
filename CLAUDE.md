@@ -8,7 +8,7 @@ Contexto específico del dashboard web. El contexto de proyecto completo (DER, R
 
 ## Decisión vigente de autenticación
 
-**Supabase Auth** es el proveedor de identidad. El login del dashboard es email + contraseña contra `supabase-js` (`supabase.auth.signInWithPassword`) — ver `LoginPage.tsx`. Solo `Administrador` usa este dashboard (RF-01); `Vendedor` usa exclusivamente la app Android.
+**Supabase Auth** es el proveedor de identidad. El login del dashboard es sin contraseña propia por correo: `POST /api/v1/auth/otp` dispara un código de 6 dígitos, `supabase.auth.verifyOtp` lo verifica contra Supabase, y si la cuenta todavía no tiene contraseña (`passwordSetAt` null en `/api/v1/me`) el mismo formulario la pide antes de dejar entrar — ver `LoginPage.tsx` y `authApi.ts`. (Nota: una versión anterior de este documento describía `supabase.auth.signInWithPassword`; quedó reemplazado por este flujo de OTP, compartido con el alta de vendedores.) Solo `Administrador` usa este dashboard (RF-01); `Vendedor` usa exclusivamente la app Android.
 
 Dos caminos hacia los datos, igual que en `PragmaCRM-Api`:
 
@@ -72,9 +72,9 @@ Este repo **no** consulta tablas del dominio directamente contra Supabase (nada 
 
 ## Contrato de `/api/v1/sellers` (RF-01 / HU-01)
 
-**Implementado en este repo:** pantalla de listado y alta de vendedores (`src/features/vendors/`), ruta `/vendedores`. **No implementado en este sprint:** editar y deshabilitar (CA2).
+**Implementado en este repo:** pantalla de listado, alta, edición y habilitar/deshabilitar de vendedores (`src/features/vendors/`), ruta `/vendedores` (protegida por `AdminRoute`). También reenvío de OTP desde el listado.
 
-Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services/seller.service.ts`) — ya implementado del lado del backend, a diferencia de la iteración anterior de este documento:
+Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services/seller.service.ts`, `src/use-cases/set-seller-status.use-case.ts`) — ya implementado del lado del backend:
 
 - **La cuenta nace sin contraseña.** El admin solo da de alta `name` + `email`; la API crea el usuario en Supabase Auth (`email_confirm: true`, sin password) y envía un código OTP de 6 dígitos al correo del vendedor. El vendedor lo verifica y fija su contraseña desde la app (`supabase.auth.verifyOtp` + `updateUser({ password })`) — este dashboard no participa en ese paso ni muestra ninguna contraseña.
 - El admin **no** elige ni genera una contraseña inicial. Esa decisión (registrada en una versión anterior de este documento) quedó reemplazada por el flujo de OTP al pasar la autenticación a Supabase.
@@ -101,7 +101,11 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 
 `POST /api/v1/sellers` — mismo guard. Body: `{ "name": "...", "email": "..." }`. Responde 201 con el vendedor creado (mismo shape que un elemento del listado). Un correo duplicado responde con un error de envelope legible (409), no un 500.
 
-`POST /api/v1/sellers/:id/resend-otp` — reenvía el código si el vendedor no alcanzó a usarlo en los 10 minutos de vigencia. No implementado todavía en este dashboard.
+`PATCH /api/v1/sellers/:id` — body `{ name?, email? }`, al menos uno de los dos (`updateSellerSchema` lo exige con `.refine`). No acepta `active` ni contraseña. Responde 200 con el vendedor actualizado; 404 si el id no existe o ya está soft-deleted, 409 si el correo ya está en uso por otro vendedor.
+
+`PATCH /api/v1/sellers/:id/active` — body `{ "active": boolean }`. Además de actualizar `app_user.active`, banea (o desbanea) al usuario en Supabase Auth para matar la sesión viva (`set-seller-status.use-case.ts`) — es la ruta que implementa CA2. El dashboard pide confirmación antes de deshabilitar (no antes de habilitar), porque deshabilitar corta el acceso del vendedor a la app móvil de inmediato.
+
+`POST /api/v1/sellers/:id/resend-otp` — reenvía el código si el vendedor no alcanzó a usarlo en los 10 minutos de vigencia. Disponible como acción por fila en el listado.
 
 Validación que corre en el frontend (la API la repite, nunca hay que confiar solo en el cliente): `name` no vacío, `email` con formato válido.
 

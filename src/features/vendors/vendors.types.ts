@@ -19,3 +19,11 @@ export interface CreateVendorInput {
   name: string
   email: string
 }
+
+// PATCH /api/v1/sellers/:id — al menos uno de los dos campos (seller.schema.ts
+// lo exige con .refine). No incluye password ni active: eso va por
+// /:id/active, que es una ruta aparte (set-seller-status.use-case.ts).
+export interface UpdateVendorInput {
+  name?: string
+  email?: string
+}

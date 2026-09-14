@@ -14,6 +14,18 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * El handler 404 genérico de PragmaCRM-Api (`server.ts`) responde siempre
+ * `{ success: false, message: 'Not found' }` cuando la ruta no existe. Un 404
+ * de negocio (ej. "Cliente no encontrado") trae su propio mensaje, así que
+ * este chequeo solo es cierto cuando el endpoint todavía no está
+ * implementado. Úsalo para mostrar una vista "pendiente de backend" en lugar
+ * de un error genérico.
+ */
+export function isRouteNotImplemented(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404 && err.message === 'Not found'
+}
+
 const API_URL = import.meta.env.VITE_API_URL
 
 /**

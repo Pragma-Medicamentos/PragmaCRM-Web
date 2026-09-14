@@ -285,6 +285,11 @@ button {
   color: var(--color-primary);
 }
 
+.button--small {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
 /* ---------- Vendedores (RF-01 / HU-01) ---------- */
 
 .vendors__header {
@@ -308,6 +313,21 @@ button {
   border-radius: 8px;
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
+  margin-bottom: 16px;
+}
+
+.vendors__notice {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #e5f3e5;
+  color: var(--color-primary-hover);
+  margin-bottom: 16px;
+}
+
+.table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .table {
@@ -471,4 +491,139 @@ button {
   font-family: 'Courier New', monospace;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* ---------- Clientes (RF-02) ---------- */
+
+.customers__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.customers__header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.customers__hint {
+  color: var(--color-ink-soft);
+}
+
+.customers__error {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  margin-bottom: 16px;
+}
+
+/* ---------- Perfil de cliente (RF-02) ---------- */
+
+.customer-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 860px;
+}
+
+.customer-profile__back {
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+  align-self: flex-start;
+}
+
+.customer-profile__back:hover {
+  color: var(--color-primary);
+}
+
+.customer-profile__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.customer-profile__header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.customer-profile__hint {
+  color: var(--color-ink-soft);
+  margin: 4px 0 0;
+}
+
+.customer-profile__error {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.customer-profile__section {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.customer-profile__section h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+.customer-profile__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.customer-profile__grid dt {
+  font-size: 12px;
+  color: var(--color-ink-soft);
+  margin: 0;
+}
+
+.customer-profile__grid dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .customer-profile__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Vista pendiente de backend ---------- */
+
+.pending-backend {
+  padding: 16px 18px;
+  border-radius: 8px;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  color: var(--color-ink-soft);
+}
+
+.pending-backend__title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.pending-backend__hint {
+  margin: 0 0 4px;
+}
+
+.pending-backend__list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.pending-backend__list code {
+  font-family: 'Courier New', monospace;
 }
