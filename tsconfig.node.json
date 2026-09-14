@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "composite": true,
+    /* Un proyecto referenciado no puede usar noEmit (TS6310); se manda la salida
+       fuera de la raíz para que Vite no cargue un vite.config.js compilado. */
+    "outDir": "./node_modules/.tmp/tsconfig-node",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
