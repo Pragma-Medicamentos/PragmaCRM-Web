@@ -27,9 +27,12 @@ Este repo **no** consulta tablas del dominio directamente contra Supabase (nada 
    VITE_SUPABASE_URL=http://127.0.0.1:54321
    VITE_SUPABASE_ANON_KEY=...
    VITE_API_URL=http://localhost:3000
+   VITE_API_KEY=...
    ```
 
    La anon key es pública por diseño (viaja en el bundle web); igual que con Clerk, la que **nunca** va aquí es la `service_role` key — esa es solo de servidor, vive en `PragmaCRM-Api`. Valores locales: `npx supabase status` en `PragmaCRM-Api`.
+
+   `VITE_API_KEY` debe ser igual al `API_KEY` del `.env` de `PragmaCRM-Api` (2026-09: gate de transporte agregado en `middleware/apiKey.ts`, exigido en **toda** ruta bajo `/api/v1` salvo `/api/health`, por delante de `requireAuth`). No es sensible de la misma forma que la `service_role` key — no otorga identidad ni permisos por sí sola — pero sin ella cualquier llamada a la API, incluido pedir el OTP de login, responde 401 "Invalid or missing API key". Se manda como header `x-api-key` en `lib/api/apiClient.ts` (`apiFetch` y `apiCall`).
 
 2. **Login con `supabase-js`** (`@supabase/supabase-js`). El cliente único vive en `src/lib/supabase/client.ts`. `LoginPage.tsx` implementa el formulario de email + contraseña a mano — no hay componente de UI prearmado como el `<SignIn/>` de Clerk, así que los estados de error (credenciales inválidas, etc.) se manejan aquí.
 

@@ -26,8 +26,8 @@ export function useCustomers(): { state: CustomersState; reload: () => void } {
     supabase.auth
       .getSession()
       .then(({ data }) => listCustomers(data.session?.access_token ?? null))
-      .then((customers) => {
-        if (!cancelled) setState({ status: 'ready', customers })
+      .then((page) => {
+        if (!cancelled) setState({ status: 'ready', customers: page.items })
       })
       .catch((err: unknown) => {
         if (cancelled) return

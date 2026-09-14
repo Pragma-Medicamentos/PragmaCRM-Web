@@ -28,6 +28,12 @@ export function isRouteNotImplemented(err: unknown): boolean {
 
 const API_URL = import.meta.env.VITE_API_URL
 
+// Gate de transporte, no de identidad: PragmaCRM-Api exige este header en
+// toda ruta bajo /api/v1 salvo /api/health (presentation/middleware/apiKey.ts),
+// por delante incluso de requireAuth. Sin él, cualquier llamada -incluido
+// pedir el OTP de login- responde 401 "Invalid or missing API key".
+const API_KEY = import.meta.env.VITE_API_KEY
+
 /**
  * Llama a la API adjuntando el access token de Supabase como Bearer. Lanza ApiError
  * con el `status` HTTP y el `message` del envelope ({ success, message,
@@ -39,6 +45,7 @@ export async function apiFetch<T>(path: string, token: string | null, init?: Req
     ...init,
     headers: {
       ...(init?.headers ?? {}),
+      'x-api-key': API_KEY,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
@@ -60,7 +67,13 @@ export async function apiFetch<T>(path: string, token: string | null, init?: Req
  * Devuelve el `message` del envelope.
  */
 export async function apiCall(path: string, init?: RequestInit): Promise<string> {
-  const response = await fetch(`${API_URL}${path}`, init)
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      'x-api-key': API_KEY,
+    },
+  })
   const body = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null
 
   if (!response.ok) {

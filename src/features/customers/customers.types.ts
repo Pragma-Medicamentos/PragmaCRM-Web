@@ -1,22 +1,41 @@
 // Ancla: RF-02 "Perfil base de cliente (web)" (PragmaCRM-Api CLAUDE.md, sección
 // 4.1): historial de ventas, créditos y cobros vigentes, montos y responsable
-// de compra. Al 2026-09-13 no existe `src/presentation/customers/` en
-// PragmaCRM-Api — este contrato es una PROPUESTA basada en las columnas reales
-// de `customer` y `sale` (prisma/schema.prisma, secciones 7.3 y 7.6 del
-// CLAUDE.md del backend) y debe confirmarse con el equipo de backend antes de
-// darlo por definitivo.
+// de compra. Contrato real de `src/presentation/customers/` en PragmaCRM-Api
+// (`CustomerListItem` / `Paginated`, `domain/types/customer.types.ts` y
+// `domain/types/pagination.types.ts`).
 
-// GET /api/v1/customers — listado, mismo shape sin transformar que /sellers.
+export type CustomerCategory = 'A' | 'B' | 'C' | 'uncategorized'
+
+// Página de resultados, tal como la envuelve `data` en cualquier listado
+// paginado de la API (primer caso: GET /api/v1/customers).
+export interface Paginated<T> {
+  items: T[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+// GET /api/v1/customers — data: Paginated<Customer>.
 export interface Customer {
   id: string
   erp_customer_id: number | null
   name: string
   trade_name: string | null
   establishment_type: string | null
-  municipality: string | null
   zone: string | null
+  municipality: string | null
+  attends: string | null
   phone: string | null
   active: boolean
+  has_gps: boolean
+  category: CustomerCategory
+  net_purchases: string
+  orders_count: number
+  visits_count: number
+  conversion_rate: number
+  avg_payment_days: number | null
+  pending_balance: string
 }
 
 // Responsable de compra: el DER no tiene `customer.assigned_user_id` (ver
