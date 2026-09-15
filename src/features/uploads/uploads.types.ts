@@ -46,6 +46,20 @@ export interface SalesUploadSummary {
   warnings: UploadWarnings
 }
 
+/**
+ * Última importación registrada, para la nota "Última carga: …" del
+ * encabezado (wireframe `1m`).
+ *
+ * PENDIENTE DE BACKEND: `GET /api/v1/uploads/sales/last` todavía no existe en
+ * PragmaCRM-Api. Mientras no exista, `useLastUpload` deja la nota fuera sin
+ * romper la pantalla (ver isRouteNotImplemented).
+ */
+export interface LastUpload {
+  upload_id: string
+  /** ISO 8601 con zona, tal como lo emite la API. */
+  created_at: string
+}
+
 /** Resultado de la validación que corre en el navegador antes de enviar nada. */
 export type FileValidation =
   | {

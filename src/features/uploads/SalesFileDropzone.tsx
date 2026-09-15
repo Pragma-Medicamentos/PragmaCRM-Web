@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/attachment'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
+import { cn } from '@/lib/utils'
 import { MAX_UPLOAD_MB, formatBytes } from './validateSalesFile'
 import type { SalesUploadState } from './useSalesUpload'
 
@@ -118,12 +119,12 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
         setDragging(false)
         handleFiles(e.dataTransfer.files)
       }}
-      className={[
-        'rounded-xl border border-dashed transition-colors',
-        dragging ? 'border-primary bg-primary/5' : 'border-border bg-card',
-      ].join(' ')}
+      className={cn(
+        'rounded-xl border border-dashed text-center transition-colors',
+        dragging ? 'border-primary bg-primary/5' : 'border-border bg-card'
+      )}
     >
-      <Empty className="py-10">
+      <Empty className="py-14">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <CloudUpload />

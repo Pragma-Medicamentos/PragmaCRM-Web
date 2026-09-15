@@ -121,6 +121,34 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* <Progress> sin `value` (indeterminado). El componente fija un transform en
+   línea que, sin valor, deja la barra en -100% y por lo tanto invisible; una
+   animación gana a los estilos en línea, así que basta con esto. Se usa en la
+   importación de ventas, donde el backend no informa avance. */
+@keyframes progress-indeterminate {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(250%);
+    }
+}
+
+[data-slot='progress-indicator'][data-state='indeterminate'] {
+    width: 40%;
+    flex: none;
+    animation: progress-indeterminate 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-slot='progress-indicator'][data-state='indeterminate'] {
+        width: 100%;
+        animation: none;
+        transform: translateX(0);
+        opacity: 0.5;
+    }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

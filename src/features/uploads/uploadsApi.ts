@@ -1,5 +1,5 @@
 import { apiFetch } from '../../lib/api/apiClient'
-import type { SalesUploadSummary } from './uploads.types'
+import type { LastUpload, SalesUploadSummary } from './uploads.types'
 
 /**
  * POST /api/v1/uploads/sales — requireAuth + requireRole(ADMIN).
@@ -25,4 +25,14 @@ export function uploadSalesFile(
     body: form,
     signal,
   })
+}
+
+/**
+ * GET /api/v1/uploads/sales/last — última importación registrada.
+ *
+ * PENDIENTE DE BACKEND: la ruta aún no existe. Quien la consuma debe tratar el
+ * 404 con `isRouteNotImplemented` y seguir sin la nota, no mostrar un error.
+ */
+export function fetchLastUpload(token: string | null): Promise<LastUpload> {
+  return apiFetch<LastUpload>('/api/v1/uploads/sales/last', token)
 }
