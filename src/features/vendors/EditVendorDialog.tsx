@@ -1,8 +1,19 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { updateVendor } from './vendorsApi'
 import type { Vendor } from './vendors.types'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Field, FieldError, FieldLabel } from '../../components/ui/field'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -26,9 +37,9 @@ interface EditVendorDialogProps {
 }
 
 /**
- * Modal de edición de vendedor (HU-01). Solo nombre y correo — el estado
- * (activo/inactivo) se cambia desde el listado, no desde este formulario, y
- * la contraseña la fija el vendedor por su cuenta vía OTP (ver
+ * Modal de edición de vendedor (HU-01, wireframe 1l). Solo nombre y correo —
+ * el estado (activo/inactivo) se cambia desde el listado, no desde este
+ * formulario, y la contraseña la fija el vendedor por su cuenta vía OTP (ver
  * CreateVendorDialog).
  */
 export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialogProps) {
@@ -37,20 +48,6 @@ export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialo
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const firstFieldRef = useRef<HTMLInputElement>(null)
-  const titleId = useId()
-
-  useEffect(() => {
-    firstFieldRef.current?.focus()
-  }, [])
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -74,68 +71,57 @@ export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialo
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
         <form onSubmit={handleSubmit} noValidate>
-          <h2 id={titleId}>Editar vendedor</h2>
+          <DialogHeader>
+            <DialogTitle>Editar vendedor</DialogTitle>
+            <DialogDescription>Actualiza el nombre o el correo del vendedor.</DialogDescription>
+          </DialogHeader>
 
           {submitError && (
-            <p className="form-banner" role="alert">
+            <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
               {submitError}
             </p>
           )}
 
-          <div className="field">
-            <label htmlFor="edit-vendor-name">Nombre completo</label>
-            <input
-              id="edit-vendor-name"
-              ref={firstFieldRef}
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              aria-invalid={Boolean(errors.name)}
-              aria-describedby={errors.name ? 'edit-vendor-name-error' : undefined}
-            />
-            {errors.name && (
-              <span id="edit-vendor-name-error" className="field__error">
-                {errors.name}
-              </span>
-            )}
+          <div className="flex flex-col gap-4">
+            <Field data-invalid={Boolean(errors.name)}>
+              <FieldLabel htmlFor="edit-vendor-name">Nombre completo</FieldLabel>
+              <Input
+                id="edit-vendor-name"
+                type="text"
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                aria-invalid={Boolean(errors.name)}
+              />
+              {errors.name && <FieldError>{errors.name}</FieldError>}
+            </Field>
+
+            <Field data-invalid={Boolean(errors.email)}>
+              <FieldLabel htmlFor="edit-vendor-email">Correo electrónico</FieldLabel>
+              <Input
+                id="edit-vendor-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-invalid={Boolean(errors.email)}
+              />
+              {errors.email && <FieldError>{errors.email}</FieldError>}
+            </Field>
           </div>
 
-          <div className="field">
-            <label htmlFor="edit-vendor-email">Correo electrónico</label>
-            <input
-              id="edit-vendor-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? 'edit-vendor-email-error' : undefined}
-            />
-            {errors.email && (
-              <span id="edit-vendor-email-error" className="field__error">
-                {errors.email}
-              </span>
-            )}
-          </div>
-
-          <div className="modal__actions">
-            <button type="button" className="button button--ghost" onClick={onClose} disabled={submitting}>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancelar
-            </button>
-            <button type="submit" className="button button--primary" disabled={submitting}>
+            </Button>
+            <Button type="submit" disabled={submitting}>
               {submitting ? 'Guardando…' : 'Guardar cambios'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
