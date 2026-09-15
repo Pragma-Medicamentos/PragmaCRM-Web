@@ -1,6 +1,26 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Search } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
+import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Badge } from '../../components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu'
+import { cn } from '../../lib/utils'
 import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { useVendors } from './useVendors'
@@ -12,6 +32,13 @@ import type { Vendor } from './vendors.types'
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium' })
 
 type Notice = { kind: 'success' | 'error'; message: string }
+type StatusFilter = 'all' | 'active' | 'inactive'
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'active', label: 'Activos' },
+  { value: 'inactive', label: 'Deshabilitados' },
+]
 
 interface VendorsTableProps {
   vendors: Vendor[]
@@ -23,70 +50,62 @@ interface VendorsTableProps {
 
 function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }: VendorsTableProps) {
   if (vendors.length === 0) {
-    return <p className="vendors__hint">Todavía no hay vendedores registrados.</p>
+    return <p className="py-10 text-center text-sm text-muted-foreground">No hay vendedores que coincidan con el filtro.</p>
   }
 
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Correo</th>
-          <th>Estado</th>
-          <th>Fecha de alta</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nombre</TableHead>
+          <TableHead>Correo</TableHead>
+          <TableHead>Estado</TableHead>
+          <TableHead>Fecha de alta</TableHead>
+          <TableHead className="text-right">Acciones</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {vendors.map((vendor) => {
           const busy = busyIds.has(vendor.id)
           return (
-            <tr key={vendor.id}>
-              <td>{vendor.name}</td>
-              <td>{vendor.email ?? '—'}</td>
-              <td>
-                <span className={vendor.active ? 'badge badge--active' : 'badge badge--inactive'}>
-                  {vendor.active ? 'Activo' : 'Inactivo'}
-                </span>
-              </td>
-              <td>{dateFormatter.format(new Date(vendor.created_at))}</td>
-              <td>
-                <div className="table__actions">
-                  <button
-                    type="button"
-                    className="button button--ghost button--small"
-                    onClick={() => onEdit(vendor)}
-                    disabled={busy}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--ghost button--small"
-                    onClick={() => onToggleActive(vendor)}
-                    disabled={busy}
-                  >
-                    {vendor.active ? 'Deshabilitar' : 'Habilitar'}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--ghost button--small"
-                    onClick={() => onResendOtp(vendor)}
-                    disabled={busy}
-                  >
-                    Reenviar código
-                  </button>
-                </div>
-              </td>
-            </tr>
+            <TableRow key={vendor.id} className={cn(!vendor.active && 'opacity-55')}>
+              <TableCell className="font-medium text-foreground">{vendor.name}</TableCell>
+              <TableCell className="text-muted-foreground">{vendor.email ?? '—'}</TableCell>
+              <TableCell>
+                <Badge variant={vendor.active ? 'default' : 'outline'}>
+                  {vendor.active ? 'Activo' : 'Deshabilitado'}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{dateFormatter.format(new Date(vendor.created_at))}</TableCell>
+              <TableCell className="text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon-sm" disabled={busy} aria-label="Acciones">
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => onEdit(vendor)}>
+                      <Pencil /> Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onToggleActive(vendor)}>
+                      <Power /> {vendor.active ? 'Deshabilitar' : 'Habilitar'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onResendOtp(vendor)}>
+                      <KeyRound /> Reenviar código
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
           )
         })}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   )
 }
 
-/** RF-01 / HU-01: listado, alta, edición y habilitar/deshabilitar vendedores. */
+/** RF-01 / HU-01: listado, alta, edición y habilitar/deshabilitar vendedores (wireframe 1k). */
 export function VendorsPage() {
   const { state, reload } = useVendors()
   const [createOpen, setCreateOpen] = useState(false)
@@ -94,6 +113,24 @@ export function VendorsPage() {
   const [confirmingDisable, setConfirmingDisable] = useState<Vendor | null>(null)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
   const [notice, setNotice] = useState<Notice | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+
+  const vendors = state.status === 'ready' ? state.vendors : []
+  const activeCount = vendors.filter((v) => v.active).length
+  const inactiveCount = vendors.length - activeCount
+
+  const filteredVendors = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return vendors.filter((vendor) => {
+      if (statusFilter === 'active' && !vendor.active) return false
+      if (statusFilter === 'inactive' && vendor.active) return false
+      if (!query) return true
+      return (
+        vendor.name.toLowerCase().includes(query) || (vendor.email ?? '').toLowerCase().includes(query)
+      )
+    })
+  }, [vendors, search, statusFilter])
 
   async function withBusy(id: string, task: () => Promise<void>) {
     setBusyIds((prev) => new Set(prev).add(id))
@@ -154,36 +191,80 @@ export function VendorsPage() {
 
   return (
     <AppShell>
-      <div className="vendors">
-        <div className="vendors__header">
-          <h1>Vendedores</h1>
-          <button type="button" className="button button--primary" onClick={() => setCreateOpen(true)}>
-            Nuevo vendedor
-          </button>
+      <PageHeader
+        title="Vendedores"
+        subtitle={state.status === 'ready' ? `${activeCount} activos · ${inactiveCount} deshabilitados` : undefined}
+        actions={
+          <Button type="button" onClick={() => setCreateOpen(true)}>
+            <Plus /> Nuevo vendedor
+          </Button>
+        }
+      />
+
+      {notice && (
+        <p
+          role="status"
+          className={cn(
+            'mb-4 rounded-lg border p-3 text-sm',
+            notice.kind === 'error'
+              ? 'border-destructive/20 bg-destructive/10 text-destructive'
+              : 'border-primary/20 bg-primary/10 text-primary'
+          )}
+        >
+          {notice.message}
+        </p>
+      )}
+
+      {state.status === 'loading' && <p className="text-sm text-muted-foreground">Cargando vendedores…</p>}
+      {state.status === 'error' && (
+        <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+          {state.message}
+        </p>
+      )}
+
+      {state.status === 'ready' && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar por nombre o correo"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <div className="flex gap-1.5">
+              {STATUS_FILTERS.map((filter) => (
+                <Button
+                  key={filter.value}
+                  type="button"
+                  size="sm"
+                  variant={statusFilter === filter.value ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter(filter.value)}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-border bg-background">
+            <VendorsTable
+              vendors={filteredVendors}
+              busyIds={busyIds}
+              onEdit={setEditing}
+              onToggleActive={handleToggleActive}
+              onResendOtp={handleResendOtp}
+            />
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Deshabilitar corta el acceso del APK sin borrar el histórico de rutas del vendedor.
+          </p>
         </div>
-
-        {notice && (
-          <p className={notice.kind === 'error' ? 'vendors__error' : 'vendors__notice'} role="status">
-            {notice.message}
-          </p>
-        )}
-
-        {state.status === 'loading' && <p className="vendors__hint">Cargando vendedores…</p>}
-        {state.status === 'error' && (
-          <p className="vendors__error" role="alert">
-            {state.message}
-          </p>
-        )}
-        {state.status === 'ready' && (
-          <VendorsTable
-            vendors={state.vendors}
-            busyIds={busyIds}
-            onEdit={setEditing}
-            onToggleActive={handleToggleActive}
-            onResendOtp={handleResendOtp}
-          />
-        )}
-      </div>
+      )}
 
       {createOpen && (
         <CreateVendorDialog

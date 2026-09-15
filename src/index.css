@@ -292,51 +292,6 @@ button {
   color: var(--color-primary);
 }
 
-.button--small {
-  padding: 6px 10px;
-  font-size: 13px;
-}
-
-/* ---------- Vendedores (RF-01 / HU-01) ---------- */
-
-.vendors__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.vendors__header h1 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.vendors__hint {
-  color: var(--color-ink-soft);
-}
-
-.vendors__error {
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
-  margin-bottom: 16px;
-}
-
-.vendors__notice {
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: #e5f3e5;
-  color: var(--color-primary-hover);
-  margin-bottom: 16px;
-}
-
-.table__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -382,46 +337,12 @@ button {
   color: var(--color-danger-text);
 }
 
-/* ---------- Modal (alta de vendedor) ---------- */
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(27, 36, 48, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 10;
-}
-
-.modal {
-  width: 100%;
-  max-width: 420px;
-  background: #fff;
-  border-radius: 10px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.modal h2 {
-  margin: 0;
-  font-size: 18px;
-}
+/* ---------- Login (mensajes de formulario) ---------- */
 
 .modal__hint {
   margin: 0;
   color: var(--color-ink-soft);
   font-size: 14px;
-}
-
-.modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
 }
 
 .form-banner {
@@ -455,75 +376,6 @@ button {
 
 .field input[aria-invalid='true'] {
   border-color: var(--color-danger-text);
-}
-
-.field__row {
-  display: flex;
-  gap: 8px;
-}
-
-.field__row input {
-  flex: 1;
-  min-width: 0;
-}
-
-.field__error {
-  font-size: 12px;
-  color: var(--color-danger-text);
-}
-
-.credentials {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--color-bg);
-}
-
-.credentials dt {
-  font-size: 12px;
-  color: var(--color-ink-soft);
-  margin-top: 8px;
-}
-
-.credentials dt:first-child {
-  margin-top: 0;
-}
-
-.credentials dd {
-  margin: 2px 0 0;
-  font-size: 14px;
-}
-
-.credentials__password {
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-/* ---------- Clientes (RF-02) ---------- */
-
-.customers__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.customers__header h1 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.customers__hint {
-  color: var(--color-ink-soft);
-}
-
-.customers__error {
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
-  margin-bottom: 16px;
 }
 
 /* ---------- Perfil de cliente (RF-02) ---------- */
@@ -642,17 +494,11 @@ button {
    ganan igual —este archivo está fuera de @layer y eso vence a cualquier capa—,
    así que aquí solo se repone lo que antes venía del navegador. */
 
-.vendors__hint,
-.customers__hint,
 .session-gate p,
-.placeholder p,
 .customer-profile__section p {
   margin: 1em 0;
 }
 
-.vendors__error,
-.vendors__notice,
-.customers__error,
 .customer-profile__error {
   margin-top: 1em;
 }
@@ -661,18 +507,11 @@ button {
   list-style: disc;
 }
 
-.vendors__header h1,
-.customers__header h1,
 .customer-profile__header h1,
-.modal h2,
 .customer-profile__section h2 {
   font-weight: bold;
 }
 
 .field input {
   background-color: #fff;
-}
-
-.app-shell__user button {
-  font-size: 14px;
 }
