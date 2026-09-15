@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Download, Info, RotateCcw, TriangleAlert } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, Download, FileUp, Info, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import {
   AlertDialog,
@@ -19,6 +19,7 @@ import { ImportStepper } from './ImportStepper'
 import { SalesFileDropzone } from './SalesFileDropzone'
 import { UploadSummaryCard } from './UploadSummaryCard'
 import { downloadRejectionsCsv } from './rejectionsCsv'
+import { useHasContentBelow } from './useHasContentBelow'
 import { useLastUpload } from './useLastUpload'
 import { useSalesUpload } from './useSalesUpload'
 
@@ -48,15 +49,16 @@ const lastUploadFormatter = new Intl.DateTimeFormat('es-SV', {
 export function ImportPage() {
   const {
     state,
-    canStopWaiting,
     selectFile,
     requestConfirm,
     cancelConfirm,
     confirmUpload,
     retry,
-    stopWaiting,
     reset,
   } = useSalesUpload()
+
+  const contentRef = useRef<HTMLDivElement>(null)
+  const hasContentBelow = useHasContentBelow(contentRef)
 
   // Se vuelve a pedir la última carga cuando una importación termina bien.
   const [lastUploadKey, setLastUploadKey] = useState(0)
@@ -76,9 +78,13 @@ export function ImportPage() {
     setConfirmMessage(
       state.deep
         ? `Se importarán ${numberFormatter.format(state.salesCount)} ${state.salesCount === 1 ? 'venta' : 'ventas'} del archivo ${state.file.name}. Las ventas que ya existan se actualizarán, no se duplican.`
-        : `Se enviará el archivo ${state.file.name} al servidor para su validación e importación. Las ventas que ya existan se actualizarán, no se duplican.`
+        : `Se enviará el archivo ${state.file.name} al servidor para su validación e importación. Las ventas que ya existan se actualizarán, no se duplican.`,
     )
   }, [state])
+
+  function scrollDown() {
+    window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' })
+  }
 
   // Sin esto, soltar el JSON un poco fuera de la zona hace que el navegador
   // abra el archivo y el admin pierda la pantalla.
@@ -96,18 +102,27 @@ export function ImportPage() {
   const hasRejections =
     summary !== null && (summary.rejected > 0 || summary.rejections_truncated > 0)
 
-  // Sin esto la fila quedaría vacía en 'idle' y 'validating', dejando un hueco
-  // suelto bajo la zona de arrastre.
-  const hasActions =
+  // Descartar el archivo no debería depender de encontrar la X de la tarjeta:
+  // se ofrece un botón explícito junto a la acción principal. Con un archivo
+  // rechazado en la validación local, la salida es elegir otro.
+  const canCancel =
+    state.status === 'invalid' ||
     state.status === 'ready' ||
     state.status === 'confirming' ||
-    state.status === 'success' ||
-    (state.status === 'uploading' && canStopWaiting) ||
-    (state.status === 'error' && state.failure.retryable)
+    state.status === 'error'
+
+  // Cuando el archivo ya no sirve, la única salida es cambiarlo; en el resto de
+  // los casos todavía se puede importar, así que el botón sólo cancela.
+  const mustPickAnother =
+    state.status === 'invalid' || (state.status === 'error' && !state.failure.retryable)
+
+  // Sin esto la fila quedaría vacía en los estados sin acciones —'idle',
+  // 'validating', 'uploading'— dejando un hueco suelto bajo el contenido.
+  const hasActions = canCancel || hasRejections
 
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+      <div ref={contentRef} className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="m-0 text-2xl font-bold">Carga manual de historial</h1>
@@ -116,12 +131,26 @@ export function ImportPage() {
             </p>
           </div>
 
-          {/* Ausente mientras el endpoint no exista: la nota es opcional. */}
-          {lastUpload && (
-            <p className="font-mono text-xs text-muted-foreground">
-              Última carga: {lastUploadFormatter.format(new Date(lastUpload.created_at))}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Ausente mientras el endpoint no exista: la nota es opcional. */}
+            {lastUpload && (
+              <p className="font-mono text-xs text-muted-foreground">
+                Última carga: {lastUploadFormatter.format(new Date(lastUpload.created_at))}
+              </p>
+            )}
+
+            {/* Empezar de nuevo es una acción de la pantalla, no del informe:
+                dentro de la tarjeta quedaba subordinada al resultado y al pie
+                quedaba enterrada. En el encabezado está donde se busca un
+                "nuevo…" en cualquier panel, y es justo donde está la vista
+                cuando termina la importación. */}
+            {summary && (
+              <Button type="button" onClick={reset}>
+                <FileUp data-icon="inline-start" />
+                Nueva importación
+              </Button>
+            )}
+          </div>
         </header>
 
         <ImportStepper status={state.status} />
@@ -138,7 +167,7 @@ export function ImportPage() {
                 <AlertTitle>{state.reason}</AlertTitle>
                 {state.detail && (
                   <AlertDescription>
-                    <span className="font-mono text-xs">{state.detail}</span>
+                    <span className="font-mono text-xs break-words">{state.detail}</span>
                   </AlertDescription>
                 )}
               </Alert>
@@ -161,7 +190,7 @@ export function ImportPage() {
                 <AlertTitle>{state.failure.message}</AlertTitle>
                 {state.failure.detail && (
                   <AlertDescription>
-                    <span className="font-mono text-xs">{state.failure.detail}</span>
+                    <span className="font-mono text-xs break-words">{state.failure.detail}</span>
                   </AlertDescription>
                 )}
               </Alert>
@@ -174,60 +203,89 @@ export function ImportPage() {
                 <AlertDescription className="flex flex-col gap-2">
                   {/* Indeterminado a propósito: el backend no informa avance,
                       así que una barra con porcentaje sería inventada. */}
-                  <Progress value={null} className="mt-1" />
+                  <Progress value={null} className="mt-1 h-2" />
                   <span>Puede tardar varios minutos. No cierres esta pestaña.</span>
-                  {canStopWaiting && (
-                    <span className="text-xs text-muted-foreground">
-                      La importación puede haberse aplicado de todos modos. Volver a cargar el mismo
-                      archivo es seguro: el sistema actualiza en lugar de duplicar.
-                    </span>
-                  )}
                 </AlertDescription>
               </Alert>
             )}
           </>
         )}
 
-        {/* Fila de acciones única al pie, como en el wireframe. */}
-        {hasActions && (
-          <div className="flex flex-wrap justify-end gap-2">
+        {/* Fila de acciones única al pie, como en el wireframe, anclada al
+            borde inferior de la ventana.
+
+            El resultado de una importación no suele caber en el alto de la
+            pantalla y los botones quedaban debajo del pliegue, sin nada que
+            avisara de que el contenido seguía. Anclada, el borde superior y el
+            degradado delatan el corte y las acciones quedan siempre a mano.
+
+            El degradado mide exactamente el hueco que deja el 'gap-4' del
+            contenedor: cuando no hay scroll pendiente cae sobre el fondo de la
+            página y no se ve; cuando la tarjeta pasa por debajo, la difumina. */}
+        {(hasActions || hasContentBelow) && (
+          <div
+            className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 border-t bg-[var(--color-bg)] py-3
+              before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-4
+              before:bg-linear-to-t before:from-[var(--color-bg)] before:to-transparent"
+          >
+            {/* El degradado por sí solo no alcanza para que se entienda que hay
+                más abajo, así que se dice. Desaparece al llegar al final, de
+                modo que su sola presencia ya es la señal. */}
+            {hasContentBelow && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                className="mr-auto"
+                onClick={scrollDown}
+              >
+                <ChevronDown data-icon="inline-start" />
+                Hay más abajo
+              </Button>
+            )}
+
+            {canCancel &&
+              (mustPickAnother ? (
+                // Vuelve al paso 1, no abre el selector: con un archivo
+                // adjunto la zona de arrastre no está montada, así que forzar
+                // el diálogo dejaba el picker como única vía de entrada.
+                <Button type="button" size="lg" variant="destructive" onClick={reset}>
+                  <FileUp data-icon="inline-start" />
+                  Elegir otro archivo
+                </Button>
+              ) : (
+                // Salir del camino feliz no es un error: sin color.
+                <Button type="button" size="lg" variant="outline" onClick={reset}>
+                  <X data-icon="inline-start" />
+                  Cancelar
+                </Button>
+              ))}
+
             {(state.status === 'ready' || state.status === 'confirming') && (
-              <Button type="button" onClick={requestConfirm}>
+              <Button type="button" size="lg" onClick={requestConfirm}>
                 {state.deep
                   ? `Importar ${numberFormatter.format(state.salesCount)} ${state.salesCount === 1 ? 'venta' : 'ventas'} al CRM`
                   : 'Importar al CRM'}
               </Button>
             )}
 
-            {state.status === 'uploading' && canStopWaiting && (
-              <Button type="button" variant="outline" onClick={stopWaiting}>
-                Dejar de esperar
-              </Button>
-            )}
-
             {state.status === 'error' && state.failure.retryable && (
-              <Button type="button" onClick={retry}>
+              <Button type="button" size="lg" variant="destructive" onClick={retry}>
                 <RotateCcw data-icon="inline-start" />
                 Reintentar
               </Button>
             )}
 
-            {summary && (
-              <>
-                {hasRejections && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => downloadRejectionsCsv(summary)}
-                  >
-                    <Download data-icon="inline-start" />
-                    Descargar reporte
-                  </Button>
-                )}
-                <Button type="button" onClick={reset}>
-                  Importar otro archivo
-                </Button>
-              </>
+            {summary && hasRejections && (
+              <Button
+                type="button"
+                size="lg"
+                variant="secondary"
+                onClick={() => downloadRejectionsCsv(summary)}
+              >
+                <Download data-icon="inline-start" />
+                Descargar reporte
+              </Button>
             )}
           </div>
         )}

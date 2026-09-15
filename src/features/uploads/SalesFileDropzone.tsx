@@ -10,7 +10,14 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from '@/components/ui/attachment'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import { MAX_UPLOAD_MB, formatBytes } from './validateSalesFile'
@@ -79,25 +86,23 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
     return (
       <Attachment state={attachmentState(state.status)} className="w-full">
         <AttachmentMedia>
-          {state.status === 'validating' || state.status === 'uploading' ? (
-            <Spinner />
-          ) : (
-            <FileJson />
-          )}
+          {busy ? <Spinner /> : <FileJson />}
         </AttachmentMedia>
         <AttachmentContent>
           <AttachmentTitle>{file.name}</AttachmentTitle>
           <AttachmentDescription>{describeFile(state, file)}</AttachmentDescription>
         </AttachmentContent>
-        <AttachmentActions>
-          <AttachmentAction
-            aria-label={`Quitar ${file.name}`}
-            disabled={busy}
-            onClick={onClear}
-          >
-            <X />
-          </AttachmentAction>
-        </AttachmentActions>
+
+        {/* Mientras se valida o se sube no hay nada que quitar. Antes el botón
+            seguía ahí, solo que deshabilitado: invitaba a una acción imposible,
+            que es peor que no ofrecerla. */}
+        {!busy && (
+          <AttachmentActions>
+            <AttachmentAction aria-label={`Quitar ${file.name}`} onClick={onClear}>
+              <X />
+            </AttachmentAction>
+          </AttachmentActions>
+        )}
       </Attachment>
     )
   }
@@ -124,18 +129,18 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
         dragging ? 'border-primary bg-primary/5' : 'border-border bg-card'
       )}
     >
-      <Empty className="py-14">
+      <Empty className="py-16">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <CloudUpload />
           </EmptyMedia>
-          <EmptyTitle>Arrastra aquí el archivo de ventas</EmptyTitle>
+          <EmptyTitle className="text-lg">Arrastra aquí el archivo de ventas</EmptyTitle>
           <EmptyDescription>
             Formato .json exportado de Efactsoft · máximo {MAX_UPLOAD_MB} MB
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button type="button" onClick={openPicker}>
+          <Button type="button" size="lg" onClick={openPicker}>
             Seleccionar archivo
           </Button>
         </EmptyContent>

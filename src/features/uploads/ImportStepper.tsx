@@ -48,7 +48,10 @@ export function ImportStepper({ status }: { status: SalesUploadState['status'] }
             key={label}
             aria-current={active ? 'step' : undefined}
             className={cn(
-              'flex flex-1 items-center gap-2 border px-3 py-2.5 text-sm transition-colors',
+              // min-w-0 es lo que permite al <li> bajar de su ancho de
+              // contenido; sin eso el truncate de la etiqueta no llega a
+              // aplicarse y las tres cajas desbordan la pantalla.
+              'flex min-w-0 flex-1 items-center gap-2 border px-3 py-2.5 text-base transition-colors',
               // Bordes colapsados para que las tres cajas se lean como una
               // sola pieza, igual que en el wireframe.
               i > 0 && '-ml-px',
@@ -70,7 +73,7 @@ export function ImportStepper({ status }: { status: SalesUploadState['status'] }
             >
               {done ? <Check className="size-3" aria-hidden /> : step}
             </span>
-            <span className="truncate">{label}</span>
+            <span className="min-w-0 truncate">{label}</span>
           </li>
         )
       })}

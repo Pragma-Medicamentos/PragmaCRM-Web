@@ -62,19 +62,44 @@ function isConsistent(summary: SalesUploadSummary): boolean {
   )
 }
 
-/** Tarjeta `.kpi` del wireframe: número grande arriba, etiqueta debajo. */
-function Stat({ label, value, tone }: { label: string; value: number; tone?: 'destructive' }) {
+/**
+ * Tarjeta `.kpi` del wireframe: número grande arriba, etiqueta debajo.
+ *
+ * El wireframe da los cinco KPI con el mismo peso, pero no lo tienen: aceptadas
+ * y rechazadas son el resultado que el admin vino a ver, y las otras tres
+ * explican cómo se compone. Se maquetan en dos niveles para que el resultado se
+ * lea de un vistazo.
+ */
+function Stat({
+  label,
+  value,
+  level,
+  tone,
+}: {
+  label: string
+  value: number
+  level: 'primary' | 'secondary'
+  tone?: 'destructive'
+}) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
+    <div
+      className={cn(
+        // min-w-0: una celda de rejilla tampoco baja de su ancho de contenido
+        // por defecto, y con etiquetas largas eso desborda la tarjeta.
+        'flex min-w-0 flex-col gap-1 rounded-lg border',
+        level === 'primary' ? 'px-4 py-4' : 'px-3 py-3'
+      )}
+    >
       <div
         className={cn(
-          'text-2xl font-bold tabular-nums leading-none',
+          'font-bold tabular-nums leading-none',
+          level === 'primary' ? 'text-3xl' : 'text-2xl',
           tone === 'destructive' ? 'text-destructive' : 'text-primary'
         )}
       >
         {numberFormatter.format(value)}
       </div>
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-sm text-muted-foreground">{label}</div>
     </div>
   )
 }
@@ -114,16 +139,22 @@ export function UploadSummaryCard({ summary }: { summary: SalesUploadSummary }) 
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          <Stat label="Ventas en el archivo" value={summary.sales_received} />
-          <Stat label="Aceptadas" value={summary.accepted} />
-          <Stat
-            label="Rechazadas"
-            value={summary.rejected}
-            tone={summary.rejected > 0 ? 'destructive' : undefined}
-          />
-          <Stat label="Nuevas en el CRM" value={summary.inserted} />
-          <Stat label="Actualizadas" value={summary.updated} />
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Stat label="Aceptadas" value={summary.accepted} level="primary" />
+            <Stat
+              label="Rechazadas"
+              value={summary.rejected}
+              level="primary"
+              tone={summary.rejected > 0 ? 'destructive' : undefined}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Stat label="Ventas en el archivo" value={summary.sales_received} level="secondary" />
+            <Stat label="Nuevas en el CRM" value={summary.inserted} level="secondary" />
+            <Stat label="Actualizadas" value={summary.updated} level="secondary" />
+          </div>
         </div>
 
         {/* Los fallos siguen como alertas propias: son excepcionales y no
@@ -179,7 +210,8 @@ export function UploadSummaryCard({ summary }: { summary: SalesUploadSummary }) 
         <Separator />
 
         <p className="text-xs text-muted-foreground">
-          Identificador de carga: <span className="font-mono">{summary.upload_id}</span>
+          Identificador de carga:{' '}
+          <span className="font-mono break-all">{summary.upload_id}</span>
         </p>
       </CardContent>
     </Card>

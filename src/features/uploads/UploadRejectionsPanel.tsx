@@ -39,11 +39,11 @@ export function UploadRejectionsPanel({ summary }: { summary: SalesUploadSummary
   return (
     <div className="rounded-lg border">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-        <h3 className="text-sm font-semibold">Registros rechazados</h3>
+        <h3 className="text-base font-semibold">Registros rechazados</h3>
 
         {/* "Descargar reporte" no se repite aquí: vive en la fila de acciones
             del pie de la pantalla, como en el wireframe. */}
-        <Button type="button" variant="outline" size="sm" onClick={copyDetail}>
+        <Button type="button" variant="outline" onClick={copyDetail}>
           {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
           {copied ? 'Copiado' : 'Copiar detalle'}
         </Button>
@@ -65,7 +65,7 @@ export function UploadRejectionsPanel({ summary }: { summary: SalesUploadSummary
                 <TableCell className="tabular-nums">{rejection.erp_sale_id ?? '—'}</TableCell>
                 {/* Sin traducir: es la salida del esquema de zod del backend
                     y el equipo del ERP la busca tal cual en los logs. */}
-                <TableCell className="font-mono text-xs">{rejection.reason}</TableCell>
+                <TableCell className="font-mono">{rejection.reason}</TableCell>
               </TableRow>
             ))}
           </TableBody>
