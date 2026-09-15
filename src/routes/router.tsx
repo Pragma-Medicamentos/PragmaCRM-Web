@@ -5,6 +5,7 @@ import { DashboardPlaceholder } from '../pages/DashboardPlaceholder'
 import { VendorsPage } from '../features/vendors/VendorsPage'
 import { CustomersPage } from '../features/customers/CustomersPage'
 import { CustomerProfilePage } from '../features/customers/CustomerProfilePage'
+import { ImportPage } from '../features/uploads/ImportPage'
 
 export function AppRouter() {
   return (
@@ -40,6 +41,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <CustomerProfilePage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/importar"
+          element={
+            <AdminRoute>
+              <ImportPage />
             </AdminRoute>
           }
         />

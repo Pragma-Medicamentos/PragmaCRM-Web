@@ -168,6 +168,94 @@ button {
   }
 }
 
+/* ---------- App shell (topbar + nav) ---------- */
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell__topbar {
+  display: flex;
+  /* Sin wrap, la fila no puede encogerse por debajo de su contenido y el
+     documento entero se desborda en horizontal: en un portátil "Cerrar sesión"
+     quedaba cortado contra el borde. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 32px;
+  padding: 16px clamp(16px, 2vw, 24px);
+  border-bottom: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.app-shell__brand {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.app-shell__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  /* Un hijo flex no baja de su ancho de contenido salvo que se le permita. */
+  min-width: 0;
+}
+
+.app-shell__nav-link {
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-shell__nav-link:hover {
+  color: var(--color-ink);
+}
+
+.app-shell__nav-link--active {
+  color: var(--color-primary);
+  background: var(--color-bg);
+  font-weight: 600;
+}
+
+.app-shell__user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.app-shell__user button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.app-shell__user button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.app-shell__body {
+  flex: 1;
+  padding: clamp(16px, 2.5vw, 32px);
+}
+
+.placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+
 /* ---------- Buttons ---------- */
 
 .button {

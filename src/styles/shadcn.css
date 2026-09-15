@@ -9,6 +9,39 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    /* --- Escala de la pantalla de importación -------------------------------
+       El preset `radix-nova` es muy compacto (botones de 32px, texto de 14px y
+       secundario de 12px) y `/importar` la mira un administrador durante horas.
+       Las utilidades de Tailwind v4 resuelven estas variables en tiempo de
+       ejecución (`height: calc(var(--spacing) * 8)`), así que subirlas aquí
+       reescala hasta los internos de Card/Table/Alert/Attachment/Empty, a los
+       que no se llega con `className`.
+
+       Alcance: `features/uploads/` es lo único del repo que consume
+       `@/components/ui`. El resto de las pantallas (vendedores, clientes,
+       login, AppShell, ConfirmDialog) usa el CSS BEM de index.css con px
+       fijos, así que no las toca. Si algún día se migra otra pantalla a
+       shadcn, heredará esta escala — que es lo deseado. */
+
+    /* Densidad, +25%: h-8 = 40px, size-4 = 20px, gap-4 = 20px, h-10 = 50px. */
+    --spacing: 0.3125rem;
+
+    /* Tipografía que los primitivos traen fija. Fluida con clamp(): conserva
+       el tamaño original hasta 1280px de ancho —en un portátil el espacio es
+       el recurso escaso— y llega al nuevo a partir de 1680px, interpolando en
+       medio. Sin esto, la escala pensada para un monitor grande aplasta una
+       pantalla de 1366.
+
+       El interlineado pasa a número sin unidad para que acompañe al tamaño en
+       vez de quedarse fijo. Las medidas mayores no se tocan: donde se controla
+       el marcado se sube la clase, que se lee mejor que correr toda la escala. */
+    --text-xs: clamp(0.75rem, 0.35rem + 0.5vw, 0.875rem); /* 12 → 14 */
+    --text-xs--line-height: 1.45;
+    --text-sm: clamp(0.875rem, 0.475rem + 0.5vw, 1rem); /* 14 → 16 */
+    --text-sm--line-height: 1.5;
+    --text-base: clamp(1rem, 0.6rem + 0.5vw, 1.125rem); /* 16 → 18, lo usa CardTitle */
+    --text-base--line-height: 1.5;
+
     --font-heading: var(--font-sans);
     --font-sans: 'Poppins', system-ui, -apple-system, sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -119,6 +152,34 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* <Progress> sin `value` (indeterminado). El componente fija un transform en
+   línea que, sin valor, deja la barra en -100% y por lo tanto invisible; una
+   animación gana a los estilos en línea, así que basta con esto. Se usa en la
+   importación de ventas, donde el backend no informa avance. */
+@keyframes progress-indeterminate {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(250%);
+    }
+}
+
+[data-slot='progress-indicator'][data-state='indeterminate'] {
+    width: 40%;
+    flex: none;
+    animation: progress-indeterminate 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-slot='progress-indicator'][data-state='indeterminate'] {
+        width: 100%;
+        animation: none;
+        transform: translateX(0);
+        opacity: 0.5;
+    }
 }
 
 @layer base {
