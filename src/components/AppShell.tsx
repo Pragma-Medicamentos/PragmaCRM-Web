@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, LogOut, Menu, UserCog, Users, X } from 'lucide-react'
+import { FileUp, LayoutDashboard, LogOut, Menu, UserCog, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { Button } from './ui/button'
@@ -23,7 +23,13 @@ interface NavGroup {
 // reducida a los módulos que ya existen en este repo.
 const NAV_GROUPS: NavGroup[] = [
   { label: 'Operación', items: [{ to: '/', label: 'Resumen', icon: LayoutDashboard, end: true }] },
-  { label: 'Comercial', items: [{ to: '/clientes', label: 'Clientes', icon: Users }] },
+  {
+    label: 'Comercial',
+    items: [
+      { to: '/clientes', label: 'Clientes', icon: Users },
+      { to: '/importar', label: 'Importar datos', icon: FileUp },
+    ],
+  },
   { label: 'Administración', items: [{ to: '/vendedores', label: 'Vendedores', icon: UserCog }] },
 ]
 
@@ -69,26 +75,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="app-shell">
-      <header className="app-shell__topbar">
-        <span className="app-shell__brand">Pragma CRM</span>
-        <nav className="app-shell__nav">
-          <NavLink to="/" end className={navLinkClass}>
-            Dashboard
-          </NavLink>
-          <NavLink to="/vendedores" className={navLinkClass}>
-            Vendedores
-          </NavLink>
-          <NavLink to="/clientes" className={navLinkClass}>
-            Clientes
-          </NavLink>
-          <NavLink to="/importar" className={navLinkClass}>
-            Importar datos
-          </NavLink>
-        </nav>
-        <div className="app-shell__user">
-          <span>{name}</span>
-          <button type="button" onClick={() => supabase.auth.signOut()}>
     <div className="flex h-dvh flex-col bg-muted/30">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 lg:px-6">
         <Button
