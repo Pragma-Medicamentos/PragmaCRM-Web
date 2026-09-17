@@ -178,9 +178,13 @@ button {
 
 .app-shell__topbar {
   display: flex;
+  /* Sin wrap, la fila no puede encogerse por debajo de su contenido y el
+     documento entero se desborda en horizontal: en un portátil "Cerrar sesión"
+     quedaba cortado contra el borde. */
+  flex-wrap: wrap;
   align-items: center;
-  gap: 32px;
-  padding: 16px 24px;
+  gap: 12px 32px;
+  padding: 16px clamp(16px, 2vw, 24px);
   border-bottom: 1px solid var(--color-border);
   background: #fff;
 }
@@ -192,8 +196,11 @@ button {
 
 .app-shell__nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   flex: 1;
+  /* Un hijo flex no baja de su ancho de contenido salvo que se le permita. */
+  min-width: 0;
 }
 
 .app-shell__nav-link {
@@ -237,7 +244,7 @@ button {
 
 .app-shell__body {
   flex: 1;
-  padding: 32px;
+  padding: clamp(16px, 2.5vw, 32px);
 }
 
 .placeholder {
@@ -285,31 +292,6 @@ button {
   color: var(--color-primary);
 }
 
-/* ---------- Vendedores (RF-01 / HU-01) ---------- */
-
-.vendors__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.vendors__header h1 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.vendors__hint {
-  color: var(--color-ink-soft);
-}
-
-.vendors__error {
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -355,46 +337,12 @@ button {
   color: var(--color-danger-text);
 }
 
-/* ---------- Modal (alta de vendedor) ---------- */
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(27, 36, 48, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 10;
-}
-
-.modal {
-  width: 100%;
-  max-width: 420px;
-  background: #fff;
-  border-radius: 10px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.modal h2 {
-  margin: 0;
-  font-size: 18px;
-}
+/* ---------- Login (mensajes de formulario) ---------- */
 
 .modal__hint {
   margin: 0;
   color: var(--color-ink-soft);
   font-size: 14px;
-}
-
-.modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
 }
 
 .form-banner {
@@ -430,45 +378,140 @@ button {
   border-color: var(--color-danger-text);
 }
 
-.field__row {
+/* ---------- Perfil de cliente (RF-02) ---------- */
+
+.customer-profile {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 860px;
 }
 
-.field__row input {
-  flex: 1;
-  min-width: 0;
+.customer-profile__back {
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+  align-self: flex-start;
 }
 
-.field__error {
-  font-size: 12px;
+.customer-profile__back:hover {
+  color: var(--color-primary);
+}
+
+.customer-profile__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.customer-profile__header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.customer-profile__hint {
+  color: var(--color-ink-soft);
+  margin: 4px 0 0;
+}
+
+.customer-profile__error {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
   color: var(--color-danger-text);
 }
 
-.credentials {
-  margin: 0;
-  padding: 12px 14px;
+.customer-profile__section {
+  background: #fff;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--color-bg);
+  padding: 20px;
 }
 
-.credentials dt {
+.customer-profile__section h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+.customer-profile__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.customer-profile__grid dt {
   font-size: 12px;
   color: var(--color-ink-soft);
-  margin-top: 8px;
+  margin: 0;
 }
 
-.credentials dt:first-child {
-  margin-top: 0;
-}
-
-.credentials dd {
+.customer-profile__grid dd {
   margin: 2px 0 0;
   font-size: 14px;
 }
 
-.credentials__password {
-  font-family: 'Courier New', monospace;
+@media (max-width: 640px) {
+  .customer-profile__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Vista pendiente de backend ---------- */
+
+.pending-backend {
+  padding: 16px 18px;
+  border-radius: 8px;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  color: var(--color-ink-soft);
+}
+
+.pending-backend__title {
+  margin: 0 0 4px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  color: var(--color-ink);
+}
+
+.pending-backend__hint {
+  margin: 0 0 4px;
+}
+
+.pending-backend__list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.pending-backend__list code {
+  font-family: 'Courier New', monospace;
+}
+
+/* ---------- Defaults del navegador que este CSS asume ---------- */
+
+/* Preflight (el reset de Tailwind, que entra con shadcn/ui) quita los estilos
+   por defecto del navegador. Las reglas de arriba que sí declaran la propiedad
+   ganan igual —este archivo está fuera de @layer y eso vence a cualquier capa—,
+   así que aquí solo se repone lo que antes venía del navegador. */
+
+.session-gate p,
+.customer-profile__section p {
+  margin: 1em 0;
+}
+
+.customer-profile__error {
+  margin-top: 1em;
+}
+
+.pending-backend__list {
+  list-style: disc;
+}
+
+.customer-profile__header h1,
+.customer-profile__section h2 {
+  font-weight: bold;
+}
+
+.field input {
+  background-color: #fff;
 }

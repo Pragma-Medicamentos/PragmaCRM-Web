@@ -11,6 +11,26 @@ Contexto de autenticación completo (decisión vigente, contrato con la API, got
 - React Router
 - El resto de la autorización se resuelve contra `PragmaCRM-Api` (`GET /api/v1/me`, `/api/v1/sellers`). Este repo solo usa Supabase para Auth — no consulta tablas del dominio directamente.
 
+## Componentes de UI (shadcn/ui)
+
+El proyecto tiene instalado **Tailwind CSS v4 + shadcn/ui** (preset `radix-nova`, primitivas de Radix). Ninguna pantalla existente está migrada: la UI actual sigue con el CSS de `src/index.css`.
+
+```bash
+npx shadcn@latest add @shadcn/<componente>   # p. ej. @shadcn/checkbox
+```
+
+- Los componentes se generan en `src/components/ui/` y se importan con el alias `@/` (`import { Button } from '@/components/ui/button'`).
+- Los tokens viven en `src/styles/shadcn.css`, aparte de `index.css` para no mezclar el CSS de las pantallas actuales con el de la librería. `--primary` y `--ring` ya apuntan al verde de la marca y `--radius` a los 6px de `.button`.
+- El helper de clases es `cn()` (`src/lib/utils.ts`), reexportado del paquete `cn` de shadcn.
+
+Tres cosas que conviene saber antes de tocar estilos:
+
+1. **No reutilizar las clases BEM existentes** (`.button`, `.modal`, `.table`, `.field`…) en pantallas nuevas. `index.css` está fuera de `@layer`, y eso vence a cualquier utilidad de Tailwind sin importar la especificidad: un `<div className="modal p-4">` ignoraría el `p-4`.
+2. **El reset de Tailwind (Preflight) está activo.** Al final de `index.css` hay un bloque que repone los defaults del navegador de los que dependía la UI anterior (viñetas, márgenes de `<p>`, negrita de títulos…). Si se migra una pantalla a shadcn, su regla correspondiente en ese bloque se puede borrar.
+3. **React 18:** los componentes del registry actual ya no usan `forwardRef` (asumen React 19), así que un `ref` pasado desde fuera no llega al DOM. Solo importa si se integra una librería de formularios que necesite el `ref` del input; en ese caso hay que envolver el componente en `React.forwardRef` a mano.
+
+El tema oscuro (`.dark` en `src/styles/shadcn.css`) viene del preset pero está inerte: nadie aplica esa clase.
+
 ## Instalación
 
 ```bash
@@ -33,9 +53,12 @@ npm run dev
 src/
 ├── main.tsx                          # valida env vars, monta App
 ├── App.tsx
+├── styles/shadcn.css                 # Tailwind v4 + tokens de shadcn/ui
 ├── lib/
+│   ├── utils.ts                      # cn() para componer clases
 │   ├── supabase/client.ts            # cliente único de supabase-js (solo Auth)
 │   └── api/apiClient.ts              # fetch a la API con Bearer token, distingue 401/403
+├── components/ui/                    # componentes de shadcn/ui (generados por el CLI)
 ├── features/auth/
 │   ├── auth.types.ts
 │   ├── useCurrentAppUser.ts          # resuelve role/name vía GET /api/v1/me

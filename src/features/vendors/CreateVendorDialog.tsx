@@ -1,8 +1,19 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { createVendor } from './vendorsApi'
 import type { Vendor } from './vendors.types'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Field, FieldError, FieldLabel } from '../../components/ui/field'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -25,10 +36,11 @@ interface CreateVendorDialogProps {
 }
 
 /**
- * Modal de alta de vendedor (HU-01 / CA1). La cuenta nace sin contraseña:
- * la API crea el usuario en Supabase Auth y envía un código OTP al correo
- * para que el vendedor la fije desde la app (ver create-seller.use-case.ts
- * en PragmaCRM-Api). Este dashboard no pide ni muestra contraseñas.
+ * Modal de alta de vendedor (HU-01 / CA1, wireframe 1l). La cuenta nace sin
+ * contraseña: la API crea el usuario en Supabase Auth y envía un código OTP
+ * al correo para que el vendedor la fije desde la app (ver
+ * create-seller.use-case.ts en PragmaCRM-Api). Este dashboard no pide ni
+ * muestra contraseñas.
  */
 export function CreateVendorDialog({ onClose, onCreated }: CreateVendorDialogProps) {
   const [name, setName] = useState('')
@@ -37,20 +49,6 @@ export function CreateVendorDialog({ onClose, onCreated }: CreateVendorDialogPro
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [created, setCreated] = useState<Vendor | null>(null)
-  const firstFieldRef = useRef<HTMLInputElement>(null)
-  const titleId = useId()
-
-  useEffect(() => {
-    firstFieldRef.current?.focus()
-  }, [])
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -77,85 +75,75 @@ export function CreateVendorDialog({ onClose, onCreated }: CreateVendorDialogPro
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
         {created ? (
           <>
-            <h2 id={titleId}>Vendedor creado</h2>
-            <p className="modal__hint">
-              Se envió un código de acceso al correo de <strong>{created.name}</strong> (
-              {created.email}). El vendedor debe usarlo desde la app para verificar su cuenta y fijar
-              su contraseña. Expira en 10 minutos — si no llega a tiempo, se puede reenviar desde el
-              listado.
-            </p>
-            <div className="modal__actions">
-              <button type="button" className="button button--primary" onClick={onCreated}>
+            <DialogHeader>
+              <DialogTitle>Vendedor creado</DialogTitle>
+              <DialogDescription>
+                Se envió un código de acceso al correo de <strong>{created.name}</strong> ({created.email}). El
+                vendedor debe usarlo desde la app para verificar su cuenta y fijar su contraseña. Expira en 10
+                minutos — si no llega a tiempo, se puede reenviar desde el listado.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" onClick={onCreated}>
                 Listo
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </>
         ) : (
           <form onSubmit={handleSubmit} noValidate>
-            <h2 id={titleId}>Nuevo vendedor</h2>
+            <DialogHeader>
+              <DialogTitle>Nuevo vendedor</DialogTitle>
+              <DialogDescription>Perfil y credenciales de acceso a la app.</DialogDescription>
+            </DialogHeader>
 
             {submitError && (
-              <p className="form-banner" role="alert">
+              <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                 {submitError}
               </p>
             )}
 
-            <div className="field">
-              <label htmlFor="vendor-name">Nombre completo</label>
-              <input
-                id="vendor-name"
-                ref={firstFieldRef}
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                aria-invalid={Boolean(errors.name)}
-                aria-describedby={errors.name ? 'vendor-name-error' : undefined}
-              />
-              {errors.name && (
-                <span id="vendor-name-error" className="field__error">
-                  {errors.name}
-                </span>
-              )}
+            <div className="flex flex-col gap-4">
+              <Field data-invalid={Boolean(errors.name)}>
+                <FieldLabel htmlFor="vendor-name">Nombre completo</FieldLabel>
+                <Input
+                  id="vendor-name"
+                  type="text"
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  aria-invalid={Boolean(errors.name)}
+                />
+                {errors.name && <FieldError>{errors.name}</FieldError>}
+              </Field>
+
+              <Field data-invalid={Boolean(errors.email)}>
+                <FieldLabel htmlFor="vendor-email">Correo electrónico</FieldLabel>
+                <Input
+                  id="vendor-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={Boolean(errors.email)}
+                />
+                {errors.email && <FieldError>{errors.email}</FieldError>}
+              </Field>
             </div>
 
-            <div className="field">
-              <label htmlFor="vendor-email">Correo electrónico</label>
-              <input
-                id="vendor-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                aria-invalid={Boolean(errors.email)}
-                aria-describedby={errors.email ? 'vendor-email-error' : undefined}
-              />
-              {errors.email && (
-                <span id="vendor-email-error" className="field__error">
-                  {errors.email}
-                </span>
-              )}
-            </div>
-
-            <div className="modal__actions">
-              <button type="button" className="button button--ghost" onClick={onClose} disabled={submitting}>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
                 Cancelar
-              </button>
-              <button type="submit" className="button button--primary" disabled={submitting}>
+              </Button>
+              <Button type="submit" disabled={submitting}>
                 {submitting ? 'Creando…' : 'Crear vendedor'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
