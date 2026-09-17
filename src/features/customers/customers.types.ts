@@ -83,3 +83,10 @@ export interface CustomerProfile extends Customer {
   credit_summary: CustomerCreditSummary
   sales_history: CustomerSaleHistoryEntry[]
 }
+
+// PATCH /api/v1/customers/:id/location — respuesta esperada tras asignar la
+// ubicación (wireframe 1p, "Ubicación GPS del cliente · RF-02").
+export interface CustomerLocationUpdateResult {
+  location: { lat: number; lng: number }
+  has_gps: boolean
+}
