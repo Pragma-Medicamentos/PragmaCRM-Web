@@ -62,16 +62,19 @@ export async function apiFetch<T>(path: string, token: string | null, init?: Req
 }
 
 /**
- * Como apiFetch, pero para endpoints públicos que no devuelven `data` — hoy
- * solo POST /api/v1/auth/otp, que únicamente confirma el envío del código.
- * Devuelve el `message` del envelope.
+ * Como apiFetch, pero para endpoints que no devuelven `data` en el envelope
+ * — el POST público de OTP, que solo confirma el envío del código, y
+ * endpoints autenticados de solo confirmación (ej. DELETE de una
+ * asignación de ruta). `token` es opcional: se omite el header
+ * `Authorization` cuando no aplica. Devuelve el `message` del envelope.
  */
-export async function apiCall(path: string, init?: RequestInit): Promise<string> {
+export async function apiCall(path: string, token: string | null, init?: RequestInit): Promise<string> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       ...(init?.headers ?? {}),
       'x-api-key': API_KEY,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
   const body = (await response.json().catch(() => null)) as ApiEnvelope<unknown> | null

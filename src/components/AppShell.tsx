@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
-import { FileUp, LayoutDashboard, LogOut, Menu, UserCog, Users, X } from 'lucide-react'
+import { FileUp, LayoutDashboard, LogOut, Menu, Route, UserCog, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { Button } from './ui/button'
@@ -22,7 +22,13 @@ interface NavGroup {
 // Agrupación tomada del wireframe 1a (sidebar fijo con módulos agrupados),
 // reducida a los módulos que ya existen en este repo.
 const NAV_GROUPS: NavGroup[] = [
-  { label: 'Operación', items: [{ to: '/', label: 'Resumen', icon: LayoutDashboard, end: true }] },
+  {
+    label: 'Operación',
+    items: [
+      { to: '/', label: 'Resumen', icon: LayoutDashboard, end: true },
+      { to: '/rutas', label: 'Planificador de rutas', icon: Route },
+    ],
+  },
   {
     label: 'Comercial',
     items: [
