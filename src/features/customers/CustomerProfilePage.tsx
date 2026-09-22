@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
+import { Button } from '../../components/ui/button'
+import { AssignLocationDialog } from './AssignLocationDialog'
 import { useCustomerProfile } from './useCustomerProfile'
 import type { CustomerProfile, CustomerSaleHistoryEntry } from './customers.types'
 
@@ -46,7 +49,7 @@ function SalesHistoryTable({ entries }: { entries: CustomerSaleHistoryEntry[] })
   )
 }
 
-function ProfileView({ profile }: { profile: CustomerProfile }) {
+function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; onAssignLocation: () => void }) {
   return (
     <>
       <div className="customer-profile__header">
@@ -75,7 +78,12 @@ function ProfileView({ profile }: { profile: CustomerProfile }) {
           <dt>Celular</dt>
           <dd>{profile.mobile ?? '—'}</dd>
           <dt>Ubicación GPS</dt>
-          <dd>{profile.location ? `${profile.location.lat}, ${profile.location.lng}` : 'Sin ubicación asignada'}</dd>
+          <dd className="flex items-center gap-3">
+            <span>{profile.location ? `${profile.location.lat}, ${profile.location.lng}` : 'Sin ubicación asignada'}</span>
+            <Button type="button" size="sm" variant="outline" onClick={onAssignLocation}>
+              {profile.location ? 'Editar ubicación' : 'Asignar ubicación'}
+            </Button>
+          </dd>
         </dl>
       </section>
 
@@ -110,6 +118,17 @@ function ProfileView({ profile }: { profile: CustomerProfile }) {
 export function CustomerProfilePage() {
   const { id } = useParams<{ id: string }>()
   const { state } = useCustomerProfile(id ?? '')
+  const [assigningLocation, setAssigningLocation] = useState(false)
+  // Sobrescribe la ubicación del perfil cargado tras un guardado exitoso, sin
+  // esperar a un refetch (GET /profile todavía no existe en PragmaCRM-Api).
+  const [locationOverride, setLocationOverride] = useState<CustomerProfile['location']>()
+
+  const profile =
+    state.status === 'ready' && locationOverride !== undefined
+      ? { ...state.profile, location: locationOverride, has_gps: locationOverride !== null }
+      : state.status === 'ready'
+        ? state.profile
+        : null
 
   return (
     <AppShell>
@@ -127,8 +146,21 @@ export function CustomerProfilePage() {
             {state.message}
           </p>
         )}
-        {state.status === 'ready' && <ProfileView profile={state.profile} />}
+        {profile && <ProfileView profile={profile} onAssignLocation={() => setAssigningLocation(true)} />}
       </div>
+
+      {assigningLocation && profile && id && (
+        <AssignLocationDialog
+          customerId={id}
+          customerName={profile.name}
+          initialLocation={profile.location}
+          onClose={() => setAssigningLocation(false)}
+          onUpdated={(result) => {
+            setLocationOverride(result.location)
+            setAssigningLocation(false)
+          }}
+        />
+      )}
     </AppShell>
   )
 }

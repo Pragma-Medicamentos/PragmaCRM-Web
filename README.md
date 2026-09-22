@@ -47,6 +47,63 @@ npm run dev
 2. El usuario de prueba de Supabase Auth enlazado a `app_user.auth_user_id`. Sin esto, la API responde 403 aunque el login sea correcto.
 3. El usuario de prueba con contraseña fijada en Supabase Auth (fijarla desde el dashboard de Supabase si hace falta).
 
+## Despliegue (Dokploy + nginx)
+
+El repo trae `Dockerfile` y `nginx/default.conf.template`: build multi-stage donde Node compila y
+nginx sirve el estático. En Dokploy se crea una **Application** conectada a este repo con:
+
+| Ajuste | Valor |
+|---|---|
+| Build Type | `Dockerfile` |
+| Dockerfile Path | `Dockerfile` |
+| Port | `80` (TLS lo termina Traefik por delante) |
+
+**No usar Nixpacks.** Nixpacks arma su propia imagen a partir del repo: ignora el `Dockerfile` y
+`nginx/`, con lo que se pierden el fallback SPA, la CSP y los headers. El deploy sigue siendo desde
+git igual que con Nixpacks — lo único que cambia es el Build Type.
+
+Variables a cargar en el panel (las cuatro primeras son obligatorias):
+
+```
+VITE_SUPABASE_URL=https://<proyecto>.supabase.co
+VITE_SUPABASE_ANON_KEY=...
+VITE_API_URL=https://api.<dominio>
+VITE_API_KEY=...                     # igual al API_KEY del .env de PragmaCRM-Api
+VITE_UPLOAD_MAX_FILE_SIZE_MB=100     # opcional, default 100
+```
+
+**Estas variables se hornean en el bundle al compilar**, así que Dokploy tiene que propagarlas como
+build args. Si la versión instalada no pasa las env vars al build, hay que repetirlas en la sección
+*Build Args* de la aplicación. El `Dockerfile` corta el build con un mensaje explícito si alguna
+falta — es a propósito: sin ese chequeo saldría una imagen apuntando a `localhost:3000` que solo se
+descubre abriendo el sitio. Cambiar cualquiera de estos valores exige redeploy, no basta reiniciar.
+
+Lo que hace la config de nginx: fallback SPA (`try_files … /index.html`, sin esto un refresh en
+`/vendedores` da 404 porque el router es `BrowserRouter`), gzip, cache de un año para `/assets/*`
+(los nombres ya vienen con hash) con `no-cache` para `index.html`, y headers de seguridad —
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y una CSP
+afinada a Supabase, la API, Google Fonts y los tiles de OpenStreetMap. Los dos orígenes variables de
+la CSP (`connect-src`) salen de `VITE_SUPABASE_URL` y `VITE_API_URL` vía `envsubst` al arrancar el
+contenedor. HSTS no se define acá: lo pone Traefik, que es quien ve el HTTPS.
+
+Probar la imagen en local antes de tocar el VPS:
+
+```bash
+docker build \
+  --build-arg VITE_SUPABASE_URL=https://<proyecto>.supabase.co \
+  --build-arg VITE_SUPABASE_ANON_KEY=... \
+  --build-arg VITE_API_URL=https://api.<dominio> \
+  --build-arg VITE_API_KEY=... \
+  -t pragmacrm-web .
+docker run --rm -p 8080:80 pragmacrm-web
+
+curl -I http://localhost:8080/vendedores   # 200 text/html, no 404
+curl -I http://localhost:8080/             # headers de seguridad + CSP
+```
+
+**Prerrequisito bloqueante:** `PragmaCRM-Api` tiene que permitir CORS para el origen del dashboard
+(`https://crm.<dominio>`). Sigue pendiente — ver la lista de abajo y [CLAUDE.md](./CLAUDE.md).
+
 ## Estructura
 
 ```
