@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
-import { FileUp, LayoutDashboard, LogOut, Menu, UserCog, Users, X } from 'lucide-react'
+import { FileUp, LayoutDashboard, LogOut, Menu, UserCog, Users, UserSearch, X } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { Button } from './ui/button'
@@ -27,6 +27,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Comercial',
     items: [
       { to: '/clientes', label: 'Clientes', icon: Users },
+      { to: '/prospectos', label: 'Prospectos', icon: UserSearch },
       { to: '/importar', label: 'Importar datos', icon: FileUp },
     ],
   },
