@@ -12,10 +12,10 @@ export interface Paginated<T> {
 export interface Prospect {
   id: string
   name: string
-  phone: string
+  phone: string | null
   user_id: string
+  seller_name: string | null
   location: { lat: number; lng: number } | null
   created_at: string
-  status: string
-  seller_name?: string
+  status: string | null
 }

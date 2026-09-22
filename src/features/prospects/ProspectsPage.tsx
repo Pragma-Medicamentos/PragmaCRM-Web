@@ -40,7 +40,7 @@ function ProspectsTable({ prospects }: { prospects: Prospect[] }) {
         {prospects.map((prospect) => (
           <TableRow key={prospect.id}>
             <TableCell className="font-medium text-foreground">{prospect.name}</TableCell>
-            <TableCell className="text-muted-foreground">{prospect.phone}</TableCell>
+            <TableCell className="text-muted-foreground">{prospect.phone ?? '—'}</TableCell>
             <TableCell>
               {prospect.location ? (
                 <a
