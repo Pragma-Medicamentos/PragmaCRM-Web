@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { AtSign, Eye, EyeOff, Lock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../../lib/supabase/client'
 import { apiFetch, ApiError } from '../../lib/api/apiClient'
 import { requestLoginOtp } from './authApi'
@@ -16,16 +16,15 @@ import {
 } from '../../components/ui/input-group'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../../components/ui/input-otp'
 import { Spinner } from '../../components/ui/spinner'
+import { cn } from '../../lib/utils'
 import brandWordmark from '../../assets/brand-wordmark.png'
-import brandIcon from '../../assets/brand-icon.png'
 
 const MIN_PASSWORD_LENGTH = 8
 const OTP_LENGTH = 6
 
-// Campo del login: pastilla rellena en vez del input con borde del resto del
-// panel. Es la única pantalla sin AppShell, y el contraste con el fondo blanco
-// de la tarjeta lo pide.
-const PILL_FIELD = 'h-11 rounded-full border-transparent bg-muted'
+// Campo del login: contorno fino sobre blanco y algo más alto que el del resto
+// del panel, que va dentro de tablas y diálogos más densos.
+const OUTLINED_FIELD = 'h-11'
 
 function reasonMessage(reason: RedirectReason): string {
   // 'forbidden' trae el message tal cual lo mandó la API en el 403
@@ -150,216 +149,189 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-surface p-4 sm:p-6 lg:p-10">
-      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl bg-background shadow-2xl shadow-primary/10 ring-1 ring-foreground/5 lg:min-h-[34rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-        {/* z-10: el arco verde barre por debajo del formulario, no por encima. */}
-        <main className="relative z-10 flex flex-col justify-center gap-8 px-7 py-10 sm:px-12">
-          <img src={brandWordmark} alt="Farmacia Pragma" className="h-8 w-auto self-start" />
+    <div className="flex min-h-dvh items-center justify-center bg-primary/20 p-4 sm:p-8 lg:p-14">
+      <div className="grid w-full max-w-5xl gap-8 rounded-[2rem] bg-background p-5 shadow-2xl shadow-primary/15 sm:p-6 lg:min-h-[36rem] lg:grid-cols-2 lg:gap-10 lg:p-7">
+        <main className="flex items-center justify-center px-1 py-6 sm:px-6 lg:py-4">
+          <div className="flex w-full max-w-sm flex-col gap-7">
+            <div className="flex flex-col gap-3">
+              <img src={brandWordmark} alt="Farmacia Pragma" className="h-7 w-auto self-start" />
+              <div className="flex flex-col gap-1">
+                <h1 className="font-heading text-3xl font-bold text-foreground">{headline(step)}</h1>
+                <p className="text-sm text-muted-foreground">{subheadline(step)}</p>
+              </div>
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <h1 className="font-display text-4xl leading-tight text-foreground">{headline(step)}</h1>
-            <p className="max-w-[44ch] text-sm text-muted-foreground">{subheadline(step)}</p>
+            {reason && (
+              <Alert variant="destructive">
+                <AlertDescription>{reasonMessage(reason)}</AlertDescription>
+              </Alert>
+            )}
+
+            {step.kind === 'email' && (
+              <form onSubmit={handleRequestOtp} noValidate>
+                <FieldGroup>
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Field>
+                    <FieldLabel htmlFor="login-email-input">Correo</FieldLabel>
+                    <InputGroup className={OUTLINED_FIELD}>
+                      <InputGroupInput
+                        id="login-email-input"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="Ingresá tu correo"
+                        required
+                        autoFocus
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </InputGroup>
+                  </Field>
+
+                  <Button type="submit" size="lg" className="mt-2 h-11 w-full" disabled={submitting}>
+                    {submitting && <Spinner data-icon="inline-start" />}
+                    {submitting ? 'Enviando…' : 'Enviar código'}
+                  </Button>
+                </FieldGroup>
+              </form>
+            )}
+
+            {step.kind === 'code' && (
+              <form onSubmit={(e) => handleVerifyCode(e, step)} noValidate>
+                <FieldGroup>
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Field>
+                    <FieldLabel htmlFor="login-code-input">Código de {OTP_LENGTH} dígitos</FieldLabel>
+                    <InputOTP
+                      id="login-code-input"
+                      maxLength={OTP_LENGTH}
+                      value={code}
+                      onChange={setCode}
+                      autoFocus
+                    >
+                      <InputOTPGroup>
+                        {Array.from({ length: OTP_LENGTH }, (_, i) => (
+                          <InputOTPSlot key={i} index={i} className="size-11 text-base" />
+                        ))}
+                      </InputOTPGroup>
+                    </InputOTP>
+                    <FieldDescription>El código vence a los 10 minutos.</FieldDescription>
+                  </Field>
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="mt-2 h-11 w-full"
+                    disabled={submitting || code.length < OTP_LENGTH}
+                  >
+                    {submitting && <Spinner data-icon="inline-start" />}
+                    {submitting ? 'Verificando…' : 'Ingresar'}
+                  </Button>
+
+                  <p className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+                    ¿No te llegó?
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      disabled={submitting}
+                      onClick={() => handleResend(step)}
+                    >
+                      Reenviar
+                    </Button>
+                    <span aria-hidden="true">·</span>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      disabled={submitting}
+                      onClick={() => {
+                        setStep({ kind: 'email' })
+                        setError(null)
+                      }}
+                    >
+                      Usar otro correo
+                    </Button>
+                  </p>
+                </FieldGroup>
+              </form>
+            )}
+
+            {step.kind === 'password' && (
+              <form onSubmit={handleSetPassword} noValidate>
+                <FieldGroup>
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Field>
+                    <FieldLabel htmlFor="login-new-password">Nueva contraseña</FieldLabel>
+                    <InputGroup className={OUTLINED_FIELD}>
+                      <InputGroupInput
+                        id="login-new-password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        placeholder="Elegí una contraseña"
+                        required
+                        autoFocus
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <InputGroupAddon align="inline-end" className="pr-2.5">
+                        <InputGroupButton
+                          type="button"
+                          size="icon-xs"
+                          aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                          onClick={() => setShowPassword((v) => !v)}
+                        >
+                          {showPassword ? <EyeOff /> : <Eye />}
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <FieldDescription>Al menos {MIN_PASSWORD_LENGTH} caracteres.</FieldDescription>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="login-confirm-password">Confirmar contraseña</FieldLabel>
+                    <InputGroup className={OUTLINED_FIELD}>
+                      <InputGroupInput
+                        id="login-confirm-password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        placeholder="Repetila"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                    </InputGroup>
+                  </Field>
+
+                  <Button type="submit" size="lg" className="mt-2 h-11 w-full" disabled={submitting}>
+                    {submitting && <Spinner data-icon="inline-start" />}
+                    {submitting ? 'Guardando…' : 'Guardar y entrar'}
+                  </Button>
+                </FieldGroup>
+              </form>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              Acceso exclusivo para administradores. Los vendedores usan la app móvil.
+            </p>
           </div>
-
-          {reason && (
-            <Alert variant="destructive">
-              <AlertDescription>{reasonMessage(reason)}</AlertDescription>
-            </Alert>
-          )}
-
-          {step.kind === 'email' && (
-            <form onSubmit={handleRequestOtp} noValidate>
-              <FieldGroup className="max-w-sm">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Field>
-                  <FieldLabel htmlFor="login-email-input" className="sr-only">
-                    Correo electrónico
-                  </FieldLabel>
-                  <InputGroup className={PILL_FIELD}>
-                    <InputGroupAddon className="pl-3.5">
-                      <AtSign />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      id="login-email-input"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="Correo electrónico"
-                      required
-                      autoFocus
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </InputGroup>
-                </Field>
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="h-11 w-full rounded-full"
-                  disabled={submitting}
-                >
-                  {submitting && <Spinner data-icon="inline-start" />}
-                  {submitting ? 'Enviando…' : 'Enviar código'}
-                </Button>
-              </FieldGroup>
-            </form>
-          )}
-
-          {step.kind === 'code' && (
-            <form onSubmit={(e) => handleVerifyCode(e, step)} noValidate>
-              <FieldGroup className="max-w-sm">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Field>
-                  <FieldLabel htmlFor="login-code-input">Código de {OTP_LENGTH} dígitos</FieldLabel>
-                  <InputOTP
-                    id="login-code-input"
-                    maxLength={OTP_LENGTH}
-                    value={code}
-                    onChange={setCode}
-                    autoFocus
-                  >
-                    <InputOTPGroup>
-                      {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                        <InputOTPSlot
-                          key={i}
-                          index={i}
-                          className="size-11 border-transparent bg-muted text-base first:rounded-l-full last:rounded-r-full"
-                        />
-                      ))}
-                    </InputOTPGroup>
-                  </InputOTP>
-                  <FieldDescription>El código vence a los 10 minutos.</FieldDescription>
-                </Field>
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="h-11 w-full rounded-full"
-                  disabled={submitting || code.length < OTP_LENGTH}
-                >
-                  {submitting && <Spinner data-icon="inline-start" />}
-                  {submitting ? 'Verificando…' : 'Ingresar'}
-                </Button>
-
-                <p className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-                  ¿No te llegó?
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    disabled={submitting}
-                    onClick={() => handleResend(step)}
-                  >
-                    Reenviar
-                  </Button>
-                  <span aria-hidden="true">·</span>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    disabled={submitting}
-                    onClick={() => {
-                      setStep({ kind: 'email' })
-                      setError(null)
-                    }}
-                  >
-                    Usar otro correo
-                  </Button>
-                </p>
-              </FieldGroup>
-            </form>
-          )}
-
-          {step.kind === 'password' && (
-            <form onSubmit={handleSetPassword} noValidate>
-              <FieldGroup className="max-w-sm">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Field>
-                  <FieldLabel htmlFor="login-new-password" className="sr-only">
-                    Nueva contraseña
-                  </FieldLabel>
-                  <InputGroup className={PILL_FIELD}>
-                    <InputGroupAddon className="pl-3.5">
-                      <Lock />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      id="login-new-password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      placeholder="Nueva contraseña"
-                      required
-                      autoFocus
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                    />
-                    <InputGroupAddon align="inline-end" className="pr-3">
-                      <InputGroupButton
-                        type="button"
-                        size="icon-xs"
-                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                        onClick={() => setShowPassword((v) => !v)}
-                      >
-                        {showPassword ? <EyeOff /> : <Eye />}
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  <FieldDescription>Al menos {MIN_PASSWORD_LENGTH} caracteres.</FieldDescription>
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="login-confirm-password" className="sr-only">
-                    Confirmar contraseña
-                  </FieldLabel>
-                  <InputGroup className={PILL_FIELD}>
-                    <InputGroupAddon className="pl-3.5">
-                      <Lock />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      id="login-confirm-password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      placeholder="Confirmar contraseña"
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                  </InputGroup>
-                </Field>
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="h-11 w-full rounded-full"
-                  disabled={submitting}
-                >
-                  {submitting && <Spinner data-icon="inline-start" />}
-                  {submitting ? 'Guardando…' : 'Guardar y entrar'}
-                </Button>
-              </FieldGroup>
-            </form>
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            Acceso exclusivo para administradores. Los vendedores usan la app móvil.
-          </p>
         </main>
 
-        <BrandArt />
+        <ShowcasePanel />
       </div>
     </div>
   )
@@ -368,61 +340,179 @@ export function LoginPage() {
 function headline(step: Step): string {
   if (step.kind === 'code') return 'Revisá tu correo'
   if (step.kind === 'password') return 'Fijá tu contraseña'
-  return 'Bienvenido al panel'
+  return 'Iniciar sesión'
 }
 
 function subheadline(step: Step): string {
   if (step.kind === 'code') return `Enviamos un código a ${step.email}. ${step.info}`
   if (step.kind === 'password') return 'Es tu primer ingreso. Elegí una contraseña para tu cuenta.'
-  return 'Ingresá el correo de tu cuenta de administrador y te mandamos un código de acceso.'
+  return 'Ingresá el correo de tu cuenta y te mandamos un código de acceso.'
 }
 
-/** Mitad derecha: bloque verde, arco que barre sobre el blanco y las tarjetas
- *  del panel apiladas. Es decoración — de ahí el aria-hidden del conjunto. */
-function BrandArt() {
+// Lo que rota en el panel verde. Son los módulos que este dashboard ya tiene,
+// contados desde lo que le sirve a quien lo usa — sin nombres internos de
+// endpoints ni del ERP — y no testimonios inventados.
+const SHOWCASE = [
+  {
+    module: 'Vendedores',
+    title: 'Sumá un vendedor en un minuto',
+    body: 'Cargás su nombre y su correo, y le llega un código para entrar desde el celular. Si deja el equipo, lo deshabilitás y pierde el acceso al momento.',
+  },
+  {
+    module: 'Clientes',
+    title: 'Mirá de un vistazo qué clientes valen más',
+    body: 'Cada uno se ordena solo en A, B o C según cuánto compra, qué tan seguido y qué tan puntual paga. Sin listas que mantener a mano.',
+  },
+  {
+    module: 'Ubicaciones',
+    title: 'Poné a cada cliente en el mapa',
+    body: 'Marcás el punto exacto del negocio y tus vendedores lo encuentran sin dar vueltas ni pedir indicaciones.',
+  },
+  {
+    module: 'Importación',
+    title: 'Subí tus ventas y listo',
+    body: 'Arrastrás el archivo y te decimos qué se cargó y qué quedó afuera, con el motivo de cada caso para que puedas corregirlo.',
+  },
+]
+
+// Cada cuánto pasa solo. Seis segundos alcanzan para leer el párrafo más largo
+// sin que se sienta lento.
+const SHOWCASE_INTERVAL_MS = 6000
+
+/** Panel verde de la derecha: floración de marca, nombre del producto arriba y
+ *  una tarjeta de vidrio que rota entre los módulos, sola o con las flechas. */
+function ShowcasePanel() {
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const slide = SHOWCASE[index]
+
+  // `index` en las dependencias a propósito: al tocar una flecha el efecto se
+  // vuelve a montar y el temporizador arranca de cero, en vez de saltar al
+  // siguiente a los pocos milisegundos porque el ciclo ya venía corriendo.
+  useEffect(() => {
+    if (paused) return
+    const id = window.setInterval(
+      () => setIndex((prev) => (prev + 1) % SHOWCASE.length),
+      SHOWCASE_INTERVAL_MS
+    )
+    return () => window.clearInterval(id)
+  }, [paused, index])
+
+  function move(delta: number) {
+    setIndex((prev) => (prev + delta + SHOWCASE.length) % SHOWCASE.length)
+  }
+
   return (
-    <div className="relative hidden lg:block" aria-hidden="true">
-      {/* El arco desborda hacia la izquierda sobre el blanco; lo recorta el
-          overflow-hidden de la tarjeta, no este contenedor. */}
-      <svg
-        className="pointer-events-none absolute inset-y-0 -left-28 h-full w-[calc(100%+7rem)] text-primary/12"
-        viewBox="0 0 420 600"
-        preserveAspectRatio="none"
-        fill="none"
-      >
-        <path d="M420 0 H214 C 96 168, 292 404, 132 600 H420 Z" fill="currentColor" />
-      </svg>
+    // Se frena al pasar el puntero o al entrar con el teclado: un carrusel que
+    // cambia mientras lo estás leyendo es molesto y rompe la navegación.
+    <div
+      className="relative hidden lg:block"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+    >
+      <div className="absolute inset-0 overflow-hidden rounded-2xl bg-linear-to-b from-brand-deep to-primary/90">
+        <Bloom />
 
-      <div className="absolute inset-y-6 right-6 left-4 overflow-hidden rounded-3xl bg-linear-to-br from-primary via-primary to-brand-accent">
-        <div className="absolute -top-20 -right-12 size-72 rounded-full bg-white/15 blur-3xl" />
-      </div>
+        <span className="font-display absolute top-6 left-6 text-xl tracking-wide text-white uppercase">
+          Pragma CRM
+        </span>
 
-      {/* Tarjetas apiladas: la de arriba es un panel real en miniatura. */}
-      <div className="absolute top-1/2 left-1/2 w-60 -translate-x-1/2 -translate-y-1/2">
-        <div className="absolute inset-0 translate-x-7 translate-y-9 rotate-6 rounded-2xl bg-white/15 ring-1 ring-white/20" />
-        <div className="absolute inset-0 translate-x-3.5 translate-y-4.5 rotate-3 rounded-2xl bg-white/25 ring-1 ring-white/30" />
-
-        <div className="relative overflow-hidden rounded-2xl bg-background shadow-2xl">
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <img src={brandIcon} alt="" className="h-4 w-auto" />
-            <span className="font-heading text-xs font-semibold text-foreground">Pragma CRM</span>
+        {/* La tarjeta de vidrio. `backdrop-blur` degrada a solo translúcido en
+            navegadores que no lo soportan, que es un resultado aceptable. */}
+        <div
+          className="absolute inset-x-5 bottom-5 flex flex-col gap-3 rounded-xl bg-white/10 p-5 ring-1 ring-white/15 backdrop-blur-md"
+          aria-live="polite"
+        >
+          {/* key: remonta el bloque en cada cambio, que es lo que dispara la
+              entrada. Sin él React reutilizaría los nodos y no se animaría. */}
+          <div key={index} className="flex animate-in flex-col gap-2 duration-500 fade-in slide-in-from-bottom-2">
+            {/* pale y no accent: sobre el verde oscuro, #00ac00 se acerca
+                demasiado al fondo. */}
+            <span className="text-xs font-medium tracking-wide text-brand-pale uppercase">
+              {slide.module}
+            </span>
+            <p className="text-lg leading-snug font-medium text-white">{slide.title}</p>
+            <p className="text-sm text-white/70">{slide.body}</p>
           </div>
-          <div className="flex flex-col gap-2.5 p-3">
-            {[
-              { label: 'Vendedores', width: '82%', tone: 'bg-primary' },
-              { label: 'Clientes', width: '64%', tone: 'bg-brand-accent' },
-              { label: 'Ventas importadas', width: '45%', tone: 'bg-primary/50' },
-            ].map((row) => (
-              <div key={row.label} className="flex flex-col gap-1">
-                <span className="text-[0.65rem] text-muted-foreground">{row.label}</span>
-                <span className="block h-1.5 w-full rounded-full bg-muted">
-                  <span className={`block h-full rounded-full ${row.tone}`} style={{ width: row.width }} />
-                </span>
-              </div>
+
+          <div className="flex gap-1.5 pt-1">
+            {SHOWCASE.map((item, i) => (
+              <button
+                key={item.module}
+                type="button"
+                aria-label={`Ver ${item.module}`}
+                aria-current={i === index}
+                onClick={() => setIndex(i)}
+                className={cn(
+                  'h-1 rounded-full transition-all',
+                  i === index ? 'w-6 bg-brand-pale' : 'w-3 bg-white/30 hover:bg-white/50'
+                )}
+              />
             ))}
           </div>
         </div>
       </div>
+
+      {/* Fuera del contenedor con overflow-hidden, para que muerda la esquina. */}
+      <div className="absolute right-0 bottom-0 flex gap-2 rounded-tl-2xl bg-background pt-3 pl-3">
+        <Button type="button" variant="outline" size="icon" aria-label="Anterior" onClick={() => move(-1)}>
+          <ChevronLeft />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Siguiente" onClick={() => move(1)}>
+          <ChevronRight />
+        </Button>
+      </div>
     </div>
+  )
+}
+
+// Los pétalos. El retardo negativo arranca cada uno a mitad de su ciclo, así
+// que desde el primer cuadro ya están desfasados entre sí.
+const PETALS = [
+  { cx: 300, cy: 150, rx: 170, ry: 100, rotate: -28, opacity: 1, duration: 16, delay: 0 },
+  { cx: 250, cy: 215, rx: 150, ry: 88, rotate: -8, opacity: 0.75, duration: 19, delay: -4.5 },
+  { cx: 315, cy: 275, rx: 135, ry: 80, rotate: 16, opacity: 0.6, duration: 23, delay: -9 },
+  { cx: 195, cy: 300, rx: 110, ry: 66, rotate: 38, opacity: 0.45, duration: 20, delay: -13.5 },
+]
+
+/** Floración de pétalos verdes. `slice` recorta en vez de deformar, así que las
+ *  elipses no se aplastan al cambiar la proporción de la ventana. */
+function Bloom() {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 size-full"
+      viewBox="0 0 400 520"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      <defs>
+        {/* Todo el recorrido dentro del mismo tono: del verde claro al verde de
+            marca. El contraste sale de la luminosidad, no de cambiar de color. */}
+        <linearGradient id="bloom-gradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" className="[stop-color:var(--color-brand-pale)]" stopOpacity="0.95" />
+          <stop offset="55%" className="[stop-color:var(--color-brand-accent)]" stopOpacity="0.7" />
+          <stop offset="100%" className="[stop-color:var(--color-primary)]" stopOpacity="0.2" />
+        </linearGradient>
+      </defs>
+
+      {PETALS.map((petal) => (
+        // La rotación vive en el <g> y el movimiento en el <ellipse>: el
+        // transform de CSS pisaría el atributo del SVG si fueran el mismo nodo.
+        <g key={petal.rotate} transform={`rotate(${petal.rotate} ${petal.cx} ${petal.cy})`}>
+          <ellipse
+            className="login-bloom-petal"
+            cx={petal.cx}
+            cy={petal.cy}
+            rx={petal.rx}
+            ry={petal.ry}
+            fill="url(#bloom-gradient)"
+            opacity={petal.opacity}
+            style={{ animationDuration: `${petal.duration}s`, animationDelay: `${petal.delay}s` }}
+          />
+        </g>
+      ))}
+    </svg>
   )
 }
