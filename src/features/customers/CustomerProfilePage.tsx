@@ -5,7 +5,7 @@ import { PendingBackendNotice } from '../../components/PendingBackendNotice'
 import { Button } from '../../components/ui/button'
 import { AssignLocationDialog } from './AssignLocationDialog'
 import { useCustomerProfile } from './useCustomerProfile'
-import type { CustomerProfile, CustomerSaleHistoryEntry } from './customers.types'
+import type { CustomerProfile, CustomerVisitNote } from './customers.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium' })
 const currencyFormatter = new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' })
@@ -18,38 +18,30 @@ function formatCurrency(value: string | null): string {
   return value ? currencyFormatter.format(Number(value)) : '—'
 }
 
-function SalesHistoryTable({ entries }: { entries: CustomerSaleHistoryEntry[] }) {
-  if (entries.length === 0) {
-    return <p className="customer-profile__hint">Sin ventas registradas.</p>
+function RecentNotesList({ notes }: { notes: CustomerVisitNote[] }) {
+  if (notes.length === 0) {
+    return <p className="customer-profile__hint">Sin notas registradas.</p>
   }
 
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>Documento</th>
-          <th>Fecha</th>
-          <th>Total</th>
-          <th>Saldo pendiente</th>
-          <th>Último pago</th>
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map((sale) => (
-          <tr key={sale.erp_sale_id}>
-            <td>{sale.document ?? sale.erp_sale_id}</td>
-            <td>{formatDate(sale.erp_created_at)}</td>
-            <td>{formatCurrency(sale.total)}</td>
-            <td>{formatCurrency(sale.pending_balance)}</td>
-            <td>{formatDate(sale.last_payment_at)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <ul className="customer-profile__notes">
+      {notes.map((note, index) => (
+        <li key={`${note.date}-${index}`}>
+          <span className="customer-profile__hint">{formatDate(note.date)}</span>
+          <p>{note.notes}</p>
+        </li>
+      ))}
+    </ul>
   )
 }
 
-function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; onAssignLocation: () => void }) {
+function ProfileView({
+  profile,
+  onAssignLocation,
+}: {
+  profile: CustomerProfile
+  onAssignLocation: () => void
+}) {
   return (
     <>
       <div className="customer-profile__header">
@@ -77,9 +69,15 @@ function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; 
           <dd>{profile.phone ?? '—'}</dd>
           <dt>Celular</dt>
           <dd>{profile.mobile ?? '—'}</dd>
+          <dt>Responsable de compra</dt>
+          <dd>{profile.attends ?? '—'}</dd>
           <dt>Ubicación GPS</dt>
           <dd className="flex items-center gap-3">
-            <span>{profile.location ? `${profile.location.lat}, ${profile.location.lng}` : 'Sin ubicación asignada'}</span>
+            <span>
+              {profile.location
+                ? `${profile.location.lat}, ${profile.location.lng}`
+                : 'Sin ubicación asignada'}
+            </span>
             <Button type="button" size="sm" variant="outline" onClick={onAssignLocation}>
               {profile.location ? 'Editar ubicación' : 'Asignar ubicación'}
             </Button>
@@ -88,47 +86,61 @@ function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; 
       </section>
 
       <section className="customer-profile__section">
-        <h2>Responsable de compra</h2>
-        <p>{profile.responsible ? profile.responsible.name : 'Sin responsable asignado'}</p>
+        <h2>Rutas asignadas</h2>
+        {profile.routes.length === 0 ? (
+          <p className="customer-profile__hint">Sin ruta asignada.</p>
+        ) : (
+          <ul>
+            {profile.routes.map((route) => (
+              <li key={route.id}>{route.name}</li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="customer-profile__section">
-        <h2>Créditos y cobros vigentes</h2>
+        <h2>Créditos y actividad comercial</h2>
         <dl className="customer-profile__grid">
           <dt>Crédito habilitado</dt>
-          <dd>{profile.credit_summary.credit ? 'Sí' : 'No'}</dd>
+          <dd>{profile.credit ? 'Sí' : 'No'}</dd>
           <dt>Límite de crédito</dt>
-          <dd>{formatCurrency(profile.credit_summary.credit_limit)}</dd>
-          <dt>Saldo pendiente total</dt>
-          <dd>{formatCurrency(profile.credit_summary.pending_balance_total)}</dd>
-          <dt>Cartera vencida</dt>
-          <dd>{formatCurrency(profile.credit_summary.overdue_balance_total)}</dd>
+          <dd>{formatCurrency(profile.credit_limit)}</dd>
+          <dt>Saldo pendiente</dt>
+          <dd>{formatCurrency(profile.pending_balance)}</dd>
+          <dt>Compras netas</dt>
+          <dd>{formatCurrency(profile.summary.net_purchases)}</dd>
+          <dt>Pedidos</dt>
+          <dd>{profile.summary.orders_count}</dd>
+          <dt>Visitas</dt>
+          <dd>{profile.summary.visits_count}</dd>
         </dl>
       </section>
 
       <section className="customer-profile__section">
-        <h2>Historial de ventas</h2>
-        <SalesHistoryTable entries={profile.sales_history} />
+        <h2>Notas recientes</h2>
+        <RecentNotesList notes={profile.recent_notes} />
       </section>
     </>
   )
 }
 
-/** RF-02: perfil del cliente con historial de ventas, créditos/cobros vigentes y responsable de compra. */
+/** RF-02: perfil del cliente con rutas, créditos/actividad y notas recientes. */
 export function CustomerProfilePage() {
   const { id } = useParams<{ id: string }>()
   const { state } = useCustomerProfile(id ?? '')
   const [assigningLocation, setAssigningLocation] = useState(false)
-  // Sobrescribe la ubicación del perfil cargado tras un guardado exitoso, sin
-  // esperar a un refetch (GET /profile todavía no existe en PragmaCRM-Api).
-  const [locationOverride, setLocationOverride] = useState<CustomerProfile['location']>()
+  // Sobrescribe location/address tras un PATCH exitoso, sin esperar refetch.
+  const [coreOverride, setCoreOverride] = useState<Pick<
+    CustomerProfile,
+    'location' | 'address' | 'place_id'
+  > | null>(null)
 
   const profile =
-    state.status === 'ready' && locationOverride !== undefined
-      ? { ...state.profile, location: locationOverride, has_gps: locationOverride !== null }
-      : state.status === 'ready'
-        ? state.profile
-        : null
+    state.status === 'ready'
+      ? coreOverride
+        ? { ...state.profile, ...coreOverride }
+        : state.profile
+      : null
 
   return (
     <AppShell>
@@ -139,14 +151,16 @@ export function CustomerProfilePage() {
 
         {state.status === 'loading' && <p className="customer-profile__hint">Cargando perfil…</p>}
         {state.status === 'pending-backend' && (
-          <PendingBackendNotice endpoints={[`GET /api/v1/customers/${id}/profile`]} />
+          <PendingBackendNotice endpoints={[`GET /api/v1/customers/${id}`]} />
         )}
         {state.status === 'error' && (
           <p className="customer-profile__error" role="alert">
             {state.message}
           </p>
         )}
-        {profile && <ProfileView profile={profile} onAssignLocation={() => setAssigningLocation(true)} />}
+        {profile && (
+          <ProfileView profile={profile} onAssignLocation={() => setAssigningLocation(true)} />
+        )}
       </div>
 
       {assigningLocation && profile && id && (
@@ -156,7 +170,11 @@ export function CustomerProfilePage() {
           initialLocation={profile.location}
           onClose={() => setAssigningLocation(false)}
           onUpdated={(result) => {
-            setLocationOverride(result.location)
+            setCoreOverride({
+              location: result.location,
+              address: result.address,
+              place_id: result.place_id,
+            })
             setAssigningLocation(false)
           }}
         />
