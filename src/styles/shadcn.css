@@ -44,6 +44,13 @@
 
     --font-heading: var(--font-sans);
     --font-sans: 'Poppins', system-ui, -apple-system, sans-serif;
+    --font-display: 'Anton', var(--font-sans);
+
+    /* Marca. `surface` es el fondo de página (lo que antes era --color-bg en
+       index.css) y `brand-accent` el verde claro de la paleta, que hasta ahora
+       solo existía hardcodeado dentro del SVG del login. */
+    --color-surface: var(--surface);
+    --color-brand-accent: var(--brand-accent);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -91,9 +98,15 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    /* Marca Pragma: mismo verde que --color-primary de index.css. */
+    /* Paleta de marca, medida de docs/palette.png: negro #000000, verde
+       #008000, verde acento #00ac00 y blanco. `--primary` y `--ring` ya la
+       usaban; el resto de los tokens se retinta hacia ella más abajo. */
     --primary: #008000;
     --primary-foreground: #ffffff;
+    --brand-accent: #00ac00;
+    /* Fondo de página: blanco con un velo verde, un punto por debajo de las
+       tarjetas para que estas se despeguen sin necesitar sombra. */
+    --surface: oklch(0.98 0.005 145);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -104,22 +117,32 @@
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: #008000;
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.375rem; /* 6px, el mismo que .button de index.css */
-    --sidebar: oklch(0.985 0 0);
+    /* Rampa verde de marca en vez de la escala de grises del preset, para que
+       cualquier métrica futura nazca dentro de la paleta. */
+    --chart-1: #008000;
+    --chart-2: #00ac00;
+    --chart-3: oklch(0.72 0.14 145);
+    --chart-4: oklch(0.82 0.09 145);
+    --chart-5: oklch(0.89 0.05 145);
+    --radius: 0.5rem; /* 8px: el preset traía 6px, que con esta densidad se ve duro */
+    /* Sidebar retintado hacia la marca: la navegación es donde el verde
+       identifica el producto sin competir con el contenido. Son mezclas del
+       verde con blanco escritas ya resueltas en oklch, no con color-mix(): el
+       fallback de color-mix() es el primer color, y ahí eso pinta el panel de
+       verde entero en cualquier navegador que no lo soporte. */
+    --sidebar: oklch(0.985 0.006 145);
     --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: oklch(0.955 0.016 145);
     --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar-border: oklch(0.915 0.017 145);
+    --sidebar-ring: var(--primary);
 }
 
+/* Modo oscuro: la infraestructura está, pero no se activa en ninguna parte (no
+   hay toggle ni ThemeProvider). Ojo si algún día se enciende: aquí `--primary`
+   es gris, así que el verde de marca se pierde. */
 .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
@@ -187,9 +210,14 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-surface text-foreground;
     }
   html {
     @apply font-sans;
+    }
+  /* Foco visible de marca. Venía del index.css que se eliminó; los primitivos
+     traen su propio anillo, esto cubre enlaces y elementos nativos. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
     }
 }

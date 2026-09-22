@@ -1,12 +1,28 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, MapPinOff, Search } from 'lucide-react'
+import { MapPin, MapPinOff, Search, Users } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
+import { Card, CardContent, CardHeader } from '../../components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '../../components/ui/empty'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '../../components/ui/input-group'
 import { Badge } from '../../components/ui/badge'
+import { Skeleton } from '../../components/ui/skeleton'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import {
   Table,
   TableBody,
@@ -43,30 +59,60 @@ const CATEGORY_BADGE_VARIANT: Record<CustomerCategory, 'default' | 'secondary' |
   uncategorized: 'outline',
 }
 
+const COLUMNS = [
+  'Cliente',
+  'Zona',
+  'Categoría',
+  'Compras (neto)',
+  'Conversión',
+  'Días prom. pago',
+  'Saldo',
+  'GPS',
+] as const
+
 function categoryLabel(category: CustomerCategory): string {
   return category === 'uncategorized' ? 'Sin categorizar' : category
 }
 
-function CustomersTable({ customers }: { customers: Customer[] }) {
-  if (customers.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">No hay clientes que coincidan con el filtro.</p>
-  }
+function CustomersTableHead() {
+  return (
+    <TableHeader className="bg-muted/40">
+      <TableRow>
+        {COLUMNS.map((column) => (
+          <TableHead key={column}>{column}</TableHead>
+        ))}
+        <TableHead className="text-right">Acciones</TableHead>
+      </TableRow>
+    </TableHeader>
+  )
+}
 
+function CustomersTableSkeleton() {
   return (
     <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Cliente</TableHead>
-          <TableHead>Zona</TableHead>
-          <TableHead>Categoría</TableHead>
-          <TableHead>Compras (neto)</TableHead>
-          <TableHead>Conversión</TableHead>
-          <TableHead>Días prom. pago</TableHead>
-          <TableHead>Saldo</TableHead>
-          <TableHead>GPS</TableHead>
-          <TableHead className="text-right">Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
+      <CustomersTableHead />
+      <TableBody>
+        {Array.from({ length: 6 }, (_, row) => (
+          <TableRow key={row}>
+            {COLUMNS.map((column) => (
+              <TableCell key={column}>
+                <Skeleton className="h-4 w-20" />
+              </TableCell>
+            ))}
+            <TableCell className="text-right">
+              <Skeleton className="ml-auto h-7 w-20 rounded-lg" />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+
+function CustomersTable({ customers }: { customers: Customer[] }) {
+  return (
+    <Table>
+      <CustomersTableHead />
       <TableBody>
         {customers.map((customer) => (
           <TableRow key={customer.id} className={cn(!customer.active && 'opacity-55')}>
@@ -78,17 +124,17 @@ function CustomersTable({ customers }: { customers: Customer[] }) {
             <TableCell>
               <Badge variant={CATEGORY_BADGE_VARIANT[customer.category]}>{categoryLabel(customer.category)}</Badge>
             </TableCell>
-            <TableCell className="text-muted-foreground">{formatCurrency(customer.net_purchases)}</TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(customer.net_purchases)}</TableCell>
+            <TableCell className="tabular-nums text-muted-foreground">
               {Math.round(customer.conversion_rate * 100)}%
               <div className="text-xs">
                 {customer.orders_count}/{customer.visits_count}
               </div>
             </TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="tabular-nums text-muted-foreground">
               {customer.avg_payment_days != null ? `${customer.avg_payment_days} d` : '—'}
             </TableCell>
-            <TableCell className="text-muted-foreground">{formatCurrency(customer.pending_balance)}</TableCell>
+            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(customer.pending_balance)}</TableCell>
             <TableCell>
               {customer.has_gps ? (
                 <MapPin className="size-4 text-primary" aria-label="Con ubicación GPS" />
@@ -132,6 +178,14 @@ export function CustomersPage() {
     })
   }, [customers, search, categoryFilter, onlyMissingGps])
 
+  const isFiltered = search.trim() !== '' || categoryFilter !== 'all' || onlyMissingGps
+
+  function clearFilters() {
+    setSearch('')
+    setCategoryFilter('all')
+    setOnlyMissingGps(false)
+  }
+
   return (
     <AppShell>
       <PageHeader
@@ -143,55 +197,102 @@ export function CustomersPage() {
         }
       />
 
-      {state.status === 'loading' && <p className="text-sm text-muted-foreground">Cargando clientes…</p>}
       {state.status === 'pending-backend' && <PendingBackendNotice endpoints={['GET /api/v1/customers']} />}
+
       {state.status === 'error' && (
-        <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {state.message}
-        </p>
+        <Alert variant="destructive">
+          <AlertTitle>No se pudo cargar el listado</AlertTitle>
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
       )}
 
-      {state.status === 'ready' && (
+      {(state.status === 'loading' || state.status === 'ready') && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por nombre o nombre comercial"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant={onlyMissingGps ? 'default' : 'outline'}
-              onClick={() => setOnlyMissingGps((v) => !v)}
-            >
-              <MapPinOff /> Sin GPS ({missingGpsCount})
-            </Button>
-          </div>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <InputGroup className="flex-1">
+                    <InputGroupAddon>
+                      <Search />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      type="search"
+                      placeholder="Buscar por nombre o nombre comercial"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      disabled={state.status !== 'ready'}
+                    />
+                  </InputGroup>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={onlyMissingGps ? 'default' : 'outline'}
+                    disabled={state.status !== 'ready'}
+                    onClick={() => setOnlyMissingGps((v) => !v)}
+                  >
+                    <MapPinOff data-icon="inline-start" /> Sin GPS ({missingGpsCount})
+                  </Button>
+                </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm text-muted-foreground">Categoría:</span>
-            {CATEGORY_FILTERS.map((filter) => (
-              <Button
-                key={filter.value}
-                type="button"
-                size="sm"
-                variant={categoryFilter === filter.value ? 'default' : 'outline'}
-                onClick={() => setCategoryFilter(filter.value)}
-              >
-                {filter.label}
-              </Button>
-            ))}
-          </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Categoría:</span>
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    size="sm"
+                    spacing={0}
+                    value={categoryFilter}
+                    onValueChange={(value) => value && setCategoryFilter(value as CategoryFilter)}
+                    disabled={state.status !== 'ready'}
+                  >
+                    {CATEGORY_FILTERS.map((filter) => (
+                      <ToggleGroupItem key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+              </div>
+            </CardHeader>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-background">
-            <CustomersTable customers={filteredCustomers} />
-          </div>
+            <CardContent className="border-t px-0">
+              {state.status === 'loading' && <CustomersTableSkeleton />}
+
+              {state.status === 'ready' && filteredCustomers.length > 0 && (
+                <CustomersTable customers={filteredCustomers} />
+              )}
+
+              {state.status === 'ready' && filteredCustomers.length === 0 && (
+                <Empty className="py-14">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Users />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {isFiltered ? 'Ningún cliente coincide' : 'Todavía no hay clientes'}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {isFiltered
+                        ? 'Probá con otro término de búsqueda o quitá los filtros de categoría y GPS.'
+                        : 'Los clientes llegan al CRM con la importación del archivo de ventas de Efactsoft.'}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    {isFiltered ? (
+                      <Button type="button" variant="outline" onClick={clearFilters}>
+                        Limpiar filtros
+                      </Button>
+                    ) : (
+                      <Button asChild>
+                        <Link to="/importar">Importar datos</Link>
+                      </Button>
+                    )}
+                  </EmptyContent>
+                </Empty>
+              )}
+            </CardContent>
+          </Card>
 
           <p className="text-sm text-muted-foreground">
             La categoría A/B/C se calcula automáticamente a partir de compras netas, conversión y días promedio de

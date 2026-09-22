@@ -1,11 +1,24 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
-import { FileUp, LayoutDashboard, LogOut, Menu, UserCog, Users, X } from 'lucide-react'
+import { FileUp, LayoutDashboard, LogOut, Menu, UserCog, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
+import { Avatar, AvatarFallback } from './ui/avatar'
 import { Button } from './ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu'
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from './ui/sheet'
+import { Toaster } from './ui/sonner'
 import { cn } from '../lib/utils'
-import pragmaIcon from '../assets/pragma-icon.png'
+import brandWordmark from '../assets/brand-wordmark.png'
+import brandIcon from '../assets/brand-icon.png'
 
 interface NavItem {
   to: string
@@ -33,6 +46,16 @@ const NAV_GROUPS: NavGroup[] = [
   { label: 'Administración', items: [{ to: '/vendedores', label: 'Vendedores', icon: UserCog }] },
 ]
 
+/** Iniciales para el avatar: dos como mucho, que es lo que entra en un círculo. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '—'
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-5">
@@ -50,9 +73,12 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={onNavigate}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    // La barra de acento vive en ::before para que no desplace
+                    // el texto al activarse, como haría un border-left.
+                    'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'before:absolute before:top-1/2 before:left-0 before:h-0 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary before:transition-all',
                     isActive
-                      ? 'bg-primary/10 text-primary'
+                      ? 'bg-primary/10 text-primary before:h-5'
                       : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                   )
                 }
@@ -72,32 +98,58 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const state = useCurrentAppUser()
   const name = state.status === 'ready' ? state.appUser.name : ''
+  const email = state.status === 'ready' ? state.appUser.email : ''
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="flex h-dvh flex-col bg-muted/30">
+    <div className="flex h-dvh flex-col bg-surface">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 lg:px-6">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="lg:hidden"
-          onClick={() => setMobileNavOpen((open) => !open)}
-          aria-label={mobileNavOpen ? 'Cerrar menú' : 'Abrir menú'}
-        >
-          {mobileNavOpen ? <X /> : <Menu />}
-        </Button>
+        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <SheetTrigger asChild>
+            <Button type="button" variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Abrir menú">
+              <Menu />
+            </Button>
+          </SheetTrigger>
+          {/* gap-0: el drawer es cabecera + nav pegadas, no una pila espaciada. */}
+          <SheetContent side="left" className="gap-0 bg-sidebar p-0">
+            <SheetTitle className="sr-only">Navegación</SheetTitle>
+            <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4">
+              <img src={brandWordmark} alt="Farmacia Pragma" className="h-6 w-auto" />
+            </div>
+            <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+          </SheetContent>
+        </Sheet>
 
-        <img src={pragmaIcon} alt="" className="size-6" />
-        <span className="font-heading text-base font-semibold">Pragma CRM</span>
-        <span className="hidden text-sm text-muted-foreground sm:inline">· Administrador</span>
+        <img src={brandWordmark} alt="Farmacia Pragma" className="hidden h-6 w-auto sm:block" />
+        <img src={brandIcon} alt="Farmacia Pragma" className="h-6 w-auto sm:hidden" />
+        <span className="hidden text-sm text-muted-foreground lg:inline">· Panel de administración</span>
 
-        <div className="ml-auto flex items-center gap-3">
-          <span className="hidden text-sm text-muted-foreground sm:inline">{name}</span>
-          <Button type="button" variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>
-            <LogOut />
-            Cerrar sesión
-          </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="gap-2 pl-1" aria-label="Cuenta">
+                <Avatar className="size-6">
+                  <AvatarFallback className="bg-primary/10 text-[0.65rem] font-semibold text-primary">
+                    {initials(name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden max-w-40 truncate sm:inline">{name}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="flex flex-col gap-0.5">
+                <span className="truncate font-medium">{name}</span>
+                <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
+                <span className="text-xs font-normal text-primary">Administrador</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onSelect={() => supabase.auth.signOut()}>
+                  <LogOut /> Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -106,21 +158,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavLinks />
         </aside>
 
-        {mobileNavOpen && (
-          <div className="fixed inset-0 z-40 flex lg:hidden">
-            <div
-              className="absolute inset-0 bg-black/30"
-              onClick={() => setMobileNavOpen(false)}
-              aria-hidden="true"
-            />
-            <aside className="relative flex w-64 flex-col border-r border-sidebar-border bg-sidebar shadow-lg">
-              <NavLinks onNavigate={() => setMobileNavOpen(false)} />
-            </aside>
-          </div>
-        )}
-
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">{children}</main>
       </div>
+
+      <Toaster position="bottom-right" />
     </div>
   )
 }
