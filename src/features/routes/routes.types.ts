@@ -48,3 +48,42 @@ export type ReassignRouteInput = AssignRouteInput
 export const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const
 export const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const
 export const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const
+
+// PCRM-141 (depende de PCRM-140 en PragmaCRM-Api, todavía sin mergear).
+// Contrato propuesto (a confirmar con backend) sobre `route_customer`
+// (hoy: id, route_id, customer_id, sort_order — falta la columna `stop_type`):
+//
+//   GET    /api/v1/routes/:routeId/stops            → data: RouteStop[] (orden por sort_order)
+//   PUT    /api/v1/routes/:routeId/stops             body: { stops: ReplaceRouteStopInput[] } (reemplazo completo, para drag&drop)
+//
+// Mientras el endpoint no exista, el backend genérico responde 404 "Not
+// found" (ver isRouteNotImplemented) y la pantalla sigue usable con estado
+// local sin persistir.
+export type StopType = 'visit' | 'dispatch' | 'collection'
+
+export const STOP_TYPE_LABELS: Record<StopType, string> = {
+  visit: 'Visita',
+  dispatch: 'Despacho',
+  collection: 'Cobro',
+}
+
+export interface GeoPoint {
+  lat: number
+  lng: number
+}
+
+export interface RouteStop {
+  id: string
+  route_id: string
+  customer_id: string
+  customer_name: string
+  sort_order: number
+  stop_type: StopType
+  location: GeoPoint | null
+}
+
+export interface ReplaceRouteStopInput {
+  customer_id: string
+  stop_type: StopType
+  sort_order: number
+}
