@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { updateVendor } from './vendorsApi'
 import type { Vendor } from './vendors.types'
@@ -58,8 +57,7 @@ export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialo
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const { data } = await supabase.auth.getSession()
-      const updated = await updateVendor(data.session?.access_token ?? null, vendor.id, {
+      const updated = await updateVendor(vendor.id, {
         name: name.trim(),
         email: email.trim(),
       })

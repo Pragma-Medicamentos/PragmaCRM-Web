@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { listVendors } from './vendorsApi'
 import type { Vendor } from './vendors.types'
@@ -22,9 +21,7 @@ export function useVendors(): { state: VendorsState; reload: () => void } {
     let cancelled = false
     setState({ status: 'loading' })
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => listVendors(data.session?.access_token ?? null))
+    listVendors()
       .then((vendors) => {
         if (!cancelled) setState({ status: 'ready', vendors })
       })

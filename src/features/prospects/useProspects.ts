@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
 import { listProspects } from './prospectsApi'
 import type { Prospect } from './prospects.types'
@@ -21,9 +20,7 @@ export function useProspects(): { state: ProspectsState; reload: () => void } {
     let cancelled = false
     setState({ status: 'loading' })
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => listProspects(data.session?.access_token ?? null, { page: 1, limit: 100 }))
+    listProspects({ page: 1, limit: 100 })
       .then((page) => {
         if (!cancelled) setState({ status: 'ready', prospects: page.items })
       })
