@@ -112,6 +112,25 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 
 Validación que corre en el frontend (la API la repite, nunca hay que confiar solo en el cliente): `name` no vacío, `email` con formato válido.
 
+## Contrato de `/api/v1/routes` (RF-04)
+
+**Implementado en este repo:** planificador semanal de rutas por vendedor (`src/features/routes/`), ruta `/rutas` (protegida por `AdminRoute`), entrada "Planificador de rutas" en el sidebar (grupo Operación). Wireframe de referencia: `1g` (`docs/wireframes/Wireframes Pragma CRM y App.html`), con dos recortes de alcance frente al sketch — ver el comentario de cabecera en `routes.types.ts` y en `CreateRouteDialog.tsx`:
+
+- Sin "Copiar semana anterior" ni "Publicar semana": `route_user` es una asignación **recurrente e indefinida** por día de la semana (CLAUDE.md de `PragmaCRM-Api`, sección 5.1), no un registro por semana. La grilla es una vista sobre esa asignación permanente.
+- "Nueva ruta" solo crea `name` / `municipality` / `zone`. La composición de clientes de la ruta (`route_customer`) no tiene endpoint todavía.
+
+Contrato real contra `PragmaCRM-Api` (`src/presentation/routes/`, `src/services/route.service.ts`, `src/use-cases/{assign,reassign}-route.use-case.ts`):
+
+- `GET /api/v1/routes?active=true|false` — lista rutas no borradas, sin paginar (el volumen es "decenas" de filas).
+- `POST /api/v1/routes` — body `{ name, municipality?, zone? }`. 201 con la ruta creada, `active: true` por defecto.
+- `PATCH /api/v1/routes/:id` — cualquier subconjunto de `{ name, municipality, zone, active }`, al menos uno.
+- `GET /api/v1/routes/:id/assignments` — asignaciones vigentes (`deleted_at IS NULL`) de esa ruta: `{ id, route_id, user_id, user_name, day, status, created_at, updated_at }`. `day` es `1..7` (1 = Lunes), el backend nunca manda el nombre del día — el mapeo vive en `routes.types.ts` (`DAY_LABELS`/`DAY_LABELS_SHORT`).
+- `POST /api/v1/routes/:id/assignments` — body `{ user_id, day }`. 201 con la asignación creada; **409** si ese día ya tiene un vendedor activo (hay que usar `reassign`, no reintentar el mismo POST).
+- `POST /api/v1/routes/:id/reassign` — mismo body. Cierra (soft-delete) la asignación activa de ese día y crea una nueva para el vendedor indicado, en una sola operación atómica del lado del backend. **400** si el día no tiene asignación activa; **409** si el vendedor ya es el mismo.
+- `DELETE /api/v1/routes/:id/assignments/:day` — vacía el día (soft-delete, sin reemplazo). Devuelve el envelope sin `data` (solo `message`), como `POST /api/v1/auth/otp` — por eso `unassignRouteDay` en `routesApi.ts` usa `apiCall`, no `apiFetch`. **404** si no había nada activo ese día.
+
+No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se arma en el cliente (`useRoutePlanner.ts`) pidiendo todas las rutas activas y las asignaciones de cada una en paralelo.
+
 ## Cosas a tener presentes durante la integración
 
 **a) CORS.** Si aparece un error de CORS en el navegador al llamar a `localhost:3000` desde `localhost:5173`, es configuración pendiente del lado de `PragmaCRM-Api`, no de este repo.

@@ -3,6 +3,8 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { AdminRoute } from '../features/auth/AdminRoute'
 import { DashboardPlaceholder } from '../pages/DashboardPlaceholder'
 import { VendorsPage } from '../features/vendors/VendorsPage'
+import { RoutePlannerPage } from '../features/routes/RoutePlannerPage'
+import { RouteStopsPage } from '../features/routes/RouteStopsPage'
 import { CustomersPage } from '../features/customers/CustomersPage'
 import { CustomerProfilePage } from '../features/customers/CustomerProfilePage'
 import { ImportPage } from '../features/uploads/ImportPage'
@@ -25,6 +27,22 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <VendorsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/rutas"
+          element={
+            <AdminRoute>
+              <RoutePlannerPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/rutas/:routeId/paradas"
+          element={
+            <AdminRoute>
+              <RouteStopsPage />
             </AdminRoute>
           }
         />

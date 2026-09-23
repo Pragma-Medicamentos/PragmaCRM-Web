@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase/client'
-import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
+import { ApiError } from '../../lib/api/apiClient'
+import { getGoogleMapsApiKey, loadGoogleMaps } from '../../lib/googleMaps'
 import { updateCustomerLocation } from './customersApi'
-import type { CustomerLocationUpdateResult } from './customers.types'
+import type { CustomerCore } from './customers.types'
 import { LocationPickerMap, type LocationPoint } from '../../components/LocationPickerMap'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -16,32 +17,20 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog'
 
-// Radio de validación GPS (RF-06). Constante global, no un campo por cliente
-// (CLAUDE.md 5.3) — se muestra solo como referencia visual sobre el pin.
 const GPS_VALIDATION_RADIUS_METERS = 80
-
-function isValidLat(value: number): boolean {
-  return Number.isFinite(value) && value >= -90 && value <= 90
-}
-
-function isValidLng(value: number): boolean {
-  return Number.isFinite(value) && value >= -180 && value <= 180
-}
 
 interface AssignLocationDialogProps {
   customerId: string
   customerName: string
   initialLocation: LocationPoint | null
   onClose: () => void
-  onUpdated: (result: CustomerLocationUpdateResult) => void
+  onUpdated: (result: CustomerCore) => void
 }
 
 /**
- * Wireframe 1p "Ubicación GPS del cliente · RF-02": fijar el punto exacto del
- * cliente arrastrando el pin o tocando el mapa, con edición manual de
- * latitud/longitud como alternativa. Sin buscador de direcciones: requeriría
- * un servicio de geocodificación externo no presupuestado (mismo riesgo ya
- * señalado con Google Places en CLAUDE.md 9.2).
+ * Wireframe 1p "Ubicación GPS del cliente · RF-02": Places Autocomplete,
+ * pin arrastrable / clic en mapa y "Usar mi ubicación". Persiste lat/lng y,
+ * cuando Places los aporta, address/place_id vía PATCH .../location.
  */
 export function AssignLocationDialog({
   customerId,
@@ -51,53 +40,117 @@ export function AssignLocationDialog({
   onUpdated,
 }: AssignLocationDialogProps) {
   const [point, setPoint] = useState<LocationPoint | null>(initialLocation)
-  const [latText, setLatText] = useState(initialLocation ? String(initialLocation.lat) : '')
-  const [lngText, setLngText] = useState(initialLocation ? String(initialLocation.lng) : '')
+  const [formattedAddress, setFormattedAddress] = useState<string | null>(null)
+  const [placeId, setPlaceId] = useState<string | null>(null)
+  const [searchText, setSearchText] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [pendingBackend, setPendingBackend] = useState(false)
+  const [geoError, setGeoError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [locating, setLocating] = useState(false)
+
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+  const mapRef = useRef<google.maps.Map | null>(null)
+  const hasMapsKey = Boolean(getGoogleMapsApiKey())
 
   function handleMapChange(next: LocationPoint) {
     setPoint(next)
-    setLatText(next.lat.toFixed(6))
-    setLngText(next.lng.toFixed(6))
+    // Pin movido a mano: omitir address/place_id en el PATCH (Api: omit = leave alone).
+    setFormattedAddress(null)
+    setPlaceId(null)
   }
 
-  function handleLatChange(text: string) {
-    setLatText(text)
-    const lat = Number(text)
-    if (point && isValidLat(lat)) setPoint({ ...point, lat })
-    else if (!point && isValidLat(lat) && isValidLng(Number(lngText))) setPoint({ lat, lng: Number(lngText) })
+  function handleMapReady(map: google.maps.Map) {
+    mapRef.current = map
+    void attachAutocomplete(map)
   }
 
-  function handleLngChange(text: string) {
-    setLngText(text)
-    const lng = Number(text)
-    if (point && isValidLng(lng)) setPoint({ ...point, lng })
-    else if (!point && isValidLng(lng) && isValidLat(Number(latText))) setPoint({ lat: Number(latText), lng })
+  async function attachAutocomplete(map: google.maps.Map) {
+    if (!searchInputRef.current || autocompleteRef.current) return
+    try {
+      await loadGoogleMaps()
+      const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
+        fields: ['formatted_address', 'geometry', 'place_id', 'name'],
+        componentRestrictions: { country: 'sv' },
+      })
+      autocomplete.bindTo('bounds', map)
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace()
+        const loc = place.geometry?.location
+        if (!loc) return
+        const next = { lat: loc.lat(), lng: loc.lng() }
+        setPoint(next)
+        setFormattedAddress(place.formatted_address ?? place.name ?? null)
+        setPlaceId(place.place_id ?? null)
+        setSearchText(place.formatted_address ?? place.name ?? searchInputRef.current?.value ?? '')
+        map.panTo(next)
+        map.setZoom(16)
+      })
+      autocompleteRef.current = autocomplete
+    } catch {
+      // Sin key o fallo de loader: el input queda como texto; el mapa ya avisa.
+    }
   }
 
-  const coordinatesInvalid = point !== null && (!isValidLat(point.lat) || !isValidLng(point.lng))
+  useEffect(() => {
+    return () => {
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current)
+        autocompleteRef.current = null
+      }
+    }
+  }, [])
+
+  function handleUseMyLocation() {
+    setGeoError(null)
+    if (!navigator.geolocation) {
+      setGeoError('Tu navegador no soporta geolocalización.')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setPoint(next)
+        setFormattedAddress(null)
+        setPlaceId(null)
+        mapRef.current?.panTo(next)
+        mapRef.current?.setZoom(16)
+        setLocating(false)
+      },
+      () => {
+        setGeoError('No se pudo obtener tu ubicación. Revisá los permisos del navegador.')
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 15_000 }
+    )
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!point || coordinatesInvalid) return
+    if (!point) return
 
     setSubmitting(true)
     setSubmitError(null)
-    setPendingBackend(false)
     try {
       const { data } = await supabase.auth.getSession()
-      const result = await updateCustomerLocation(data.session?.access_token ?? null, customerId, point)
+      const payload: Parameters<typeof updateCustomerLocation>[2] = {
+        latitude: point.lat,
+        longitude: point.lng,
+      }
+      if (formattedAddress) payload.address = formattedAddress
+      if (placeId) payload.place_id = placeId
+
+      const result = await updateCustomerLocation(
+        data.session?.access_token ?? null,
+        customerId,
+        payload
+      )
       onUpdated(result)
     } catch (err) {
-      if (isRouteNotImplemented(err)) {
-        setPendingBackend(true)
-      } else {
-        setSubmitError(
-          err instanceof ApiError ? err.message : 'No se pudo guardar la ubicación. Intenta de nuevo.'
-        )
-      }
+      setSubmitError(
+        err instanceof ApiError ? err.message : 'No se pudo guardar la ubicación. Intenta de nuevo.'
+      )
       setSubmitting(false)
     }
   }
@@ -109,66 +162,76 @@ export function AssignLocationDialog({
           <DialogHeader>
             <DialogTitle>Ubicación de {customerName}</DialogTitle>
             <DialogDescription>
-              Definí el punto exacto del cliente para el ruteo. Tocá el mapa o arrastrá el pin.
+              Buscá una dirección o tocá el mapa / arrastrá el pin para fijar el punto exacto.
             </DialogDescription>
           </DialogHeader>
 
-          {pendingBackend && (
-            <p className="rounded-lg border border-border bg-muted p-3 text-sm text-muted-foreground">
-              Esta ventana ya guarda la ubicación; falta implementar{' '}
-              <code>PATCH /api/v1/customers/{customerId}/location</code> en PragmaCRM-Api.
-            </p>
-          )}
           {submitError && (
-            <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
+            >
               {submitError}
             </p>
           )}
 
           <div className="flex flex-col gap-4">
+            <Field>
+              <FieldLabel htmlFor="location-search">Buscar dirección</FieldLabel>
+              <Input
+                id="location-search"
+                ref={searchInputRef}
+                type="text"
+                autoComplete="off"
+                placeholder={hasMapsKey ? 'Ej. Colonia Escalón, San Salvador' : 'Mapa no disponible sin API key'}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                disabled={!hasMapsKey}
+              />
+              {formattedAddress && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Dirección seleccionada: {formattedAddress}
+                </p>
+              )}
+            </Field>
+
             <LocationPickerMap
               value={point}
               onChange={handleMapChange}
               radiusMeters={GPS_VALIDATION_RADIUS_METERS}
+              onMapReady={handleMapReady}
               className="overflow-hidden rounded-lg border border-border"
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field data-invalid={point !== null && !isValidLat(point.lat)}>
-                <FieldLabel htmlFor="location-lat">Latitud</FieldLabel>
-                <Input
-                  id="location-lat"
-                  type="number"
-                  step="any"
-                  inputMode="decimal"
-                  value={latText}
-                  onChange={(e) => handleLatChange(e.target.value)}
-                />
-              </Field>
-              <Field data-invalid={point !== null && !isValidLng(point.lng)}>
-                <FieldLabel htmlFor="location-lng">Longitud</FieldLabel>
-                <Input
-                  id="location-lng"
-                  type="number"
-                  step="any"
-                  inputMode="decimal"
-                  value={lngText}
-                  onChange={(e) => handleLngChange(e.target.value)}
-                />
-              </Field>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleUseMyLocation}
+                disabled={locating || !hasMapsKey}
+              >
+                {locating ? 'Obteniendo…' : 'Usar mi ubicación'}
+              </Button>
+              {point && (
+                <span className="text-xs text-muted-foreground">
+                  {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
+                </span>
+              )}
             </div>
+            {geoError && (
+              <p role="alert" className="text-sm text-destructive">
+                {geoError}
+              </p>
+            )}
 
-            <p className="text-sm text-muted-foreground">
-              El círculo punteado muestra los {GPS_VALIDATION_RADIUS_METERS} m de radio que la app usa para validar
-              la visita (RF-06). Es una referencia fija del sistema, no algo que se ajuste por cliente.
-            </p>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={submitting || !point || coordinatesInvalid}>
+            <Button type="submit" disabled={submitting || !point}>
               {submitting ? 'Guardando…' : 'Guardar ubicación'}
             </Button>
           </DialogFooter>

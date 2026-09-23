@@ -1,25 +1,8 @@
-import { useEffect, useRef } from 'react'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+import { useEffect, useRef, useState } from 'react'
+import { getGoogleMapsApiKey, loadGoogleMaps } from '../lib/googleMaps'
 
-// El bundler de Leaflet resuelve los íconos por defecto contra rutas relativas
-// que Vite no reescribe. Sin este fix, el pin no se ve.
-const defaultIcon = L.icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-})
-
-// Centro por defecto: San Salvador (sede de Droguería Pragma), cuando el
-// cliente todavía no tiene ubicación asignada.
-const DEFAULT_CENTER: L.LatLngTuple = [13.6929, -89.2182]
+// Centro por defecto: San Salvador (sede Droguería Pragma).
+const DEFAULT_CENTER = { lat: 13.6929, lng: -89.2182 }
 const DEFAULT_ZOOM = 12
 const POINT_ZOOM = 16
 
@@ -31,17 +14,24 @@ export interface LocationPoint {
 interface LocationPickerMapProps {
   value: LocationPoint | null
   onChange: (point: LocationPoint) => void
-  /** Radio de validación GPS (RF-06 / CLAUDE.md 5.3), solo visual — no se persiste por cliente. */
+  /** Radio de validación GPS (RF-06), solo visual. */
   radiusMeters?: number
   readOnly?: boolean
   className?: string
+  /** Callback cuando el mapa está listo (p. ej. para Places Autocomplete). */
+  onMapReady?: (map: google.maps.Map) => void
 }
 
+type LoadState =
+  | { status: 'loading' }
+  | { status: 'missing-key' }
+  | { status: 'error'; message: string }
+  | { status: 'ready' }
+
 /**
- * Mapa para fijar manualmente la ubicación GPS de un cliente (RF-02): clic o
- * arrastre del pin, sin geocodificación de direcciones (evita depender de un
- * servicio externo no presupuestado, como el riesgo ya señalado con Google
- * Places en CLAUDE.md 9.2).
+ * Mapa Google Maps para fijar la ubicación GPS del cliente (RF-02): clic,
+ * arrastre del pin y círculo de radio. Requiere VITE_GOOGLE_MAPS_API_KEY;
+ * sin ella muestra un mensaje controlado (CA3).
  */
 export function LocationPickerMap({
   value,
@@ -49,88 +39,155 @@ export function LocationPickerMap({
   radiusMeters = 80,
   readOnly = false,
   className,
+  onMapReady,
 }: LocationPickerMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<L.Map | null>(null)
-  const markerRef = useRef<L.Marker | null>(null)
-  const circleRef = useRef<L.Circle | null>(null)
+  const mapRef = useRef<google.maps.Map | null>(null)
+  const markerRef = useRef<google.maps.Marker | null>(null)
+  const circleRef = useRef<google.maps.Circle | null>(null)
   const onChangeRef = useRef(onChange)
+  const onMapReadyRef = useRef(onMapReady)
   onChangeRef.current = onChange
+  onMapReadyRef.current = onMapReady
+
+  const [loadState, setLoadState] = useState<LoadState>(() =>
+    getGoogleMapsApiKey() ? { status: 'loading' } : { status: 'missing-key' }
+  )
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return
+    if (loadState.status === 'missing-key') return
+    let cancelled = false
 
-    const map = L.map(containerRef.current, {
-      center: value ? [value.lat, value.lng] : DEFAULT_CENTER,
-      zoom: value ? POINT_ZOOM : DEFAULT_ZOOM,
-    })
-    mapRef.current = map
+    loadGoogleMaps()
+      .then(() => {
+        if (cancelled || !containerRef.current || mapRef.current) return
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map)
+        const map = new google.maps.Map(containerRef.current, {
+          center: value ?? DEFAULT_CENTER,
+          zoom: value ? POINT_ZOOM : DEFAULT_ZOOM,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        })
+        mapRef.current = map
 
-    if (!readOnly) {
-      map.on('click', (e: L.LeafletMouseEvent) => {
-        onChangeRef.current({ lat: e.latlng.lat, lng: e.latlng.lng })
+        if (!readOnly) {
+          map.addListener('click', (e: google.maps.MapMouseEvent) => {
+            if (!e.latLng) return
+            onChangeRef.current({ lat: e.latLng.lat(), lng: e.latLng.lng() })
+          })
+        }
+
+        setLoadState({ status: 'ready' })
+        onMapReadyRef.current?.(map)
       })
-    }
+      .catch((err: unknown) => {
+        if (cancelled) return
+        if (err instanceof Error && err.message === 'MISSING_KEY') {
+          setLoadState({ status: 'missing-key' })
+          return
+        }
+        setLoadState({
+          status: 'error',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'No se pudo cargar Google Maps. Revisá la clave de API.',
+        })
+      })
 
     return () => {
-      map.remove()
-      mapRef.current = null
+      cancelled = true
+      markerRef.current?.setMap(null)
+      circleRef.current?.setMap(null)
       markerRef.current = null
       circleRef.current = null
+      mapRef.current = null
     }
-    // El mapa se crea una sola vez; el punto se sincroniza en el efecto de abajo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readOnly])
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map) return
+    if (!map || loadState.status !== 'ready') return
 
     if (!value) {
-      markerRef.current?.remove()
+      markerRef.current?.setMap(null)
       markerRef.current = null
-      circleRef.current?.remove()
+      circleRef.current?.setMap(null)
       circleRef.current = null
       return
     }
 
-    const latLng: L.LatLngTuple = [value.lat, value.lng]
+    const position = { lat: value.lat, lng: value.lng }
 
     if (!markerRef.current) {
-      markerRef.current = L.marker(latLng, { icon: defaultIcon, draggable: !readOnly }).addTo(map)
-      markerRef.current.on('dragend', () => {
-        const pos = markerRef.current!.getLatLng()
-        onChangeRef.current({ lat: pos.lat, lng: pos.lng })
+      markerRef.current = new google.maps.Marker({
+        map,
+        position,
+        draggable: !readOnly,
+      })
+      markerRef.current.addListener('dragend', () => {
+        const pos = markerRef.current?.getPosition()
+        if (!pos) return
+        onChangeRef.current({ lat: pos.lat(), lng: pos.lng() })
       })
     } else {
-      markerRef.current.setLatLng(latLng)
+      markerRef.current.setPosition(position)
     }
 
     if (!circleRef.current) {
-      circleRef.current = L.circle(latLng, {
+      circleRef.current = new google.maps.Circle({
+        map,
+        center: position,
         radius: radiusMeters,
-        color: '#2563eb',
-        weight: 1,
-        dashArray: '4 4',
+        strokeColor: '#2563eb',
+        strokeOpacity: 0.9,
+        strokeWeight: 1,
+        fillColor: '#2563eb',
         fillOpacity: 0.08,
-      }).addTo(map)
+      })
     } else {
-      circleRef.current.setLatLng(latLng)
+      circleRef.current.setCenter(position)
       circleRef.current.setRadius(radiusMeters)
     }
 
-    // Solo recentra cuando el punto queda fuera de la vista actual (p. ej. al
-    // escribirlo a mano en los campos de latitud/longitud). Arrastrar o hacer
-    // clic en el pin ya deja el punto visible, así que no fuerza el encuadre.
-    if (!map.getBounds().contains(latLng)) {
-      map.setView(latLng, Math.max(map.getZoom(), POINT_ZOOM))
+    const bounds = map.getBounds()
+    if (!bounds || !bounds.contains(position)) {
+      map.panTo(position)
+      if ((map.getZoom() ?? DEFAULT_ZOOM) < POINT_ZOOM) map.setZoom(POINT_ZOOM)
     }
-  }, [value, radiusMeters, readOnly])
+  }, [value, radiusMeters, readOnly, loadState.status])
 
-  return <div ref={containerRef} className={className} style={{ height: 320, width: '100%' }} />
+  if (loadState.status === 'missing-key') {
+    return (
+      <div className={className} style={{ height: 320, width: '100%' }} role="status">
+        <div className="flex h-full items-center justify-center bg-muted p-4 text-center text-sm text-muted-foreground">
+          Falta configurar <code>VITE_GOOGLE_MAPS_API_KEY</code> para mostrar el mapa. El resto del
+          perfil sigue disponible.
+        </div>
+      </div>
+    )
+  }
+
+  if (loadState.status === 'error') {
+    return (
+      <div className={className} style={{ height: 320, width: '100%' }} role="alert">
+        <div className="flex h-full items-center justify-center bg-destructive/10 p-4 text-center text-sm text-destructive">
+          {loadState.message}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={className} style={{ position: 'relative', height: 320, width: '100%' }}>
+      {loadState.status === 'loading' && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted text-sm text-muted-foreground">
+          Cargando mapa…
+        </div>
+      )}
+      <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+    </div>
+  )
 }
