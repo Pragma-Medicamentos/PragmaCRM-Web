@@ -122,11 +122,11 @@ export function ImportPage() {
 
   return (
     <AppShell>
-      <div ref={contentRef} className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+      <div ref={contentRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="m-0 text-2xl font-bold">Carga manual de historial</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="m-0 font-heading text-2xl font-semibold tracking-tight">Carga manual de historial</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
               Archivo JSON exportado desde Efactsoft
             </p>
           </div>
