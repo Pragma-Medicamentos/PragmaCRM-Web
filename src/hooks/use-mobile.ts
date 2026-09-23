@@ -6,7 +6,13 @@ import * as React from "react"
 const MOBILE_BREAKPOINT = 1024
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+  // Local: valor inicial calculado en el primer render (SPA, sin SSR). Con
+  // `undefined` el primer render siempre era "escritorio", y como cada página
+  // monta su propio AppShell, en móvil la barra superior parpadeaba del botón
+  // de panel a la hamburguesa en cada navegación.
+  const [isMobile, setIsMobile] = React.useState<boolean>(
+    () => window.innerWidth < MOBILE_BREAKPOINT
+  )
 
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
