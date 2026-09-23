@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../../lib/supabase/client'
-import { apiFetch, ApiError } from '../../lib/api/apiClient'
+import { apiRequest, ApiError } from '../../lib/api/apiClient'
 import { requestLoginOtp } from './authApi'
 import type { AppUser, RedirectReason } from './auth.types'
 import { Alert, AlertDescription } from '../../components/ui/alert'
@@ -27,6 +27,7 @@ const OTP_LENGTH = 6
 const OUTLINED_FIELD = 'h-11'
 
 function reasonMessage(reason: RedirectReason): string {
+  if (reason.kind === 'expired') return 'Tu sesión expiró. Vuelve a iniciar sesión.'
   // 'forbidden' trae el message tal cual lo mandó la API en el 403
   // (usuario no registrado, cuenta deshabilitada, etc.) — ver
   // PragmaCRM-Web/CLAUDE.md. 'role' es el único mensaje que genera este
@@ -41,7 +42,7 @@ function reasonMessage(reason: RedirectReason): string {
 type Step =
   | { kind: 'email' }
   | { kind: 'code'; email: string; info: string }
-  | { kind: 'password'; email: string; token: string }
+  | { kind: 'password'; email: string }
 
 export function LoginPage() {
   const location = useLocation()
@@ -90,15 +91,13 @@ export function LoginPage() {
       return
     }
 
-    const token = data.session.access_token
-
     try {
-      const appUser = await apiFetch<AppUser>('/api/v1/me', token)
+      const appUser = await apiRequest<AppUser>('/api/v1/me')
       if (appUser.passwordSetAt) {
         navigate('/', { replace: true })
         return
       }
-      setStep({ kind: 'password', email: currentStep.email, token })
+      setStep({ kind: 'password', email: currentStep.email })
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {

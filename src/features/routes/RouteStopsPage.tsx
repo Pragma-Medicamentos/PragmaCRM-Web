@@ -7,7 +7,6 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { cn } from '../../lib/utils'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
 import { useCustomers } from '../customers/useCustomers'
 import { useRouteStops } from './useRouteStops'
@@ -100,10 +99,7 @@ export function RouteStopsPage() {
     setSaving(true)
     setNotice(null)
     try {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token ?? null
       const result = await replaceRouteStops(
-        token,
         routeId,
         stops.map((stop, index) => ({ customer_id: stop.customer_id, stop_type: stop.stop_type, sort_order: index }))
       )

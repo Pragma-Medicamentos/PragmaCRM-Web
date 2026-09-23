@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { isRouteNotImplemented } from '../../lib/api/apiClient'
 import { fetchLastUpload } from './uploadsApi'
 import type { LastUpload } from './uploads.types'
@@ -21,9 +20,7 @@ export function useLastUpload(refreshKey: number): LastUpload | null {
   useEffect(() => {
     let cancelled = false
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => fetchLastUpload(data.session?.access_token ?? null))
+    fetchLastUpload()
       .then((value) => {
         if (!cancelled) setLastUpload(value)
       })

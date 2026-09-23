@@ -21,6 +21,8 @@ export function AdminRoute({ children }: { children: ReactElement }) {
       return <SessionGate />
     case 'signed_out':
       return toLogin()
+    case 'expired':
+      return toLogin({ kind: 'expired' })
     case 'forbidden':
       return toLogin({ kind: 'forbidden', message: state.message })
     case 'error':
