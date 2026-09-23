@@ -25,13 +25,13 @@ import { Skeleton } from '../../components/ui/skeleton'
 import { Spinner } from '../../components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table'
+  QuietTable,
+  QuietTableBody,
+  QuietTableCell,
+  QuietTableHead,
+  QuietTableHeader,
+  QuietTableRow,
+} from '../../components/quiet-table'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu'
-import { cn } from '../../lib/utils'
 import { ApiError } from '../../lib/api/apiClient'
 import { useVendors } from './useVendors'
 import { CreateVendorDialog } from './CreateVendorDialog'
@@ -61,30 +60,30 @@ const COLUMNS = ['Nombre', 'Correo', 'Estado', 'Fecha de alta'] as const
 
 function VendorsTableSkeleton() {
   return (
-    <Table>
-      <TableHeader className="bg-muted/40">
-        <TableRow>
+    <QuietTable>
+      <QuietTableHeader>
+        <QuietTableRow className="hover:bg-transparent">
           {COLUMNS.map((column) => (
-            <TableHead key={column}>{column}</TableHead>
+            <QuietTableHead key={column}>{column}</QuietTableHead>
           ))}
-          <TableHead className="text-right">Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+          <QuietTableHead align="right">Acciones</QuietTableHead>
+        </QuietTableRow>
+      </QuietTableHeader>
+      <QuietTableBody>
         {Array.from({ length: 5 }, (_, row) => (
-          <TableRow key={row}>
+          <QuietTableRow key={row}>
             {COLUMNS.map((column) => (
-              <TableCell key={column}>
+              <QuietTableCell key={column}>
                 <Skeleton className="h-4 w-28" />
-              </TableCell>
+              </QuietTableCell>
             ))}
-            <TableCell className="text-right">
+            <QuietTableCell align="right">
               <Skeleton className="ml-auto size-7 rounded-lg" />
-            </TableCell>
-          </TableRow>
+            </QuietTableCell>
+          </QuietTableRow>
         ))}
-      </TableBody>
-    </Table>
+      </QuietTableBody>
+    </QuietTable>
   )
 }
 
@@ -98,29 +97,31 @@ interface VendorsTableProps {
 
 function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }: VendorsTableProps) {
   return (
-    <Table>
-      <TableHeader className="bg-muted/40">
-        <TableRow>
+    <QuietTable>
+      <QuietTableHeader>
+        <QuietTableRow className="hover:bg-transparent">
           {COLUMNS.map((column) => (
-            <TableHead key={column}>{column}</TableHead>
+            <QuietTableHead key={column}>{column}</QuietTableHead>
           ))}
-          <TableHead className="text-right">Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+          <QuietTableHead align="right">Acciones</QuietTableHead>
+        </QuietTableRow>
+      </QuietTableHeader>
+      <QuietTableBody>
         {vendors.map((vendor) => {
           const busy = busyIds.has(vendor.id)
           return (
-            <TableRow key={vendor.id} className={cn(!vendor.active && 'opacity-55')}>
-              <TableCell className="font-medium text-foreground">{vendor.name}</TableCell>
-              <TableCell className="text-muted-foreground">{vendor.email ?? '—'}</TableCell>
-              <TableCell>
+            <QuietTableRow key={vendor.id}>
+              <QuietTableCell className="font-medium text-foreground">{vendor.name}</QuietTableCell>
+              <QuietTableCell className="text-muted-foreground">{vendor.email ?? '—'}</QuietTableCell>
+              <QuietTableCell>
                 <Badge variant={vendor.active ? 'default' : 'outline'}>
                   {vendor.active ? 'Activo' : 'Deshabilitado'}
                 </Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{dateFormatter.format(new Date(vendor.created_at))}</TableCell>
-              <TableCell className="text-right">
+              </QuietTableCell>
+              <QuietTableCell className="text-muted-foreground">
+                {dateFormatter.format(new Date(vendor.created_at))}
+              </QuietTableCell>
+              <QuietTableCell align="right" className="whitespace-nowrap">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button type="button" variant="ghost" size="icon-sm" disabled={busy} aria-label="Acciones">
@@ -141,12 +142,12 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </TableCell>
-            </TableRow>
+              </QuietTableCell>
+            </QuietTableRow>
           )
         })}
-      </TableBody>
-    </Table>
+      </QuietTableBody>
+    </QuietTable>
   )
 }
 
@@ -278,7 +279,7 @@ export function VendorsPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="border-t px-0">
+            <CardContent className="min-w-0 border-t px-0">
               {state.status === 'loading' && <VendorsTableSkeleton />}
 
               {state.status === 'ready' && filteredVendors.length > 0 && (

@@ -20,6 +20,14 @@ import {
   EmptyTitle,
 } from '../../components/ui/empty'
 import { Skeleton } from '../../components/ui/skeleton'
+import {
+  QuietTable,
+  QuietTableBody,
+  QuietTableCell,
+  QuietTableHead,
+  QuietTableHeader,
+  QuietTableRow,
+} from '../../components/quiet-table'
 import { AssignLocationDialog } from './AssignLocationDialog'
 import { useCustomerProfile } from './useCustomerProfile'
 import type { CustomerProfile, CustomerRouteRef, CustomerVisitNote } from './customers.types'
@@ -46,10 +54,20 @@ function DataItem({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Cifra destacada del resumen comercial. */
-function Stat({ label, value, tone }: { label: string; value: string; tone?: 'danger' }) {
+function Stat({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string
+  value: string
+  hint?: string
+  tone?: 'danger'
+}) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       <span
         className={
           tone === 'danger'
@@ -59,6 +77,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'da
       >
         {value}
       </span>
+      {hint && <span className="text-sm text-muted-foreground">{hint}</span>}
     </div>
   )
 }
@@ -105,14 +124,24 @@ function RecentNotesList({ notes }: { notes: CustomerVisitNote[] }) {
   }
 
   return (
-    <ul className="flex flex-col gap-4">
-      {notes.map((note, index) => (
-        <li key={`${note.date}-${index}`} className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
-          <p className="text-sm text-foreground">{note.notes}</p>
-        </li>
-      ))}
-    </ul>
+    <QuietTable>
+      <QuietTableHeader>
+        <QuietTableRow className="hover:bg-transparent">
+          <QuietTableHead className="w-40">Fecha</QuietTableHead>
+          <QuietTableHead>Nota de visita</QuietTableHead>
+        </QuietTableRow>
+      </QuietTableHeader>
+      <QuietTableBody>
+        {notes.map((note, index) => (
+          <QuietTableRow key={`${note.date}-${index}`}>
+            <QuietTableCell className="whitespace-nowrap text-muted-foreground">
+              {formatDate(note.date)}
+            </QuietTableCell>
+            <QuietTableCell className="max-w-xl text-foreground">{note.notes}</QuietTableCell>
+          </QuietTableRow>
+        ))}
+      </QuietTableBody>
+    </QuietTable>
   )
 }
 
@@ -225,7 +254,15 @@ function ProfileView({
           />
           <Stat label="Compras netas" value={formatCurrency(profile.summary.net_purchases)} />
           <Stat label="Pedidos" value={String(profile.summary.orders_count)} />
-          <Stat label="Visitas" value={String(profile.summary.visits_count)} />
+          <Stat
+            label="Visitas"
+            value={String(profile.summary.visits_count)}
+            hint={
+              profile.summary.last_visit_at
+                ? `Última ${formatDate(profile.summary.last_visit_at)}`
+                : undefined
+            }
+          />
         </CardContent>
       </Card>
 
@@ -233,7 +270,7 @@ function ProfileView({
         <CardHeader>
           <CardTitle>Notas recientes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="border-t px-0">
           <RecentNotesList notes={profile.recent_notes} />
         </CardContent>
       </Card>

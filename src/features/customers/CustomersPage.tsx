@@ -24,14 +24,13 @@ import { Badge } from '../../components/ui/badge'
 import { Skeleton } from '../../components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table'
-import { cn } from '../../lib/utils'
+  QuietTable,
+  QuietTableBody,
+  QuietTableCell,
+  QuietTableHead,
+  QuietTableHeader,
+  QuietTableRow,
+} from '../../components/quiet-table'
 import { useCustomers } from './useCustomers'
 import type { Customer, CustomerCategory } from './customers.types'
 
@@ -59,16 +58,16 @@ const CATEGORY_BADGE_VARIANT: Record<CustomerCategory, 'default' | 'secondary' |
   uncategorized: 'outline',
 }
 
-const COLUMNS = [
-  'Cliente',
-  'Zona',
-  'Categoría',
-  'Compras (neto)',
-  'Conversión',
-  'Días prom. pago',
-  'Saldo',
-  'GPS',
-] as const
+const COLUMNS: { label: string; align?: 'right'; numeric?: boolean }[] = [
+  { label: 'Cliente' },
+  { label: 'Zona' },
+  { label: 'Categoría' },
+  { label: 'Compras (neto)', align: 'right', numeric: true },
+  { label: 'Conversión', align: 'right', numeric: true },
+  { label: 'Días prom. pago', align: 'right', numeric: true },
+  { label: 'Saldo', align: 'right', numeric: true },
+  { label: 'GPS' },
+]
 
 function categoryLabel(category: CustomerCategory): string {
   return category === 'uncategorized' ? 'Sin categorizar' : category
@@ -76,81 +75,104 @@ function categoryLabel(category: CustomerCategory): string {
 
 function CustomersTableHead() {
   return (
-    <TableHeader className="bg-muted/40">
-      <TableRow>
+    <QuietTableHeader>
+      <QuietTableRow className="hover:bg-transparent">
         {COLUMNS.map((column) => (
-          <TableHead key={column}>{column}</TableHead>
+          <QuietTableHead key={column.label} align={column.align}>
+            {column.label}
+          </QuietTableHead>
         ))}
-        <TableHead className="text-right">Acciones</TableHead>
-      </TableRow>
-    </TableHeader>
+        <QuietTableHead align="right">Acciones</QuietTableHead>
+      </QuietTableRow>
+    </QuietTableHeader>
   )
 }
 
 function CustomersTableSkeleton() {
   return (
-    <Table>
+    <QuietTable>
       <CustomersTableHead />
-      <TableBody>
+      <QuietTableBody>
         {Array.from({ length: 6 }, (_, row) => (
-          <TableRow key={row}>
+          <QuietTableRow key={row}>
             {COLUMNS.map((column) => (
-              <TableCell key={column}>
+              <QuietTableCell key={column.label} align={column.align} numeric={column.numeric}>
                 <Skeleton className="h-4 w-20" />
-              </TableCell>
+              </QuietTableCell>
             ))}
-            <TableCell className="text-right">
+            <QuietTableCell align="right">
               <Skeleton className="ml-auto h-7 w-20 rounded-lg" />
-            </TableCell>
-          </TableRow>
+            </QuietTableCell>
+          </QuietTableRow>
         ))}
-      </TableBody>
-    </Table>
+      </QuietTableBody>
+    </QuietTable>
   )
 }
 
 function CustomersTable({ customers }: { customers: Customer[] }) {
   return (
-    <Table>
+    <QuietTable>
       <CustomersTableHead />
-      <TableBody>
-        {customers.map((customer) => (
-          <TableRow key={customer.id} className={cn(!customer.active && 'opacity-55')}>
-            <TableCell>
-              <div className="font-medium text-foreground">{customer.name}</div>
-              {customer.trade_name && <div className="text-xs text-muted-foreground">{customer.trade_name}</div>}
-            </TableCell>
-            <TableCell className="text-muted-foreground">{customer.zone ?? '—'}</TableCell>
-            <TableCell>
-              <Badge variant={CATEGORY_BADGE_VARIANT[customer.category]}>{categoryLabel(customer.category)}</Badge>
-            </TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(customer.net_purchases)}</TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">
-              {Math.round(customer.conversion_rate * 100)}%
-              <div className="text-xs">
-                {customer.orders_count}/{customer.visits_count}
-              </div>
-            </TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">
-              {customer.avg_payment_days != null ? `${customer.avg_payment_days} d` : '—'}
-            </TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(customer.pending_balance)}</TableCell>
-            <TableCell>
-              {customer.has_gps ? (
-                <MapPin className="size-4 text-primary" aria-label="Con ubicación GPS" />
-              ) : (
-                <span className="text-xs text-muted-foreground">falta</span>
-              )}
-            </TableCell>
-            <TableCell className="text-right">
-              <Button asChild variant="outline" size="sm">
-                <Link to={`/clientes/${customer.id}`}>Ver perfil</Link>
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+      <QuietTableBody>
+        {customers.map((customer) => {
+          const balance = Number(customer.pending_balance)
+          const hasBalance = Number.isFinite(balance) && balance > 0
+          return (
+            <QuietTableRow key={customer.id}>
+              <QuietTableCell>
+                <div className="font-medium text-foreground">{customer.name}</div>
+                {customer.trade_name && (
+                  <div className="text-sm text-muted-foreground">{customer.trade_name}</div>
+                )}
+                {!customer.active && <div className="text-sm text-muted-foreground">Inactivo</div>}
+              </QuietTableCell>
+              <QuietTableCell className="text-muted-foreground">{customer.zone ?? '—'}</QuietTableCell>
+              <QuietTableCell>
+                <Badge variant={CATEGORY_BADGE_VARIANT[customer.category]}>
+                  {categoryLabel(customer.category)}
+                </Badge>
+              </QuietTableCell>
+              <QuietTableCell numeric className="font-medium text-foreground">
+                {formatCurrency(customer.net_purchases)}
+              </QuietTableCell>
+              <QuietTableCell align="right">
+                <div className="font-medium text-foreground tabular-nums">
+                  {Math.round(customer.conversion_rate * 100)}%
+                </div>
+                <div className="text-sm font-normal text-muted-foreground">
+                  {customer.orders_count} pedidos · {customer.visits_count} visitas
+                </div>
+              </QuietTableCell>
+              <QuietTableCell numeric className="text-muted-foreground">
+                {customer.avg_payment_days != null ? `${customer.avg_payment_days} d` : '—'}
+              </QuietTableCell>
+              <QuietTableCell
+                numeric
+                className={hasBalance ? 'font-medium text-destructive' : 'text-muted-foreground'}
+              >
+                {formatCurrency(customer.pending_balance)}
+              </QuietTableCell>
+              <QuietTableCell>
+                {customer.has_gps ? (
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <MapPin className="size-4 text-primary" aria-hidden="true" />
+                    Con GPS
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Sin GPS</span>
+                )}
+              </QuietTableCell>
+              <QuietTableCell align="right" className="whitespace-nowrap">
+                <Button asChild variant="ghost" size="sm">
+                  <Link to={`/clientes/${customer.id}`}>Ver perfil</Link>
+                </Button>
+              </QuietTableCell>
+            </QuietTableRow>
+          )
+        })}
+      </QuietTableBody>
+    </QuietTable>
   )
 }
 
@@ -256,7 +278,7 @@ export function CustomersPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="border-t px-0">
+            <CardContent className="min-w-0 border-t px-0">
               {state.status === 'loading' && <CustomersTableSkeleton />}
 
               {state.status === 'ready' && filteredCustomers.length > 0 && (
