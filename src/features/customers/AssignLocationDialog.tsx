@@ -225,10 +225,6 @@ export function AssignLocationDialog({
               </p>
             )}
 
-            <p className="text-sm text-muted-foreground">
-              El círculo muestra los {GPS_VALIDATION_RADIUS_METERS} m de radio que la app usa para
-              validar la visita (RF-06). Es una referencia fija del sistema.
-            </p>
           </div>
 
           <DialogFooter>
