@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { createRoute } from './routesApi'
 import { Button } from '../../components/ui/button'
@@ -52,10 +51,7 @@ export function CreateRouteDialog({ onClose, onCreated }: CreateRouteDialogProps
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const route = await createRoute(session?.access_token ?? null, {
+      const route = await createRoute({
         name: name.trim(),
         municipality: municipality.trim() || undefined,
         zone: zone.trim() || undefined,

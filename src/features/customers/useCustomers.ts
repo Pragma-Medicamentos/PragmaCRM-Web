@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
 import { listCustomers } from './customersApi'
 import type { Customer } from './customers.types'
@@ -23,9 +22,7 @@ export function useCustomers(): { state: CustomersState; reload: () => void } {
     let cancelled = false
     setState({ status: 'loading' })
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => listCustomers(data.session?.access_token ?? null))
+    listCustomers()
       .then((page) => {
         if (!cancelled) setState({ status: 'ready', customers: page.items })
       })

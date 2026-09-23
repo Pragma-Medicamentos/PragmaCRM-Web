@@ -7,7 +7,6 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Button } from '../../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { cn } from '../../lib/utils'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { useVendors } from '../vendors/useVendors'
 import { useRoutePlanner } from './useRoutePlanner'
@@ -61,11 +60,6 @@ export function RoutePlannerPage() {
     return map
   }, [vendorAssignments])
 
-  async function getToken() {
-    const { data } = await supabase.auth.getSession()
-    return data.session?.access_token ?? null
-  }
-
   function handleDragEnd(event: DragEndEvent) {
     if (!event.over || !vendorId || submitting) return
     const routeId = event.active.id as string
@@ -96,8 +90,7 @@ export function RoutePlannerPage() {
     setNotice(null)
     setSubmitting(true)
     try {
-      const token = await getToken()
-      await assignRoute(token, routeId, { user_id: vendorId, day })
+      await assignRoute(routeId, { user_id: vendorId, day })
       reload()
     } catch (err) {
       setNotice({
@@ -115,8 +108,7 @@ export function RoutePlannerPage() {
     setNotice(null)
     setSubmitting(true)
     try {
-      const token = await getToken()
-      await reassignRoute(token, assignment.route_id, { user_id: newVendorId, day: assignment.day })
+      await reassignRoute(assignment.route_id, { user_id: newVendorId, day: assignment.day })
       reload()
     } catch (err) {
       setNotice({
@@ -135,8 +127,7 @@ export function RoutePlannerPage() {
     setNotice(null)
     setBusyAssignmentIds((prev) => new Set(prev).add(assignment.id))
     try {
-      const token = await getToken()
-      await unassignRouteDay(token, assignment.route_id, assignment.day)
+      await unassignRouteDay(assignment.route_id, assignment.day)
       reload()
     } catch (err) {
       setNotice({

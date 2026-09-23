@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { listRoutes, listRouteStops } from './routesApi'
 import type { Route, RouteStop } from './routes.types'
@@ -23,15 +22,12 @@ export function useRouteStops(routeId: string): { state: RouteStopsState; reload
     let cancelled = false
     setState({ status: 'loading' })
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
-        const token = data.session?.access_token ?? null
-        const routes = await listRoutes(token, {})
+    listRoutes()
+      .then(async (routes) => {
         const route = routes.find((r) => r.id === routeId)
         if (!route) return null
 
-        const stops = await listRouteStops(token, routeId)
+        const stops = await listRouteStops(routeId)
         return { route, stops }
       })
       .then((result) => {

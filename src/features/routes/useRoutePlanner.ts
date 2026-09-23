@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { listRouteAssignments, listRoutes } from './routesApi'
 import type { Route, RouteAssignment } from './routes.types'
@@ -24,14 +23,9 @@ export function useRoutePlanner(): { state: RoutePlannerState; reload: () => voi
     let cancelled = false
     setState({ status: 'loading' })
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
-        const token = data.session?.access_token ?? null
-        const routes = await listRoutes(token, { active: true })
-        const assignmentsByRoute = await Promise.all(
-          routes.map((route) => listRouteAssignments(token, route.id))
-        )
+    listRoutes({ active: true })
+      .then(async (routes) => {
+        const assignmentsByRoute = await Promise.all(routes.map((route) => listRouteAssignments(route.id)))
         return { routes, assignments: assignmentsByRoute.flat() }
       })
       .then(({ routes, assignments }) => {

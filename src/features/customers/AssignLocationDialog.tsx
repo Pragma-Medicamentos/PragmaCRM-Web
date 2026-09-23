@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { getGoogleMapsApiKey, loadGoogleMaps } from '../../lib/googleMaps'
 import { updateCustomerLocation } from './customersApi'
@@ -133,19 +132,14 @@ export function AssignLocationDialog({
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const { data } = await supabase.auth.getSession()
-      const payload: Parameters<typeof updateCustomerLocation>[2] = {
+      const payload: Parameters<typeof updateCustomerLocation>[1] = {
         latitude: point.lat,
         longitude: point.lng,
       }
       if (formattedAddress) payload.address = formattedAddress
       if (placeId) payload.place_id = placeId
 
-      const result = await updateCustomerLocation(
-        data.session?.access_token ?? null,
-        customerId,
-        payload
-      )
+      const result = await updateCustomerLocation(customerId, payload)
       onUpdated(result)
     } catch (err) {
       setSubmitError(

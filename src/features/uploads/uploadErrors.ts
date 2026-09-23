@@ -69,7 +69,7 @@ const BY_MESSAGE: Record<string, string> = {
 
 /**
  * Respaldo por status. Hace falta de verdad: nginx responde 413 y 504 con
- * HTML, no con el envelope `{ success, message }`, y `apiFetch` hace
+ * HTML, no con el envelope `{ success, message }`, y `apiRequest` hace
  * `response.json().catch(() => null)`, así que sin esta tabla el usuario
  * vería "Error 413 al contactar la API".
  */

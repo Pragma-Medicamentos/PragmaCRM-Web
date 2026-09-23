@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
+import { isRequestCanceled } from '../../lib/api/apiClient'
 import { toUploadFailure } from './uploadErrors'
 import { uploadSalesFile } from './uploadsApi'
 import { validateSalesFile } from './validateSalesFile'
@@ -49,18 +49,13 @@ export function useSalesUpload() {
     setState({ status: 'uploading', ...validated })
 
     try {
-      const { data } = await supabase.auth.getSession()
-      const summary = await uploadSalesFile(
-        data.session?.access_token ?? null,
-        validated.file,
-        controller.signal
-      )
+      const summary = await uploadSalesFile(validated.file, controller.signal)
       setState({ status: 'success', file: validated.file, summary })
     } catch (err: unknown) {
-      // El abort de fetch llega como DOMException, no como ApiError. Solo lo
+      // El abort llega como cancelación de Axios, no como ApiError. Solo lo
       // dispara `reset()` —que ya deja 'idle'— o el desmontaje de la pantalla,
       // así que aquí no hay nada que escribir: hacerlo pisaría ese 'idle'.
-      if (err instanceof DOMException && err.name === 'AbortError') return
+      if (isRequestCanceled(err)) return
 
       // La guarda comprueba que se siga en 'uploading' por el mismo motivo.
       setState((prev) =>
