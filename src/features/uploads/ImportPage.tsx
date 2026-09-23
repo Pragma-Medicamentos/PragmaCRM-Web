@@ -122,11 +122,11 @@ export function ImportPage() {
 
   return (
     <AppShell>
-      <div ref={contentRef} className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+      <div ref={contentRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="m-0 text-2xl font-bold">Carga manual de historial</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="m-0 font-heading text-2xl font-semibold tracking-tight">Carga manual de historial</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
               Archivo JSON exportado desde Efactsoft
             </p>
           </div>
@@ -224,9 +224,9 @@ export function ImportPage() {
             página y no se ve; cuando la tarjeta pasa por debajo, la difumina. */}
         {(hasActions || hasContentBelow) && (
           <div
-            className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 border-t bg-[var(--color-bg)] py-3
+            className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 border-t bg-surface py-3
               before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-4
-              before:bg-linear-to-t before:from-[var(--color-bg)] before:to-transparent"
+              before:bg-linear-to-t before:from-surface before:to-transparent"
           >
             {/* El degradado por sí solo no alcanza para que se entienda que hay
                 más abajo, así que se dice. Desaparece al llegar al final, de
