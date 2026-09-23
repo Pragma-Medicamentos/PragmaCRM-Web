@@ -29,9 +29,15 @@ export function isRouteNotImplemented(err: unknown): boolean {
   return err instanceof ApiError && err.status === 404 && err.message === 'Not found'
 }
 
-/** El request fue abortado con su `AbortSignal` (no es un error de la API). */
+/**
+ * El request fue abortado con su `AbortSignal` (no es un error de la API).
+ * Axios 1.x rechaza con `CanceledError` (`code === 'ERR_CANCELED'`).
+ * `axios.isCancel` cubre ese caso cuando el error trae `__CANCEL__`, y
+ * también el `CancelToken` legacy; el chequeo de código atrapa un abort
+ * que solo expone `ERR_CANCELED`.
+ */
 export function isRequestCanceled(err: unknown): boolean {
-  return axios.isCancel(err)
+  return axios.isCancel(err) || (axios.isAxiosError(err) && err.code === 'ERR_CANCELED')
 }
 
 declare module 'axios' {
@@ -111,6 +117,9 @@ function expireSession(): Promise<unknown> {
 // permiso) y 503 (JWKS caído, transitorio). Status 0 = sin respuesta (red
 // caída, CORS). Un abort no se convierte: ver `isRequestCanceled`.
 api.interceptors.response.use(undefined, async (error: unknown) => {
+  // CanceledError es un AxiosError: sin este corte el abort se vuelve ApiError
+  // y el upload cancelado se pinta como fallo de API.
+  if (isRequestCanceled(error)) throw error
   if (!axios.isAxiosError(error)) throw error
 
   const status = error.response?.status ?? 0
