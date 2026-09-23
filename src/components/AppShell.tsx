@@ -1,6 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Link, matchPath, useLocation } from 'react-router-dom'
-import { ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Route, UserCog, Users } from 'lucide-react'
+import { ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Package, Route, UserCog, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { Avatar, AvatarFallback } from './ui/avatar'
@@ -62,6 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Comercial',
     items: [
       { to: '/clientes', label: 'Clientes', icon: Users },
+      { to: '/productos', label: 'Productos', icon: Package },
       { to: '/importar', label: 'Importar datos', icon: FileUp },
     ],
   },
