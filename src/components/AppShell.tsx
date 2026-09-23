@@ -50,7 +50,13 @@ interface NavGroup {
 // Agrupación tomada del wireframe 1a (sidebar fijo con módulos agrupados),
 // reducida a los módulos que ya existen en este repo.
 const NAV_GROUPS: NavGroup[] = [
-  { label: 'Operación', items: [{ to: '/', label: 'Resumen', icon: LayoutDashboard, end: true }] },
+  {
+    label: 'Operación',
+    items: [
+      { to: '/', label: 'Resumen', icon: LayoutDashboard, end: true },
+      { to: '/rutas', label: 'Planificador de rutas', icon: Route },
+    ],
+  },
   {
     label: 'Comercial',
     items: [
