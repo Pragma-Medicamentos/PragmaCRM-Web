@@ -50,6 +50,14 @@
        index.css) y `brand-accent` el verde claro de la paleta, que hasta ahora
        solo existía hardcodeado dentro del SVG del login. */
     --color-surface: var(--surface);
+    /* Sombras del panel: largas, muy bajas de opacidad y con tinte del verde
+       profundo en vez de negro, para que las tarjetas se despeguen del fondo
+       sin el borde duro de un ring ni el halo de un glass. */
+    --shadow-card: 0 1px 2px oklch(0.24 0.07 148 / 0.04), 0 4px 16px -4px oklch(0.24 0.07 148 / 0.07);
+    --shadow-float: 0 1px 3px oklch(0.24 0.07 148 / 0.06), 0 16px 40px -12px oklch(0.24 0.07 148 / 0.18);
+    /* Borde de luz de las superficies glass: un filo blanco arriba, como el
+       canto de un vidrio. Se combina con shadow-card / shadow-float. */
+    --shadow-glass: inset 0 1px 0 oklch(1 0 0 / 0.9), 0 1px 2px oklch(0.24 0.07 148 / 0.04), 0 8px 24px -8px oklch(0.24 0.07 148 / 0.1);
     --color-brand-accent: var(--brand-accent);
     --color-brand-deep: var(--brand-deep);
     --color-brand-pale: var(--brand-pale);
@@ -114,7 +122,7 @@
     --brand-pale: oklch(0.86 0.1 148);
     /* Fondo de página: blanco con un velo verde, un punto por debajo de las
        tarjetas para que estas se despeguen sin necesitar sombra. */
-    --surface: oklch(0.98 0.005 145);
+    --surface: oklch(0.965 0.012 150);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -132,13 +140,14 @@
     --chart-3: oklch(0.72 0.14 145);
     --chart-4: oklch(0.82 0.09 145);
     --chart-5: oklch(0.89 0.05 145);
-    --radius: 0.5rem; /* 8px: el preset traía 6px, que con esta densidad se ve duro */
+    --radius: 0.625rem; /* 10px: el preset traía 6px, que con esta densidad se ve duro */
     /* Sidebar retintado hacia la marca: la navegación es donde el verde
        identifica el producto sin competir con el contenido. Son mezclas del
        verde con blanco escritas ya resueltas en oklch, no con color-mix(): el
        fallback de color-mix() es el primer color, y ahí eso pinta el panel de
        verde entero en cualquier navegador que no lo soporte. */
-    --sidebar: oklch(0.985 0.006 145);
+    /* Blanco puro: el sidebar es una tarjeta que flota sobre `--surface`. */
+    --sidebar: oklch(1 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: var(--primary);
     --sidebar-primary-foreground: #ffffff;
@@ -249,8 +258,16 @@
   * {
     @apply border-border outline-ring/50;
     }
+  /* Fondo del panel: dos velos suaves (verde de marca arriba a la izquierda,
+     un verde azulado abajo a la derecha) sobre el `--surface`. Es lo que da
+     la profundidad detrás de las superficies glass; baja saturación para que
+     no canse en jornadas largas. Fijo: no se mueve con el scroll. */
   body {
     @apply bg-surface text-foreground;
+    background-image:
+      radial-gradient(ellipse 55% 60% at 0% 0%, oklch(0.88 0.08 148 / 0.55), transparent 70%),
+      radial-gradient(ellipse 50% 55% at 100% 100%, oklch(0.9 0.05 190 / 0.45), transparent 70%);
+    background-attachment: fixed;
     }
   html {
     @apply font-sans;
