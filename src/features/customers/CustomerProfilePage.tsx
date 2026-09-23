@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, MapPin, MapPinOff, Receipt } from 'lucide-react'
+import { ArrowLeft, MapPin, MapPinOff, NotebookPen, Route } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
@@ -20,17 +20,9 @@ import {
   EmptyTitle,
 } from '../../components/ui/empty'
 import { Skeleton } from '../../components/ui/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table'
 import { AssignLocationDialog } from './AssignLocationDialog'
 import { useCustomerProfile } from './useCustomerProfile'
-import type { CustomerProfile, CustomerSaleHistoryEntry } from './customers.types'
+import type { CustomerProfile, CustomerRouteRef, CustomerVisitNote } from './customers.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium' })
 const currencyFormatter = new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' })
@@ -53,7 +45,7 @@ function DataItem({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** Cifra destacada del resumen de créditos. */
+/** Cifra destacada del resumen comercial. */
 function Stat({ label, value, tone }: { label: string; value: string; tone?: 'danger' }) {
   return (
     <div className="flex flex-col gap-1">
@@ -71,46 +63,56 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'da
   )
 }
 
-function SalesHistoryTable({ entries }: { entries: CustomerSaleHistoryEntry[] }) {
-  if (entries.length === 0) {
+function AssignedRoutes({ routes }: { routes: CustomerRouteRef[] }) {
+  if (routes.length === 0) {
     return (
-      <Empty className="py-10">
+      <Empty className="py-8">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <Receipt />
+            <Route />
           </EmptyMedia>
-          <EmptyTitle>Sin ventas registradas</EmptyTitle>
-          <EmptyDescription>
-            El historial se llena con cada importación del archivo de ventas de Efactsoft.
-          </EmptyDescription>
+          <EmptyTitle>Sin ruta asignada</EmptyTitle>
+          <EmptyDescription>Este cliente todavía no pertenece a ninguna ruta.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     )
   }
 
   return (
-    <Table>
-      <TableHeader className="bg-muted/40">
-        <TableRow>
-          <TableHead>Documento</TableHead>
-          <TableHead>Fecha</TableHead>
-          <TableHead>Total</TableHead>
-          <TableHead>Saldo pendiente</TableHead>
-          <TableHead>Último pago</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {entries.map((sale) => (
-          <TableRow key={sale.erp_sale_id}>
-            <TableCell className="font-medium text-foreground">{sale.document ?? sale.erp_sale_id}</TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(sale.erp_created_at)}</TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(sale.total)}</TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(sale.pending_balance)}</TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(sale.last_payment_at)}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <ul className="flex flex-col gap-2">
+      {routes.map((route) => (
+        <li key={route.id} className="text-sm text-foreground">
+          {route.name}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function RecentNotesList({ notes }: { notes: CustomerVisitNote[] }) {
+  if (notes.length === 0) {
+    return (
+      <Empty className="py-8">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <NotebookPen />
+          </EmptyMedia>
+          <EmptyTitle>Sin notas registradas</EmptyTitle>
+          <EmptyDescription>Las notas de visita aparecen aquí cuando el vendedor las carga.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
+
+  return (
+    <ul className="flex flex-col gap-4">
+      {notes.map((note, index) => (
+        <li key={`${note.date}-${index}`} className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
+          <p className="text-sm text-foreground">{note.notes}</p>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -121,7 +123,7 @@ function ProfileSkeleton() {
         <Skeleton className="h-7 w-64" />
         <Skeleton className="h-4 w-40" />
       </div>
-      {[0, 1].map((card) => (
+      {[0, 1, 2].map((card) => (
         <Card key={card}>
           <CardHeader>
             <Skeleton className="h-4 w-44" />
@@ -140,7 +142,13 @@ function ProfileSkeleton() {
   )
 }
 
-function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; onAssignLocation: () => void }) {
+function ProfileView({
+  profile,
+  onAssignLocation,
+}: {
+  profile: CustomerProfile
+  onAssignLocation: () => void
+}) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -165,9 +173,7 @@ function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; 
             <DataItem label="Zona">{profile.zone ?? '—'}</DataItem>
             <DataItem label="Teléfono">{profile.phone ?? '—'}</DataItem>
             <DataItem label="Celular">{profile.mobile ?? '—'}</DataItem>
-            <DataItem label="Responsable de compra">
-              {profile.responsible ? profile.responsible.name : 'Sin responsable asignado'}
-            </DataItem>
+            <DataItem label="Responsable de compra">{profile.attends ?? '—'}</DataItem>
             <DataItem label="Ubicación GPS">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 tabular-nums">
@@ -191,57 +197,67 @@ function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; 
 
       <Card>
         <CardHeader>
-          <CardTitle>Créditos y cobros vigentes</CardTitle>
+          <CardTitle>Rutas asignadas</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Crédito habilitado</span>
-            <span>
-              <Badge variant={profile.credit_summary.credit ? 'default' : 'outline'}>
-                {profile.credit_summary.credit ? 'Sí' : 'No'}
-              </Badge>
-            </span>
-          </div>
-          <Stat label="Límite de crédito" value={formatCurrency(profile.credit_summary.credit_limit)} />
-          <Stat
-            label="Saldo pendiente total"
-            value={formatCurrency(profile.credit_summary.pending_balance_total)}
-          />
-          <Stat
-            label="Cartera vencida"
-            value={formatCurrency(profile.credit_summary.overdue_balance_total)}
-            tone={Number(profile.credit_summary.overdue_balance_total) > 0 ? 'danger' : undefined}
-          />
+        <CardContent>
+          <AssignedRoutes routes={profile.routes} />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Historial de ventas</CardTitle>
+          <CardTitle>Créditos y actividad comercial</CardTitle>
         </CardHeader>
-        <CardContent className="border-t px-0">
-          <SalesHistoryTable entries={profile.sales_history} />
+        <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Crédito habilitado</span>
+            <span>
+              <Badge variant={profile.credit ? 'default' : 'outline'}>
+                {profile.credit ? 'Sí' : 'No'}
+              </Badge>
+            </span>
+          </div>
+          <Stat label="Límite de crédito" value={formatCurrency(profile.credit_limit)} />
+          <Stat
+            label="Saldo pendiente"
+            value={formatCurrency(profile.pending_balance)}
+            tone={Number(profile.pending_balance) > 0 ? 'danger' : undefined}
+          />
+          <Stat label="Compras netas" value={formatCurrency(profile.summary.net_purchases)} />
+          <Stat label="Pedidos" value={String(profile.summary.orders_count)} />
+          <Stat label="Visitas" value={String(profile.summary.visits_count)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Notas recientes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RecentNotesList notes={profile.recent_notes} />
         </CardContent>
       </Card>
     </div>
   )
 }
 
-/** RF-02: perfil del cliente con historial de ventas, créditos/cobros vigentes y responsable de compra. */
+/** RF-02: perfil del cliente con rutas, créditos/actividad y notas recientes. */
 export function CustomerProfilePage() {
   const { id } = useParams<{ id: string }>()
   const { state } = useCustomerProfile(id ?? '')
   const [assigningLocation, setAssigningLocation] = useState(false)
-  // Sobrescribe la ubicación del perfil cargado tras un guardado exitoso, sin
-  // esperar a un refetch (GET /profile todavía no existe en PragmaCRM-Api).
-  const [locationOverride, setLocationOverride] = useState<CustomerProfile['location']>()
+  // Sobrescribe location/address tras un PATCH exitoso, sin esperar refetch.
+  const [coreOverride, setCoreOverride] = useState<Pick<
+    CustomerProfile,
+    'location' | 'address' | 'place_id'
+  > | null>(null)
 
   const profile =
-    state.status === 'ready' && locationOverride !== undefined
-      ? { ...state.profile, location: locationOverride, has_gps: locationOverride !== null }
-      : state.status === 'ready'
-        ? state.profile
-        : null
+    state.status === 'ready'
+      ? coreOverride
+        ? { ...state.profile, ...coreOverride }
+        : state.profile
+      : null
 
   return (
     <AppShell>
@@ -254,7 +270,7 @@ export function CustomerProfilePage() {
 
         {state.status === 'loading' && <ProfileSkeleton />}
         {state.status === 'pending-backend' && (
-          <PendingBackendNotice endpoints={[`GET /api/v1/customers/${id}/profile`]} />
+          <PendingBackendNotice endpoints={[`GET /api/v1/customers/${id}`]} />
         )}
         {state.status === 'error' && (
           <Alert variant="destructive">
@@ -262,7 +278,9 @@ export function CustomerProfilePage() {
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
         )}
-        {profile && <ProfileView profile={profile} onAssignLocation={() => setAssigningLocation(true)} />}
+        {profile && (
+          <ProfileView profile={profile} onAssignLocation={() => setAssigningLocation(true)} />
+        )}
       </div>
 
       {assigningLocation && profile && id && (
@@ -272,7 +290,11 @@ export function CustomerProfilePage() {
           initialLocation={profile.location}
           onClose={() => setAssigningLocation(false)}
           onUpdated={(result) => {
-            setLocationOverride(result.location)
+            setCoreOverride({
+              location: result.location,
+              address: result.address,
+              place_id: result.place_id,
+            })
             setAssigningLocation(false)
           }}
         />

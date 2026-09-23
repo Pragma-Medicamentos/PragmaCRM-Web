@@ -48,3 +48,41 @@ export type ReassignRouteInput = AssignRouteInput
 export const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const
 export const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const
 export const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const
+
+// PCRM-141 — contrato bloqueado por PragmaCRM-Api PCRM-140 (PR #28).
+// El backend expone las paradas de `route_customer` con ubicación enriquecida
+// desde PostGIS:
+//
+//   GET    /api/v1/routes/:routeId/stops            → data: RouteStop[] (orden por sort_order)
+//   PUT    /api/v1/routes/:routeId/stops             body: { stops: ReplaceRouteStopInput[] } (reemplazo completo; [] limpia)
+// `stop_type` toma `visit` por defecto y `location` puede ser null.
+export type StopType = 'visit' | 'dispatch' | 'collection'
+
+export const STOP_TYPE_LABELS: Record<StopType, string> = {
+  visit: 'Visita',
+  dispatch: 'Despacho',
+  collection: 'Cobro',
+}
+
+export interface GeoPoint {
+  lat: number
+  lng: number
+}
+
+export interface RouteStop {
+  id: string
+  route_id: string
+  customer_id: string
+  customer_name: string | null
+  sort_order: number | null
+  stop_type: StopType
+  location: GeoPoint | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ReplaceRouteStopInput {
+  customer_id: string
+  stop_type?: StopType
+  sort_order?: number
+}

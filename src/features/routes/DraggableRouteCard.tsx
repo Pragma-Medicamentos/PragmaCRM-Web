@@ -1,5 +1,6 @@
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
+import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 import { DAY_LABELS_SHORT } from './routes.types'
 import type { Route } from './routes.types'
@@ -40,6 +41,13 @@ export function DraggableRouteCard({ route, assignedDays }: DraggableRouteCardPr
       <p className="font-medium text-foreground">{route.name}</p>
       {route.zone && <p className="text-xs text-muted-foreground">{route.zone}</p>}
       <p className="mt-1 text-xs text-muted-foreground/80">{note}</p>
+      <Link
+        to={`/rutas/${route.id}/paradas`}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+      >
+        Editar paradas
+      </Link>
     </div>
   )
 }

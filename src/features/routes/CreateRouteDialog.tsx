@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { createRoute } from './routesApi'
@@ -30,11 +31,11 @@ interface CreateRouteDialogProps {
 }
 
 /**
- * Modal de alta de ruta (RF-04, wireframe 1h reducido). Solo crea
- * name/municipality/zone: la composición de clientes de la ruta no tiene
- * endpoint todavía (route_customer), así que queda fuera de este formulario.
+ * Modal de alta de ruta (RF-04). Crea name/municipality/zone y navega al
+ * editor de paradas (PCRM-141).
  */
 export function CreateRouteDialog({ onClose, onCreated }: CreateRouteDialogProps) {
+  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [municipality, setMunicipality] = useState('')
   const [zone, setZone] = useState('')
@@ -54,12 +55,13 @@ export function CreateRouteDialog({ onClose, onCreated }: CreateRouteDialogProps
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      await createRoute(session?.access_token ?? null, {
+      const route = await createRoute(session?.access_token ?? null, {
         name: name.trim(),
         municipality: municipality.trim() || undefined,
         zone: zone.trim() || undefined,
       })
       onCreated()
+      navigate(`/rutas/${route.id}/paradas`)
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : 'No se pudo crear la ruta. Intenta de nuevo.')
     } finally {
@@ -74,7 +76,7 @@ export function CreateRouteDialog({ onClose, onCreated }: CreateRouteDialogProps
           <DialogHeader>
             <DialogTitle>Nueva ruta</DialogTitle>
             <DialogDescription>
-              Nombre, municipio y zona. Los clientes se asignan a la ruta en una iteración futura.
+              Nombre, municipio y zona. Después podés configurar las paradas de la ruta.
             </DialogDescription>
           </DialogHeader>
 
