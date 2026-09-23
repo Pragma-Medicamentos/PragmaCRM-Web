@@ -57,7 +57,7 @@ export function unassignRouteDay(token: string | null, routeId: string, day: num
   return apiCall(`/api/v1/routes/${routeId}/assignments/${day}`, token, { method: 'DELETE' })
 }
 
-// Contrato propuesto PCRM-141 (depende de PCRM-140, sin mergear en la Api) — ver routes.types.ts.
+// Contrato bloqueado por PragmaCRM-Api PCRM-140 (PR #28) — ver routes.types.ts.
 export function listRouteStops(token: string | null, routeId: string): Promise<RouteStop[]> {
   return apiFetch<RouteStop[]>(`/api/v1/routes/${routeId}/stops`, token)
 }

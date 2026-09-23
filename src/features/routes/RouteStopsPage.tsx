@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { GripVertical, Search, X } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
-import { PendingBackendNotice } from '../../components/PendingBackendNotice'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
@@ -44,10 +43,10 @@ export function RouteStopsPage() {
     setStops(
       stopsState.stops
         .slice()
-        .sort((a, b) => a.sort_order - b.sort_order)
+        .sort((a, b) => (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER))
         .map((stop) => ({
           customer_id: stop.customer_id,
-          customer_name: stop.customer_name,
+          customer_name: stop.customer_name ?? 'Sin nombre',
           stop_type: stop.stop_type,
           location: stop.location,
         }))
@@ -98,12 +97,6 @@ export function RouteStopsPage() {
 
   async function handleSave() {
     if (!routeId) return
-    const backendPending = stopsState.status === 'ready' && stopsState.backendPending
-    if (backendPending) {
-      setNotice({ kind: 'error', message: 'Falta el endpoint en la Api todavía; los cambios no se guardaron.' })
-      return
-    }
-
     setSaving(true)
     setNotice(null)
     try {
@@ -117,10 +110,10 @@ export function RouteStopsPage() {
       setStops(
         result
           .slice()
-          .sort((a, b) => a.sort_order - b.sort_order)
+          .sort((a, b) => (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER))
           .map((stop) => ({
             customer_id: stop.customer_id,
-            customer_name: stop.customer_name,
+            customer_name: stop.customer_name ?? 'Sin nombre',
             stop_type: stop.stop_type,
             location: stop.location,
           }))
@@ -128,7 +121,7 @@ export function RouteStopsPage() {
       setNotice({ kind: 'success', message: 'Paradas guardadas.' })
     } catch (err) {
       if (isRouteNotImplemented(err)) {
-        setNotice({ kind: 'error', message: 'Falta el endpoint en la Api todavía; los cambios no se guardaron.' })
+        setNotice({ kind: 'error', message: 'El endpoint de paradas no está disponible.' })
       } else {
         setNotice({ kind: 'error', message: err instanceof ApiError ? err.message : 'No se pudieron guardar las paradas.' })
       }
@@ -189,14 +182,6 @@ export function RouteStopsPage() {
         >
           {notice.message}
         </p>
-      )}
-
-      {stopsState.status === 'ready' && stopsState.backendPending && (
-        <div className="mb-4">
-          <PendingBackendNotice
-            endpoints={[`GET /api/v1/routes/${routeId}/stops`, `PUT /api/v1/routes/${routeId}/stops`]}
-          />
-        </div>
       )}
 
       {stopsState.status === 'loading' && <p className="text-sm text-muted-foreground">Cargando paradas…</p>}
@@ -304,7 +289,7 @@ export function RouteStopsPage() {
                     {index + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-foreground">{stop.customer_name}</p>
+                    <p className="truncate font-medium text-foreground">{stop.customer_name || 'Sin nombre'}</p>
                     {!stop.location && <p className="text-xs text-muted-foreground">Sin ubicación GPS</p>}
                   </div>
                   <Select value={stop.stop_type} onValueChange={(v) => setStopType(stop.customer_id, v as StopType)}>
@@ -323,7 +308,7 @@ export function RouteStopsPage() {
                     type="button"
                     onClick={() => removeStop(stop.customer_id)}
                     className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-destructive"
-                    aria-label={`Quitar ${stop.customer_name}`}
+                    aria-label={`Quitar ${stop.customer_name || 'Sin nombre'}`}
                   >
                     <X className="size-4" />
                   </button>
