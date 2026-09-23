@@ -55,9 +55,6 @@
        sin el borde duro de un ring ni el halo de un glass. */
     --shadow-card: 0 1px 2px oklch(0.24 0.07 148 / 0.04), 0 4px 16px -4px oklch(0.24 0.07 148 / 0.07);
     --shadow-float: 0 1px 3px oklch(0.24 0.07 148 / 0.06), 0 16px 40px -12px oklch(0.24 0.07 148 / 0.18);
-    /* Borde de luz de las superficies glass: un filo blanco arriba, como el
-       canto de un vidrio. Se combina con shadow-card / shadow-float. */
-    --shadow-glass: inset 0 1px 0 oklch(1 0 0 / 0.9), 0 1px 2px oklch(0.24 0.07 148 / 0.04), 0 8px 24px -8px oklch(0.24 0.07 148 / 0.1);
     --color-brand-accent: var(--brand-accent);
     --color-brand-deep: var(--brand-deep);
     --color-brand-pale: var(--brand-pale);
@@ -151,7 +148,9 @@
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: var(--primary);
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: oklch(0.955 0.016 145);
+    /* Hover del menú: blanco translúcido, que sobre el vidrio del sidebar se
+       lee como una capa más clara sin volverse un bloque de color. */
+    --sidebar-accent: oklch(1 0 0 / 0.6);
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.915 0.017 145);
     --sidebar-ring: var(--primary);
@@ -252,6 +251,79 @@
     .login-bloom-petal {
         animation: none;
     }
+}
+
+/* Liquid glass ligero, compartido por el sidebar y las tarjetas.
+
+   Tres capas, todas discretas a propósito (el panel se mira horas):
+   1. Cuerpo: blanco translúcido en degradado diagonal, con blur y algo de
+      saturación, para que el velo verde del fondo se asome sin ensuciar el
+      texto. `--glass-alpha` fija la opacidad: el sidebar va más opaco que las
+      tarjetas para separarse del cuerpo de la pantalla.
+   2. Canto especular: un borde de 1px en ::before, pintado con un degradado
+      (brillante arriba a la izquierda, casi nulo en el centro, tenue abajo a
+      la derecha) y recortado con mask para que solo quede el filo. Es lo que
+      da la lectura de "vidrio líquido".
+   3. Luz interior: un filo blanco arriba y uno más tenue abajo, más la
+      sombra larga (`--glass-shadow`, por defecto `--shadow-card`).
+
+   Sin backdrop-filter, o con "reducir transparencia" del sistema, cae a
+   blanco casi opaco: la legibilidad nunca depende del efecto. */
+@utility glass {
+    /* Sin `position`: quien lo usa pone `relative` (o ya es `fixed`, como el
+       Sheet), así el ::before se ancla sin pisar el posicionamiento. */
+    isolation: isolate;
+    background: linear-gradient(
+        135deg,
+        oklch(1 0 0 / calc(var(--glass-alpha, 0.68) + 0.12)) 0%,
+        oklch(1 0 0 / var(--glass-alpha, 0.68)) 45%,
+        oklch(0.99 0.01 150 / calc(var(--glass-alpha, 0.68) - 0.06)) 100%
+    );
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+    box-shadow:
+        inset 0 1px 0 oklch(1 0 0 / 0.85),
+        inset 0 -1px 0 oklch(1 0 0 / 0.3),
+        var(--glass-shadow, var(--shadow-card));
+
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        padding: 1px;
+        pointer-events: none;
+        background: linear-gradient(
+            135deg,
+            oklch(1 0 0 / 0.95) 0%,
+            oklch(1 0 0 / 0.25) 35%,
+            oklch(0.24 0.07 148 / 0.06) 65%,
+            oklch(1 0 0 / 0.6) 100%
+        );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        mask-composite: exclude;
+    }
+
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        background: oklch(1 0 0 / 0.94);
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+        background: oklch(1 0 0);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+}
+
+/* Variante para el sidebar, junto a `glass`: más opaca y con sombra
+   flotante, para que se despegue del cuerpo de la pantalla. Solo fija las
+   variables que `glass` lee, así no depende del orden de las clases. */
+@utility glass-strong {
+    --glass-alpha: 0.8;
+    --glass-shadow: var(--shadow-float);
 }
 
 @layer base {
