@@ -245,7 +245,7 @@ export function CustomerProfilePage() {
 
   return (
     <AppShell>
-      <div className="flex max-w-5xl flex-col gap-4">
+      <div className="flex max-w-5xl flex-col gap-6">
         <Button asChild variant="ghost" size="sm" className="self-start">
           <Link to="/clientes">
             <ArrowLeft data-icon="inline-start" /> Volver a clientes

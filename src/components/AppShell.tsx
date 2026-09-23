@@ -1,9 +1,10 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Link, matchPath, useLocation } from 'react-router-dom'
-import { FileUp, LayoutDashboard, LogOut, UserCog, Users } from 'lucide-react'
+import { ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Route, UserCog, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { Avatar, AvatarFallback } from './ui/avatar'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
@@ -77,7 +78,7 @@ function initials(name: string): string {
     .join('')
 }
 
-function AppSidebar() {
+function AppSidebar({ name, email }: { name: string; email: string | null }) {
   const { pathname } = useLocation()
   const { isMobile, setOpenMobile } = useSidebar()
   // En móvil el sidebar es un Sheet: se cierra al navegar.
@@ -121,51 +122,90 @@ function AppSidebar() {
       <SidebarSeparator className="mx-0 bg-primary/10" />
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton className="text-muted-foreground" onClick={() => supabase.auth.signOut()}>
-              <LogOut />
-              <span>Cerrar sesión</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <NavUser name={name} email={email} />
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   )
 }
 
-function AccountMenu({ name, email }: { name: string; email: string | null }) {
+function AccountAvatar({ name }: { name: string }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          className="glass relative h-auto gap-2.5 rounded-full py-1 pr-3 pl-1"
-          aria-label="Cuenta"
-        >
-          <Avatar className="size-8 ring-2 ring-white">
-            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-              {initials(name)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="hidden max-w-40 truncate text-sm font-medium sm:inline">{name}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col gap-0.5">
-          <span className="truncate font-medium">{name}</span>
-          <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
-          <span className="text-xs font-normal text-primary">Administrador</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem onSelect={() => supabase.auth.signOut()}>
-            <LogOut /> Cerrar sesión
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Avatar className="size-8 ring-2 ring-white">
+      <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{initials(name)}</AvatarFallback>
+    </Avatar>
   )
+}
+
+// Perfil al pie del sidebar, como el de Cursor (patrón NavUser de los bloques
+// de shadcn): el botón muestra avatar + nombre y abre hacia arriba, con su mismo
+// ancho, un menú con los datos de la sesión y "Cerrar sesión".
+function NavUser({ name, email }: { name: string; email: string | null }) {
+  return (
+    <SidebarMenuItem>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent" aria-label="Perfil">
+            <AccountAvatar name={name} />
+            <div className="grid min-w-0 flex-1 text-left leading-tight">
+              <span className="truncate font-medium">{name}</span>
+              <span className="truncate text-xs text-muted-foreground">Administrador</span>
+            </div>
+            <ChevronsUpDown className="ml-auto text-muted-foreground" />
+          </SidebarMenuButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          side="top"
+          align="start"
+          sideOffset={8}
+          className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-xl"
+        >
+          <DropdownMenuLabel className="flex flex-col gap-0.5 px-2 py-2 font-normal">
+            <span className="truncate text-sm font-medium text-foreground">{name}</span>
+            <span className="truncate text-xs text-muted-foreground">{email}</span>
+            <Badge className="mt-1.5">Administrador</Badge>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onSelect={() => supabase.auth.signOut()}>
+              <LogOut /> Cerrar sesión
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
+  )
+}
+
+// Franja superior, fuera del sidebar: el botón para abrirlo o cerrarlo. Debajo
+// de lg (móvil y tablet) es la hamburguesa que abre el Sheet, junto al logo; en
+// escritorio es el botón de panel que oculta o muestra el sidebar flotante.
+function TopBar() {
+  const { isMobile, toggleSidebar } = useSidebar()
+
+  return (
+    <header className="flex h-14 shrink-0 items-center gap-3 px-4 sm:px-6 lg:h-16 lg:px-8">
+      {isMobile ? (
+        <Button type="button" variant="ghost" size="icon-sm" aria-label="Abrir menú" onClick={toggleSidebar}>
+          <Menu />
+        </Button>
+      ) : (
+        <SidebarTrigger className="-ml-2 text-muted-foreground" aria-label="Mostrar u ocultar menú" />
+      )}
+      <img src={brandIcon} alt="Farmacia Pragma" className="h-6 w-auto lg:hidden" />
+    </header>
+  )
+}
+
+const SIDEBAR_STYLE = {
+  // Ancho del panel de antes (w-64 con la escala de --spacing, 20rem) más el
+  // p-3 del contenedor floating a cada lado: 64 + 3 + 3 = 70.
+  '--sidebar-width': 'calc(var(--spacing) * 70)',
+} as CSSProperties
+
+/** El sidebar guarda su estado en la cookie `sidebar_state`, pero en un SPA nadie la lee: se lee acá. */
+function readSidebarOpen(): boolean {
+  return !document.cookie.split('; ').includes('sidebar_state=false')
 }
 
 /** Cabecera y navegación compartidas por las pantallas del panel de Administrador (wireframe 1a). */
@@ -173,33 +213,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const state = useCurrentAppUser()
   const name = state.status === 'ready' ? state.appUser.name : ''
   const email = state.status === 'ready' ? state.appUser.email : ''
-  const firstName = name.trim().split(/\s+/)[0] ?? ''
 
   return (
-    // Ancho del panel de antes (w-64 con la escala de --spacing, 20rem) más el
-    // p-3 del contenedor floating a cada lado: 64 + 3 + 3 = 70.
-    <SidebarProvider style={{ '--sidebar-width': 'calc(var(--spacing) * 70)' } as CSSProperties}>
-      <AppSidebar />
+    <SidebarProvider defaultOpen={readSidebarOpen()} style={SIDEBAR_STYLE}>
+      <AppSidebar name={name} email={email} />
 
       {/* Transparente: el fondo con velos de `body` queda detrás del contenido. */}
       <SidebarInset className="min-w-0 bg-transparent">
-        <header className="flex h-16 shrink-0 items-center gap-3 px-4 md:h-20 md:px-6">
-          <SidebarTrigger aria-label="Mostrar u ocultar menú" />
-          <img src={brandIcon} alt="Farmacia Pragma" className="h-6 w-auto md:hidden" />
+        <TopBar />
 
-          <div className="hidden min-w-0 md:block">
-            <p className="text-xs text-muted-foreground">Panel de administración</p>
-            <p className="truncate text-lg font-semibold tracking-tight text-foreground">
-              {firstName ? `Hola, ${firstName}` : 'Hola'}
-            </p>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            <AccountMenu name={name} email={email} />
-          </div>
-        </header>
-
-        <div className="flex-1 px-4 pb-8 md:px-6">
+        <div className="flex-1 px-4 pt-4 pb-10 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-[1400px]">{children}</div>
         </div>
       </SidebarInset>
