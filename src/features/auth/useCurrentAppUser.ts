@@ -1,24 +1,28 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase/client'
-import { apiFetch, ApiError } from '../../lib/api/apiClient'
+import { ApiError, consumeSessionExpired } from '../../lib/api/apiClient'
+import { fetchMe } from './authApi'
 import type { AppUser } from './auth.types'
 
 export type AppUserState =
   | { status: 'loading' }
-  | { status: 'signed_out' }
+  // `expired`: la sesión se cerró porque la API respondió 401 (ver el
+  // interceptor de apiClient.ts), no porque el usuario salió.
+  | { status: 'signed_out'; expired: boolean }
   | { status: 'forbidden'; message: string }
   | { status: 'error'; message: string }
   | { status: 'ready'; appUser: AppUser }
 
 /**
- * Resuelve el perfil (role, name, email) llamando a GET /api/v1/me con el
- * access token de la sesión de Supabase vigente. `onAuthStateChange` emite
- * el estado inicial al suscribirse y cualquier cambio posterior (login,
- * logout, refresh de token), así que no hace falta pedir la sesión aparte.
- * 401 se trata igual que "sin sesión" (vuelve a /login sin bucle); 403
- * significa sesión válida pero usuario que no puede operar (sin fila en
- * app_user, deshabilitado) y conserva el `message` que mandó la API — ver
- * PragmaCRM-Web/CLAUDE.md.
+ * Resuelve el perfil (role, name, email) llamando a GET /api/v1/me; el token
+ * de la sesión de Supabase vigente lo adjunta el interceptor de apiClient.
+ * `onAuthStateChange` emite el estado inicial al suscribirse y cualquier
+ * cambio posterior (login, logout, refresh de token), así que no hace falta
+ * pedir la sesión aparte. Un 401 en cualquier llamada de la app cierra la
+ * sesión en el interceptor y llega aquí como SIGNED_OUT (vuelve a /login sin
+ * bucle); 403 significa sesión válida pero usuario que no puede operar (sin
+ * fila en app_user, deshabilitado) y conserva el `message` que mandó la API —
+ * ver PragmaCRM-Web/CLAUDE.md.
  */
 export function useCurrentAppUser(): AppUserState {
   const [state, setState] = useState<AppUserState>({ status: 'loading' })
@@ -38,13 +42,13 @@ export function useCurrentAppUser(): AppUserState {
       lastToken = token
 
       if (!token) {
-        if (!cancelled) setState({ status: 'signed_out' })
+        if (!cancelled) setState({ status: 'signed_out', expired: consumeSessionExpired() })
         return
       }
 
       setState({ status: 'loading' })
 
-      apiFetch<AppUser>('/api/v1/me', token)
+      fetchMe()
         .then((appUser) => {
           if (!cancelled) setState({ status: 'ready', appUser })
         })
@@ -52,7 +56,9 @@ export function useCurrentAppUser(): AppUserState {
           if (cancelled) return
 
           if (err instanceof ApiError && err.status === 401) {
-            setState({ status: 'signed_out' })
+            // El interceptor ya cerró la sesión y el SIGNED_OUT resultante
+            // fijó `signed_out` (con `expired`); no lo pisamos.
+            setState((prev) => (prev.status === 'signed_out' ? prev : { status: 'signed_out', expired: false }))
             return
           }
           if (err instanceof ApiError && err.status === 403) {

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
 import { getCustomerProfile } from './customersApi'
 import type { CustomerProfile } from './customers.types'
@@ -23,9 +22,7 @@ export function useCustomerProfile(customerId: string): { state: CustomerProfile
     let cancelled = false
     setState({ status: 'loading' })
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => getCustomerProfile(data.session?.access_token ?? null, customerId))
+    getCustomerProfile(customerId)
       .then((profile) => {
         if (!cancelled) setState({ status: 'ready', profile })
       })

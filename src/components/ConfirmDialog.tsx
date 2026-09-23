@@ -1,5 +1,14 @@
-import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Spinner } from '@/components/ui/spinner'
 
 interface ConfirmDialogProps {
   title: string
@@ -10,24 +19,26 @@ interface ConfirmDialogProps {
   onCancel: () => void
 }
 
-/** Modal de confirmación genérico, para acciones con consecuencia real (p. ej. deshabilitar un vendedor). */
+/** Confirmación para acciones con consecuencia real (p. ej. deshabilitar un vendedor). */
 export function ConfirmDialog({ title, message, confirmLabel, submitting, onConfirm, onCancel }: ConfirmDialogProps) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{message}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
-            Cancelar
-          </Button>
+    <AlertDialog open onOpenChange={(open) => !open && !submitting && onCancel()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{message}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+          {/* Botón común y no AlertDialogAction: éste cierra el diálogo al hacer
+              clic y aquí tiene que quedar abierto, mostrando el progreso, hasta
+              que termine la petición. */}
           <Button type="button" onClick={onConfirm} disabled={submitting}>
+            {submitting && <Spinner data-icon="inline-start" />}
             {submitting ? 'Procesando…' : confirmLabel}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

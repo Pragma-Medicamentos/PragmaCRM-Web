@@ -1,8 +1,13 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { AppShell } from '../../components/AppShell'
-import { PendingBackendNotice } from '../../components/PendingBackendNotice'
-import { Button } from '../../components/ui/button'
+import { useState, type ReactNode } from 'react'
+import { useParams } from 'react-router-dom'
+import { AppShell } from '@/components/AppShell'
+import { ErrorAlert } from '@/components/ErrorAlert'
+import { LoadingNotice } from '@/components/LoadingNotice'
+import { PendingBackendNotice } from '@/components/PendingBackendNotice'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AssignLocationDialog } from './AssignLocationDialog'
 import { useCustomerProfile } from './useCustomerProfile'
 import type { CustomerProfile, CustomerSaleHistoryEntry } from './customers.types'
@@ -18,98 +23,107 @@ function formatCurrency(value: string | null): string {
   return value ? currencyFormatter.format(Number(value)) : '—'
 }
 
+function DetailList({ children }: { children: ReactNode }) {
+  return <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">{children}</dl>
+}
+
+function Detail({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-sm">{children}</dd>
+    </div>
+  )
+}
+
+function SectionCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  )
+}
+
 function SalesHistoryTable({ entries }: { entries: CustomerSaleHistoryEntry[] }) {
   if (entries.length === 0) {
-    return <p className="customer-profile__hint">Sin ventas registradas.</p>
+    return <p className="text-sm text-muted-foreground">Sin ventas registradas.</p>
   }
 
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>Documento</th>
-          <th>Fecha</th>
-          <th>Total</th>
-          <th>Saldo pendiente</th>
-          <th>Último pago</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Documento</TableHead>
+          <TableHead>Fecha</TableHead>
+          <TableHead>Total</TableHead>
+          <TableHead>Saldo pendiente</TableHead>
+          <TableHead>Último pago</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {entries.map((sale) => (
-          <tr key={sale.erp_sale_id}>
-            <td>{sale.document ?? sale.erp_sale_id}</td>
-            <td>{formatDate(sale.erp_created_at)}</td>
-            <td>{formatCurrency(sale.total)}</td>
-            <td>{formatCurrency(sale.pending_balance)}</td>
-            <td>{formatDate(sale.last_payment_at)}</td>
-          </tr>
+          <TableRow key={sale.erp_sale_id}>
+            <TableCell>{sale.document ?? sale.erp_sale_id}</TableCell>
+            <TableCell>{formatDate(sale.erp_created_at)}</TableCell>
+            <TableCell>{formatCurrency(sale.total)}</TableCell>
+            <TableCell>{formatCurrency(sale.pending_balance)}</TableCell>
+            <TableCell>{formatDate(sale.last_payment_at)}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   )
 }
 
 function ProfileView({ profile, onAssignLocation }: { profile: CustomerProfile; onAssignLocation: () => void }) {
   return (
     <>
-      <div className="customer-profile__header">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1>{profile.name}</h1>
-          {profile.trade_name && <p className="customer-profile__hint">{profile.trade_name}</p>}
+          <h1 className="font-heading text-2xl font-semibold">{profile.name}</h1>
+          {profile.trade_name && <p className="mt-1 text-sm text-muted-foreground">{profile.trade_name}</p>}
         </div>
-        <span className={profile.active ? 'badge badge--active' : 'badge badge--inactive'}>
-          {profile.active ? 'Activo' : 'Inactivo'}
-        </span>
+        <Badge variant={profile.active ? 'default' : 'outline'}>{profile.active ? 'Activo' : 'Inactivo'}</Badge>
       </div>
 
-      <section className="customer-profile__section">
-        <h2>Datos generales</h2>
-        <dl className="customer-profile__grid">
-          <dt>Tipo de establecimiento</dt>
-          <dd>{profile.establishment_type ?? '—'}</dd>
-          <dt>Dirección</dt>
-          <dd>{profile.address ?? '—'}</dd>
-          <dt>Municipio</dt>
-          <dd>{profile.municipality ?? '—'}</dd>
-          <dt>Zona</dt>
-          <dd>{profile.zone ?? '—'}</dd>
-          <dt>Teléfono</dt>
-          <dd>{profile.phone ?? '—'}</dd>
-          <dt>Celular</dt>
-          <dd>{profile.mobile ?? '—'}</dd>
-          <dt>Ubicación GPS</dt>
-          <dd className="flex items-center gap-3">
-            <span>{profile.location ? `${profile.location.lat}, ${profile.location.lng}` : 'Sin ubicación asignada'}</span>
-            <Button type="button" size="sm" variant="outline" onClick={onAssignLocation}>
-              {profile.location ? 'Editar ubicación' : 'Asignar ubicación'}
-            </Button>
-          </dd>
-        </dl>
-      </section>
+      <SectionCard title="Datos generales">
+        <DetailList>
+          <Detail label="Tipo de establecimiento">{profile.establishment_type ?? '—'}</Detail>
+          <Detail label="Dirección">{profile.address ?? '—'}</Detail>
+          <Detail label="Municipio">{profile.municipality ?? '—'}</Detail>
+          <Detail label="Zona">{profile.zone ?? '—'}</Detail>
+          <Detail label="Teléfono">{profile.phone ?? '—'}</Detail>
+          <Detail label="Celular">{profile.mobile ?? '—'}</Detail>
+          <Detail label="Ubicación GPS">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>{profile.location ? `${profile.location.lat}, ${profile.location.lng}` : 'Sin ubicación asignada'}</span>
+              <Button type="button" size="sm" variant="outline" onClick={onAssignLocation}>
+                {profile.location ? 'Editar ubicación' : 'Asignar ubicación'}
+              </Button>
+            </div>
+          </Detail>
+        </DetailList>
+      </SectionCard>
 
-      <section className="customer-profile__section">
-        <h2>Responsable de compra</h2>
-        <p>{profile.responsible ? profile.responsible.name : 'Sin responsable asignado'}</p>
-      </section>
+      <SectionCard title="Responsable de compra">
+        <p className="text-sm">{profile.responsible ? profile.responsible.name : 'Sin responsable asignado'}</p>
+      </SectionCard>
 
-      <section className="customer-profile__section">
-        <h2>Créditos y cobros vigentes</h2>
-        <dl className="customer-profile__grid">
-          <dt>Crédito habilitado</dt>
-          <dd>{profile.credit_summary.credit ? 'Sí' : 'No'}</dd>
-          <dt>Límite de crédito</dt>
-          <dd>{formatCurrency(profile.credit_summary.credit_limit)}</dd>
-          <dt>Saldo pendiente total</dt>
-          <dd>{formatCurrency(profile.credit_summary.pending_balance_total)}</dd>
-          <dt>Cartera vencida</dt>
-          <dd>{formatCurrency(profile.credit_summary.overdue_balance_total)}</dd>
-        </dl>
-      </section>
+      <SectionCard title="Créditos y cobros vigentes">
+        <DetailList>
+          <Detail label="Crédito habilitado">{profile.credit_summary.credit ? 'Sí' : 'No'}</Detail>
+          <Detail label="Límite de crédito">{formatCurrency(profile.credit_summary.credit_limit)}</Detail>
+          <Detail label="Saldo pendiente total">{formatCurrency(profile.credit_summary.pending_balance_total)}</Detail>
+          <Detail label="Cartera vencida">{formatCurrency(profile.credit_summary.overdue_balance_total)}</Detail>
+        </DetailList>
+      </SectionCard>
 
-      <section className="customer-profile__section">
-        <h2>Historial de ventas</h2>
+      <SectionCard title="Historial de ventas">
         <SalesHistoryTable entries={profile.sales_history} />
-      </section>
+      </SectionCard>
     </>
   )
 }
@@ -131,21 +145,13 @@ export function CustomerProfilePage() {
         : null
 
   return (
-    <AppShell>
-      <div className="customer-profile">
-        <Link to="/clientes" className="customer-profile__back">
-          ← Volver a clientes
-        </Link>
-
-        {state.status === 'loading' && <p className="customer-profile__hint">Cargando perfil…</p>}
+    <AppShell currentPage={profile?.name ?? 'Perfil'}>
+      <div className="flex w-full max-w-(--content-max-width) flex-col gap-5">
+        {state.status === 'loading' && <LoadingNotice>Cargando perfil…</LoadingNotice>}
         {state.status === 'pending-backend' && (
           <PendingBackendNotice endpoints={[`GET /api/v1/customers/${id}/profile`]} />
         )}
-        {state.status === 'error' && (
-          <p className="customer-profile__error" role="alert">
-            {state.message}
-          </p>
-        )}
+        {state.status === 'error' && <ErrorAlert>{state.message}</ErrorAlert>}
         {profile && <ProfileView profile={profile} onAssignLocation={() => setAssigningLocation(true)} />}
       </div>
 

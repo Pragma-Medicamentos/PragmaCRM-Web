@@ -1,15 +1,15 @@
-import { apiFetch } from '../../lib/api/apiClient'
+import { request } from '../../lib/api/apiClient'
 import type { Customer, CustomerLocationUpdateResult, CustomerProfile, Paginated } from './customers.types'
 
 // GET /api/v1/customers — data: Paginated<Customer> (ver customers.types.ts).
-export function listCustomers(token: string | null): Promise<Paginated<Customer>> {
-  return apiFetch<Paginated<Customer>>('/api/v1/customers', token)
+export function listCustomers(): Promise<Paginated<Customer>> {
+  return request<Paginated<Customer>>({ url: '/api/v1/customers' })
 }
 
 // GET /api/v1/customers/:id/profile — aún no implementado en PragmaCRM-Api
 // (ver RF-02, customers.types.ts).
-export function getCustomerProfile(token: string | null, id: string): Promise<CustomerProfile> {
-  return apiFetch<CustomerProfile>(`/api/v1/customers/${id}/profile`, token)
+export function getCustomerProfile(id: string): Promise<CustomerProfile> {
+  return request<CustomerProfile>({ url: `/api/v1/customers/${id}/profile` })
 }
 
 // PATCH /api/v1/customers/:id/location — aún no implementado en PragmaCRM-Api.
@@ -17,13 +17,12 @@ export function getCustomerProfile(token: string | null, id: string): Promise<Cu
 // (geography(Point,4326), ver CLAUDE.md 7.3). El radio de validación (RF-06)
 // no viaja aquí: es una constante global, no un campo por cliente (CLAUDE.md 5.3).
 export function updateCustomerLocation(
-  token: string | null,
   id: string,
   input: { lat: number; lng: number }
 ): Promise<CustomerLocationUpdateResult> {
-  return apiFetch<CustomerLocationUpdateResult>(`/api/v1/customers/${id}/location`, token, {
+  return request<CustomerLocationUpdateResult>({
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    url: `/api/v1/customers/${id}/location`,
+    data: input,
   })
 }

@@ -10,8 +10,8 @@ function toLogin(reason?: RedirectReason) {
 
 /**
  * Deja pasar únicamente a app_user.role === 'Administrador'. Cualquier
- * otro caso (sin sesión, 401, 403 de la API, o rol Vendedor) vuelve a
- * /login.
+ * otro caso (sin sesión, sesión vencida por 401, 403 de la API, o rol
+ * Vendedor) vuelve a /login.
  */
 export function AdminRoute({ children }: { children: ReactElement }) {
   const state = useCurrentAppUser()
@@ -20,7 +20,7 @@ export function AdminRoute({ children }: { children: ReactElement }) {
     case 'loading':
       return <SessionGate />
     case 'signed_out':
-      return toLogin()
+      return toLogin(state.expired ? { kind: 'expired' } : undefined)
     case 'forbidden':
       return toLogin({ kind: 'forbidden', message: state.message })
     case 'error':

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { updateVendor } from './vendorsApi'
 import type { Vendor } from './vendors.types'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Field, FieldError, FieldLabel } from '../../components/ui/field'
+import { ErrorAlert } from '@/components/ErrorAlert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../components/ui/dialog'
+} from '@/components/ui/dialog'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -58,8 +58,7 @@ export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialo
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const { data } = await supabase.auth.getSession()
-      const updated = await updateVendor(data.session?.access_token ?? null, vendor.id, {
+      const updated = await updateVendor(vendor.id, {
         name: name.trim(),
         email: email.trim(),
       })
@@ -73,19 +72,15 @@ export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialo
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Editar vendedor</DialogTitle>
             <DialogDescription>Actualiza el nombre o el correo del vendedor.</DialogDescription>
           </DialogHeader>
 
-          {submitError && (
-            <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-              {submitError}
-            </p>
-          )}
+          {submitError && <ErrorAlert>{submitError}</ErrorAlert>}
 
-          <div className="flex flex-col gap-4">
+          <FieldGroup>
             <Field data-invalid={Boolean(errors.name)}>
               <FieldLabel htmlFor="edit-vendor-name">Nombre completo</FieldLabel>
               <Input
@@ -110,7 +105,7 @@ export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialo
               />
               {errors.email && <FieldError>{errors.email}</FieldError>}
             </Field>
-          </div>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>

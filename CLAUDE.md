@@ -32,11 +32,11 @@ Este repo **no** consulta tablas del dominio directamente contra Supabase (nada 
 
    La anon key es pública por diseño (viaja en el bundle web); igual que con Clerk, la que **nunca** va aquí es la `service_role` key — esa es solo de servidor, vive en `PragmaCRM-Api`. Valores locales: `npx supabase status` en `PragmaCRM-Api`.
 
-   `VITE_API_KEY` debe ser igual al `API_KEY` del `.env` de `PragmaCRM-Api` (2026-09: gate de transporte agregado en `middleware/apiKey.ts`, exigido en **toda** ruta bajo `/api/v1` salvo `/api/health`, por delante de `requireAuth`). No es sensible de la misma forma que la `service_role` key — no otorga identidad ni permisos por sí sola — pero sin ella cualquier llamada a la API, incluido pedir el OTP de login, responde 401 "Invalid or missing API key". Se manda como header `x-api-key` en `lib/api/apiClient.ts` (`apiFetch` y `apiCall`).
+   `VITE_API_KEY` debe ser igual al `API_KEY` del `.env` de `PragmaCRM-Api` (2026-09: gate de transporte agregado en `middleware/apiKey.ts`, exigido en **toda** ruta bajo `/api/v1` salvo `/api/health`, por delante de `requireAuth`). No es sensible de la misma forma que la `service_role` key — no otorga identidad ni permisos por sí sola — pero sin ella cualquier llamada a la API, incluido pedir el OTP de login, responde 401 "Invalid or missing API key". Se manda como header `x-api-key` desde la instancia de Axios de `lib/api/apiClient.ts`, en toda petición.
 
 2. **Login con `supabase-js`** (`@supabase/supabase-js`). El cliente único vive en `src/lib/supabase/client.ts`. `LoginPage.tsx` implementa el formulario de email + contraseña a mano — no hay componente de UI prearmado como el `<SignIn/>` de Clerk, así que los estados de error (credenciales inválidas, etc.) se manejan aquí.
 
-3. **Enviar el access token en cada petición a la API**, tomado de la sesión vigente de Supabase — nunca cacheado más allá de lo que el propio SDK cachea. `useCurrentAppUser.ts` se suscribe a `supabase.auth.onAuthStateChange`, que entrega la sesión inicial y cada cambio posterior (login, logout, refresh de token). Implementado en `lib/api/apiClient.ts` / `features/auth/useCurrentAppUser.ts`.
+3. **Enviar el access token en cada petición a la API**, tomado de la sesión vigente de Supabase — nunca cacheado más allá de lo que el propio SDK cachea. Toda petición pasa por la instancia de Axios de `lib/api/apiClient.ts` (helpers `request` / `requestMessage`; no se usa `fetch` directo ni se pasa el token a mano): su interceptor de request llama a `supabase.auth.getSession()` y adjunta el header. `useCurrentAppUser.ts` se suscribe a `supabase.auth.onAuthStateChange`, que entrega la sesión inicial y cada cambio posterior (login, logout, refresh de token). Un endpoint público se marca con `skipAuth: true` (hoy solo `POST /api/v1/auth/otp`).
 
    ```
    Authorization: Bearer <access_token>
@@ -67,11 +67,17 @@ Este repo **no** consulta tablas del dominio directamente contra Supabase (nada 
 
    | Código | Significa | Acción |
    |---|---|---|
-   | `401` | No hay sesión válida, o el JWT expiró/es inválido | Redirigir a `/login` |
+   | `401` | No hay sesión válida, o el JWT expiró/es inválido | El interceptor de respuesta de `apiClient.ts` cierra la sesión (`signOut({ scope: 'local' })`) y `AdminRoute` redirige a `/login` con el aviso "sesión expirada". Excepción: el 401 "Invalid or missing API key" es de configuración, no de sesión, y no la cierra |
    | `403` | Sesión válida, pero el usuario no puede operar (no está dado de alta en el CRM, está deshabilitado, o su rol no tiene permiso) | **No** redirigir al login — es un bucle infinito, porque volver a iniciar sesión no lo arregla. Mostrar el `message` de la respuesta |
    | `503` | El JWKS de Supabase no responde (problema de red, no del token) | Tratar como error transitorio, no como sesión inválida |
 
    Todas las respuestas de la API usan el mismo envelope: `{ success, message, data?, errors? }`.
+
+## UI y sistema de diseño
+
+- **shadcn/ui** (preset `radix-nova`, React 19) es la única capa de UI: componentes en `src/components/ui`, blocks instalados con `npx shadcn@latest add` — `sidebar-07` (menú lateral colapsable → `components/app-sidebar.tsx`, `nav-main.tsx`, `nav-user.tsx`, `AppShell.tsx`) y `login-02` + `input-otp` (`features/auth/LoginPage.tsx`). No hay CSS propio por pantalla: solo utilidades de Tailwind y componentes de shadcn.
+- **Colores, fuentes, radio y medidas de layout** viven en `src/lib/design-tokens.ts` (fuente única). `applyDesignTokens()` los inyecta como variables CSS en `main.tsx`; `styles/shadcn.css` solo los mapea a utilidades (`bg-primary`, `bg-brand-panel`, `font-display`…) y define la escala de densidad, que Tailwind necesita en compilación. Para cambiar la marca se edita el TS, no el CSS.
+- Menú lateral: los ítems se declaran en `components/nav-config.ts`.
 
 ## Contrato de `/api/v1/sellers` (RF-01 / HU-01)
 

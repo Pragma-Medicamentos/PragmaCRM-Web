@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
-import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
+import { ApiError, isRouteNotImplemented } from '@/lib/api/apiClient'
 import { updateCustomerLocation } from './customersApi'
 import type { CustomerLocationUpdateResult } from './customers.types'
-import { LocationPickerMap, type LocationPoint } from '../../components/LocationPickerMap'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Field, FieldLabel } from '../../components/ui/field'
+import { LocationPickerMap, type LocationPoint } from '@/components/LocationPickerMap'
+import { Info } from 'lucide-react'
+import { ErrorAlert } from '@/components/ErrorAlert'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../components/ui/dialog'
+} from '@/components/ui/dialog'
 
 // Radio de validación GPS (RF-06). Constante global, no un campo por cliente
 // (CLAUDE.md 5.3) — se muestra solo como referencia visual sobre el pin.
@@ -87,8 +89,7 @@ export function AssignLocationDialog({
     setSubmitError(null)
     setPendingBackend(false)
     try {
-      const { data } = await supabase.auth.getSession()
-      const result = await updateCustomerLocation(data.session?.access_token ?? null, customerId, point)
+      const result = await updateCustomerLocation(customerId, point)
       onUpdated(result)
     } catch (err) {
       if (isRouteNotImplemented(err)) {
@@ -105,7 +106,7 @@ export function AssignLocationDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Ubicación de {customerName}</DialogTitle>
             <DialogDescription>
@@ -114,18 +115,17 @@ export function AssignLocationDialog({
           </DialogHeader>
 
           {pendingBackend && (
-            <p className="rounded-lg border border-border bg-muted p-3 text-sm text-muted-foreground">
-              Esta ventana ya guarda la ubicación; falta implementar{' '}
-              <code>PATCH /api/v1/customers/{customerId}/location</code> en PragmaCRM-Api.
-            </p>
+            <Alert>
+              <Info />
+              <AlertDescription>
+                Esta ventana ya guarda la ubicación; falta implementar{' '}
+                <code>PATCH /api/v1/customers/{customerId}/location</code> en PragmaCRM-Api.
+              </AlertDescription>
+            </Alert>
           )}
-          {submitError && (
-            <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-              {submitError}
-            </p>
-          )}
+          {submitError && <ErrorAlert>{submitError}</ErrorAlert>}
 
-          <div className="flex flex-col gap-4">
+          <FieldGroup>
             <LocationPickerMap
               value={point}
               onChange={handleMapChange}
@@ -162,7 +162,7 @@ export function AssignLocationDialog({
               El círculo punteado muestra los {GPS_VALIDATION_RADIUS_METERS} m de radio que la app usa para validar
               la visita (RF-06). Es una referencia fija del sistema, no algo que se ajuste por cliente.
             </p>
-          </div>
+          </FieldGroup>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>

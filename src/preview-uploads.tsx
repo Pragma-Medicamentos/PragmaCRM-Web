@@ -5,7 +5,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/shadcn.css'
-import './index.css'
+import { applyDesignTokens } from './lib/design-tokens'
 import { ImportStepper } from './features/uploads/ImportStepper'
 import { UploadSummaryCard } from './features/uploads/UploadSummaryCard'
 import { SalesFileDropzone } from './features/uploads/SalesFileDropzone'
@@ -57,6 +57,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </section>
   )
 }
+
+applyDesignTokens()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

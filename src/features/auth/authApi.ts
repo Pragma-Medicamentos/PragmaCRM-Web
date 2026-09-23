@@ -1,4 +1,5 @@
-import { apiCall } from '../../lib/api/apiClient'
+import { request, requestMessage } from '../../lib/api/apiClient'
+import type { AppUser } from './auth.types'
 
 /**
  * POST /api/v1/auth/otp — público, sin token. Le pide a la API que dispare
@@ -7,9 +8,10 @@ import { apiCall } from '../../lib/api/apiClient'
  * ocurre directo contra Supabase, no contra esta API.
  */
 export function requestLoginOtp(email: string): Promise<string> {
-  return apiCall('/api/v1/auth/otp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  })
+  return requestMessage({ method: 'POST', url: '/api/v1/auth/otp', data: { email } })
+}
+
+/** GET /api/v1/me — perfil (role, name, email) del usuario de la sesión vigente. */
+export function fetchMe(): Promise<AppUser> {
+  return request<AppUser>({ url: '/api/v1/me' })
 }

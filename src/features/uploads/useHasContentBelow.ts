@@ -8,10 +8,10 @@ import { useEffect, useState, type RefObject } from 'react'
  * aviso explícito el admin no sabe que todavía hay algo que leer.
  *
  * Se observa el contenedor de la pantalla y no el `body` a propósito:
- * `index.css` fija `html, body, #root { height: 100% }`, así que el alto del
- * body no cambia aunque el contenido crezca y un `ResizeObserver` sobre él no
- * dispararía nunca. El contenedor sí crece al aparecer el resumen o la tabla de
- * rechazos, que es justo cuando la respuesta cambia.
+ * el body no crece con el contenido en todos los layouts, así que un
+ * `ResizeObserver` sobre él podría no dispararse nunca. El contenedor sí crece
+ * al aparecer el resumen o la tabla de rechazos, que es justo cuando la
+ * respuesta cambia.
  */
 export function useHasContentBelow(
   content: RefObject<HTMLElement | null>,

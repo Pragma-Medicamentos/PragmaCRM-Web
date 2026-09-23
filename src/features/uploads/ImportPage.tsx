@@ -224,9 +224,9 @@ export function ImportPage() {
             página y no se ve; cuando la tarjeta pasa por debajo, la difumina. */}
         {(hasActions || hasContentBelow) && (
           <div
-            className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 border-t bg-[var(--color-bg)] py-3
+            className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 border-t bg-background py-3
               before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-4
-              before:bg-linear-to-t before:from-[var(--color-bg)] before:to-transparent"
+              before:bg-linear-to-t before:from-background before:to-transparent"
           >
             {/* El degradado por sí solo no alcanza para que se entienda que hay
                 más abajo, así que se dice. Desaparece al llegar al final, de

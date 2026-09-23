@@ -1,3 +1,6 @@
+import { Info } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+
 interface PendingBackendNoticeProps {
   endpoints: string[]
 }
@@ -5,16 +8,19 @@ interface PendingBackendNoticeProps {
 /** Vista lista del lado del frontend, a la espera de que el endpoint exista en PragmaCRM-Api. */
 export function PendingBackendNotice({ endpoints }: PendingBackendNoticeProps) {
   return (
-    <div className="pending-backend">
-      <p className="pending-backend__title">Esta vista está lista; falta el endpoint del backend.</p>
-      <p className="pending-backend__hint">Pendiente de implementar en PragmaCRM-Api:</p>
-      <ul className="pending-backend__list">
-        {endpoints.map((endpoint) => (
-          <li key={endpoint}>
-            <code>{endpoint}</code>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Alert>
+      <Info />
+      <AlertTitle>Esta vista está lista; falta el endpoint del backend.</AlertTitle>
+      <AlertDescription>
+        <p>Pendiente de implementar en PragmaCRM-Api:</p>
+        <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5">
+          {endpoints.map((endpoint) => (
+            <li key={endpoint}>
+              <code className="font-mono">{endpoint}</code>
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
   )
 }

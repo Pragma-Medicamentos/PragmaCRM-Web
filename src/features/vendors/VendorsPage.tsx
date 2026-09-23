@@ -1,28 +1,27 @@
 import { useMemo, useState } from 'react'
-import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Search } from 'lucide-react'
-import { AppShell } from '../../components/AppShell'
-import { PageHeader } from '../../components/PageHeader'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Badge } from '../../components/ui/badge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table'
+import { CircleCheck, KeyRound, MoreHorizontal, Pencil, Plus, Power, SearchX } from 'lucide-react'
+import { AppShell } from '@/components/AppShell'
+import { PageHeader } from '@/components/PageHeader'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ErrorAlert } from '@/components/ErrorAlert'
+import { FilterToggleGroup } from '@/components/FilterToggleGroup'
+import { LoadingNotice } from '@/components/LoadingNotice'
+import { SearchField } from '@/components/SearchField'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../../components/ui/dropdown-menu'
-import { cn } from '../../lib/utils'
-import { supabase } from '../../lib/supabase/client'
-import { ApiError } from '../../lib/api/apiClient'
+} from '@/components/ui/dropdown-menu'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
+import { ApiError } from '@/lib/api/apiClient'
 import { useVendors } from './useVendors'
 import { CreateVendorDialog } from './CreateVendorDialog'
 import { EditVendorDialog } from './EditVendorDialog'
@@ -50,7 +49,16 @@ interface VendorsTableProps {
 
 function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }: VendorsTableProps) {
   if (vendors.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">No hay vendedores que coincidan con el filtro.</p>
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <SearchX />
+          </EmptyMedia>
+          <EmptyTitle>No hay vendedores que coincidan con el filtro.</EmptyTitle>
+        </EmptyHeader>
+      </Empty>
+    )
   }
 
   return (
@@ -85,15 +93,17 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => onEdit(vendor)}>
-                      <Pencil /> Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onToggleActive(vendor)}>
-                      <Power /> {vendor.active ? 'Deshabilitar' : 'Habilitar'}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onResendOtp(vendor)}>
-                      <KeyRound /> Reenviar código
-                    </DropdownMenuItem>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem onSelect={() => onEdit(vendor)}>
+                        <Pencil /> Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onToggleActive(vendor)}>
+                        <Power /> {vendor.active ? 'Deshabilitar' : 'Habilitar'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onResendOtp(vendor)}>
+                        <KeyRound /> Reenviar código
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -149,8 +159,7 @@ export function VendorsPage() {
     setNotice(null)
     await withBusy(vendor.id, async () => {
       try {
-        const { data } = await supabase.auth.getSession()
-        await setVendorActive(data.session?.access_token ?? null, vendor.id, active)
+        await setVendorActive(vendor.id, active)
         setNotice({
           kind: 'success',
           message: `${vendor.name}: ${active ? 'habilitado' : 'deshabilitado'}.`,
@@ -177,8 +186,7 @@ export function VendorsPage() {
     setNotice(null)
     await withBusy(vendor.id, async () => {
       try {
-        const { data } = await supabase.auth.getSession()
-        await resendVendorOtp(data.session?.access_token ?? null, vendor.id)
+        await resendVendorOtp(vendor.id)
         setNotice({ kind: 'success', message: `Código reenviado a ${vendor.email ?? vendor.name}.` })
       } catch (err) {
         setNotice({
@@ -196,61 +204,40 @@ export function VendorsPage() {
         subtitle={state.status === 'ready' ? `${activeCount} activos · ${inactiveCount} deshabilitados` : undefined}
         actions={
           <Button type="button" onClick={() => setCreateOpen(true)}>
-            <Plus /> Nuevo vendedor
+            <Plus data-icon="inline-start" /> Nuevo vendedor
           </Button>
         }
       />
 
       {notice && (
-        <p
-          role="status"
-          className={cn(
-            'mb-4 rounded-lg border p-3 text-sm',
-            notice.kind === 'error'
-              ? 'border-destructive/20 bg-destructive/10 text-destructive'
-              : 'border-primary/20 bg-primary/10 text-primary'
+        <div className="mb-4" role="status">
+          {notice.kind === 'error' ? (
+            <ErrorAlert>{notice.message}</ErrorAlert>
+          ) : (
+            <Alert>
+              <CircleCheck />
+              <AlertDescription>{notice.message}</AlertDescription>
+            </Alert>
           )}
-        >
-          {notice.message}
-        </p>
+        </div>
       )}
 
-      {state.status === 'loading' && <p className="text-sm text-muted-foreground">Cargando vendedores…</p>}
-      {state.status === 'error' && (
-        <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {state.message}
-        </p>
-      )}
+      {state.status === 'loading' && <LoadingNotice>Cargando vendedores…</LoadingNotice>}
+      {state.status === 'error' && <ErrorAlert>{state.message}</ErrorAlert>}
 
       {state.status === 'ready' && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por nombre o correo"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <div className="flex gap-1.5">
-              {STATUS_FILTERS.map((filter) => (
-                <Button
-                  key={filter.value}
-                  type="button"
-                  size="sm"
-                  variant={statusFilter === filter.value ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter(filter.value)}
-                >
-                  {filter.label}
-                </Button>
-              ))}
-            </div>
+            <SearchField value={search} onChange={setSearch} placeholder="Buscar por nombre o correo" />
+            <FilterToggleGroup
+              label="Estado"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={STATUS_FILTERS}
+            />
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-background">
+          <Card className="gap-0 py-0">
             <VendorsTable
               vendors={filteredVendors}
               busyIds={busyIds}
@@ -258,11 +245,11 @@ export function VendorsPage() {
               onToggleActive={handleToggleActive}
               onResendOtp={handleResendOtp}
             />
-          </div>
+          </Card>
 
-          <p className="text-sm text-muted-foreground">
+          {/* <p className="text-sm text-muted-foreground">
             Deshabilitar corta el acceso del APK sin borrar el histórico de rutas del vendedor.
-          </p>
+          </p> */}
         </div>
       )}
 

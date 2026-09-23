@@ -1,21 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, MapPinOff, Search } from 'lucide-react'
-import { AppShell } from '../../components/AppShell'
-import { PageHeader } from '../../components/PageHeader'
-import { PendingBackendNotice } from '../../components/PendingBackendNotice'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Badge } from '../../components/ui/badge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table'
-import { cn } from '../../lib/utils'
+import { MapPin, MapPinOff, SearchX } from 'lucide-react'
+import { AppShell } from '@/components/AppShell'
+import { PageHeader } from '@/components/PageHeader'
+import { PendingBackendNotice } from '@/components/PendingBackendNotice'
+import { ErrorAlert } from '@/components/ErrorAlert'
+import { FilterToggleGroup } from '@/components/FilterToggleGroup'
+import { LoadingNotice } from '@/components/LoadingNotice'
+import { SearchField } from '@/components/SearchField'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import { useCustomers } from './useCustomers'
 import type { Customer, CustomerCategory } from './customers.types'
 
@@ -49,7 +47,16 @@ function categoryLabel(category: CustomerCategory): string {
 
 function CustomersTable({ customers }: { customers: Customer[] }) {
   if (customers.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">No hay clientes que coincidan con el filtro.</p>
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <SearchX />
+          </EmptyMedia>
+          <EmptyTitle>No hay clientes que coincidan con el filtro.</EmptyTitle>
+        </EmptyHeader>
+      </Empty>
+    )
   }
 
   return (
@@ -143,60 +150,46 @@ export function CustomersPage() {
         }
       />
 
-      {state.status === 'loading' && <p className="text-sm text-muted-foreground">Cargando clientes…</p>}
+      {state.status === 'loading' && <LoadingNotice>Cargando clientes…</LoadingNotice>}
       {state.status === 'pending-backend' && <PendingBackendNotice endpoints={['GET /api/v1/customers']} />}
-      {state.status === 'error' && (
-        <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {state.message}
-        </p>
-      )}
+      {state.status === 'error' && <ErrorAlert>{state.message}</ErrorAlert>}
 
       {state.status === 'ready' && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por nombre o nombre comercial"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
-              />
-            </div>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por nombre o nombre comercial"
+            />
             <Button
               type="button"
-              size="sm"
               variant={onlyMissingGps ? 'default' : 'outline'}
+              aria-pressed={onlyMissingGps}
               onClick={() => setOnlyMissingGps((v) => !v)}
             >
-              <MapPinOff /> Sin GPS ({missingGpsCount})
+              <MapPinOff data-icon="inline-start" /> Sin GPS ({missingGpsCount})
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">Categoría:</span>
-            {CATEGORY_FILTERS.map((filter) => (
-              <Button
-                key={filter.value}
-                type="button"
-                size="sm"
-                variant={categoryFilter === filter.value ? 'default' : 'outline'}
-                onClick={() => setCategoryFilter(filter.value)}
-              >
-                {filter.label}
-              </Button>
-            ))}
+            <FilterToggleGroup
+              label="Categoría"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              options={CATEGORY_FILTERS}
+            />
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-background">
+          <Card className="gap-0 py-0">
             <CustomersTable customers={filteredCustomers} />
-          </div>
+          </Card>
 
-          <p className="text-sm text-muted-foreground">
+          {/* <p className="text-sm text-muted-foreground">
             La categoría A/B/C se calcula automáticamente a partir de compras netas, conversión y días promedio de
             pago.
-          </p>
+          </p> */}
         </div>
       )}
     </AppShell>

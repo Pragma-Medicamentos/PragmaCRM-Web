@@ -1,19 +1,36 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase/client'
-import { apiFetch, ApiError } from '../../lib/api/apiClient'
-import { requestLoginOtp } from './authApi'
-import type { AppUser, RedirectReason } from './auth.types'
-import pragmaLogo from '../../assets/pragma-logo-dark.png'
+import { REGEXP_ONLY_DIGITS } from 'input-otp'
+import { supabase } from '@/lib/supabase/client'
+import { ApiError } from '@/lib/api/apiClient'
+import { brand } from '@/lib/design-tokens'
+import { ErrorAlert } from '@/components/ErrorAlert'
+import { Button } from '@/components/ui/button'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { Spinner } from '@/components/ui/spinner'
+import { fetchMe, requestLoginOtp } from './authApi'
+import type { RedirectReason } from './auth.types'
+import pragmaIcon from '@/assets/pragma-icon.png'
+import pragmaLogo from '@/assets/pragma-logo-dark.png'
 
 const MIN_PASSWORD_LENGTH = 8
+const OTP_LENGTH = 6
 
 function reasonMessage(reason: RedirectReason): string {
   // 'forbidden' trae el message tal cual lo mandó la API en el 403
   // (usuario no registrado, cuenta deshabilitada, etc.) — ver
   // PragmaCRM-Web/CLAUDE.md. 'role' es el único mensaje que genera este
   // repo, porque /api/v1/me no rechaza por rol.
-  return reason.kind === 'forbidden' ? reason.message : 'Esta cuenta no tiene permisos de Administrador.'
+  switch (reason.kind) {
+    case 'forbidden':
+      return reason.message
+    case 'expired':
+      return 'Tu sesión expiró o ya no es válida. Vuelve a iniciar sesión.'
+    case 'role':
+      return 'Esta cuenta no tiene permisos de Administrador.'
+  }
 }
 
 // Login sin contraseña propia: la API dispara un código, Supabase lo
@@ -23,7 +40,25 @@ function reasonMessage(reason: RedirectReason): string {
 type Step =
   | { kind: 'email' }
   | { kind: 'code'; email: string; info: string }
-  | { kind: 'password'; email: string; token: string }
+  | { kind: 'password'; email: string }
+
+function FormHeading({ title, description }: { title: string; description: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-1 text-center">
+      <h1 className="text-2xl font-bold">{title}</h1>
+      <p className="text-sm text-balance text-muted-foreground">{description}</p>
+    </div>
+  )
+}
+
+function SubmitButton({ submitting, idle, busy }: { submitting: boolean; idle: string; busy: string }) {
+  return (
+    <Button type="submit" disabled={submitting}>
+      {submitting && <Spinner data-icon="inline-start" />}
+      {submitting ? busy : idle}
+    </Button>
+  )
+}
 
 export function LoginPage() {
   const location = useLocation()
@@ -71,15 +106,13 @@ export function LoginPage() {
       return
     }
 
-    const token = data.session.access_token
-
     try {
-      const appUser = await apiFetch<AppUser>('/api/v1/me', token)
+      const appUser = await fetchMe()
       if (appUser.passwordSetAt) {
         navigate('/', { replace: true })
         return
       }
-      setStep({ kind: 'password', email: currentStep.email, token })
+      setStep({ kind: 'password', email: currentStep.email })
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {
@@ -130,156 +163,180 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login">
-      <aside className="login__panel">
-        <img className="login__logo" src={pragmaLogo} alt="Farmacia Pragma" />
-        <span className="login__brand">Pragma CRM</span>
-        <p className="login__tagline">Panel de administración de Droguería Pragma.</p>
+    <div className="grid min-h-svh lg:grid-cols-2">
+      <div className="flex flex-col gap-4 p-6 md:p-10">
+        <div className="flex justify-center gap-2 md:justify-start">
+          <span className="flex items-center gap-2 font-heading font-semibold">
+            <img src={pragmaIcon} alt="" className="size-6 object-contain" />
+            {brand.name}
+          </span>
+        </div>
+
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex w-full max-w-xs flex-col gap-6">
+            {reason && <ErrorAlert>{reasonMessage(reason)}</ErrorAlert>}
+
+            {step.kind === 'email' && (
+              <form onSubmit={handleRequestOtp} noValidate>
+                <FieldGroup>
+                  <FormHeading
+                    title="Ingresá a tu cuenta"
+                    description="Te enviamos un código de acceso a tu correo."
+                  />
+
+                  {error && <ErrorAlert>{error}</ErrorAlert>}
+
+                  <Field>
+                    <FieldLabel htmlFor="login-email">Correo electrónico</FieldLabel>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      autoComplete="email"
+                      autoFocus
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field>
+                    <SubmitButton submitting={submitting} idle="Enviar código" busy="Enviando…" />
+                  </Field>
+                </FieldGroup>
+              </form>
+            )}
+
+            {step.kind === 'code' && (
+              <form onSubmit={(e) => handleVerifyCode(e, step)} noValidate>
+                <FieldGroup>
+                  <FormHeading
+                    title="Revisá tu correo"
+                    description={
+                      <>
+                        Enviamos un código a <strong>{step.email}</strong>. {step.info}
+                      </>
+                    }
+                  />
+
+                  {error && <ErrorAlert>{error}</ErrorAlert>}
+
+                  <Field>
+                    <FieldLabel htmlFor="login-code" className="sr-only">
+                      Código de {OTP_LENGTH} dígitos
+                    </FieldLabel>
+                    <InputOTP
+                      id="login-code"
+                      maxLength={OTP_LENGTH}
+                      pattern={REGEXP_ONLY_DIGITS}
+                      autoComplete="one-time-code"
+                      autoFocus
+                      value={code}
+                      onChange={setCode}
+                      containerClassName="justify-center"
+                    >
+                      <InputOTPGroup>
+                        {Array.from({ length: OTP_LENGTH }, (_, index) => (
+                          <InputOTPSlot key={index} index={index} />
+                        ))}
+                      </InputOTPGroup>
+                    </InputOTP>
+                    <FieldDescription className="text-center">
+                      Ingresá el código de {OTP_LENGTH} dígitos.
+                    </FieldDescription>
+                  </Field>
+
+                  <Field>
+                    <Button type="submit" disabled={submitting || code.length < OTP_LENGTH}>
+                      {submitting && <Spinner data-icon="inline-start" />}
+                      {submitting ? 'Verificando…' : 'Ingresar'}
+                    </Button>
+                    <Button type="button" variant="ghost" disabled={submitting} onClick={() => handleResend(step)}>
+                      Reenviar código
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={submitting}
+                      onClick={() => {
+                        setStep({ kind: 'email' })
+                        setError(null)
+                      }}
+                    >
+                      Usar otro correo
+                    </Button>
+                  </Field>
+                </FieldGroup>
+              </form>
+            )}
+
+            {step.kind === 'password' && (
+              <form onSubmit={handleSetPassword} noValidate>
+                <FieldGroup>
+                  <FormHeading
+                    title="Fijá tu contraseña"
+                    description="Es tu primer ingreso. Fijá una contraseña para tu cuenta."
+                  />
+
+                  {error && <ErrorAlert>{error}</ErrorAlert>}
+
+                  <Field>
+                    <FieldLabel htmlFor="login-new-password">Nueva contraseña</FieldLabel>
+                    <Input
+                      id="login-new-password"
+                      type="password"
+                      autoComplete="new-password"
+                      autoFocus
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                    <FieldDescription>Mínimo {MIN_PASSWORD_LENGTH} caracteres.</FieldDescription>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="login-confirm-password">Confirmar contraseña</FieldLabel>
+                    <Input
+                      id="login-confirm-password"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field>
+                    <SubmitButton submitting={submitting} idle="Guardar y entrar" busy="Guardando…" />
+                  </Field>
+                </FieldGroup>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <aside className="relative hidden flex-col justify-center gap-3 bg-brand-panel p-16 text-brand-panel-foreground lg:flex">
+        <img className="h-12 w-auto self-start" src={pragmaLogo} alt="Farmacia Pragma" />
+        <span className="font-display text-3xl tracking-wide text-brand-accent italic">{brand.name}</span>
+        <p className="max-w-[32ch] leading-normal text-brand-panel-foreground/70">{brand.tagline}</p>
         <RouteMark />
       </aside>
-
-      <main className="login__form-area">
-        <div className="login__form-card">
-          {reason && (
-            <p className="login__banner" role="alert">
-              {reasonMessage(reason)}
-            </p>
-          )}
-
-          {step.kind === 'email' && (
-            <form className="login__fields" onSubmit={handleRequestOtp} noValidate>
-              {error && (
-                <p className="form-banner" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <div className="field">
-                <label htmlFor="login-email">Correo electrónico</label>
-                <input
-                  id="login-email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-
-              <button type="submit" className="button button--primary" disabled={submitting}>
-                {submitting ? 'Enviando…' : 'Enviar código'}
-              </button>
-            </form>
-          )}
-
-          {step.kind === 'code' && (
-            <form className="login__fields" onSubmit={(e) => handleVerifyCode(e, step)} noValidate>
-              <p className="modal__hint">
-                Enviamos un código a <strong>{step.email}</strong>. {step.info}
-              </p>
-
-              {error && (
-                <p className="form-banner" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <div className="field">
-                <label htmlFor="login-code">Código de 6 dígitos</label>
-                <input
-                  id="login-code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                />
-              </div>
-
-              <button type="submit" className="button button--primary" disabled={submitting}>
-                {submitting ? 'Verificando…' : 'Ingresar'}
-              </button>
-              <button
-                type="button"
-                className="button button--ghost"
-                disabled={submitting}
-                onClick={() => handleResend(step)}
-              >
-                Reenviar código
-              </button>
-              <button
-                type="button"
-                className="button button--ghost"
-                disabled={submitting}
-                onClick={() => {
-                  setStep({ kind: 'email' })
-                  setError(null)
-                }}
-              >
-                Usar otro correo
-              </button>
-            </form>
-          )}
-
-          {step.kind === 'password' && (
-            <form className="login__fields" onSubmit={handleSetPassword} noValidate>
-              <p className="modal__hint">Es tu primer ingreso. Fijá una contraseña para tu cuenta.</p>
-
-              {error && (
-                <p className="form-banner" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <div className="field">
-                <label htmlFor="login-new-password">Nueva contraseña</label>
-                <input
-                  id="login-new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-              </div>
-
-              <div className="field">
-                <label htmlFor="login-confirm-password">Confirmar contraseña</label>
-                <input
-                  id="login-confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
-
-              <button type="submit" className="button button--primary" disabled={submitting}>
-                {submitting ? 'Guardando…' : 'Guardar y entrar'}
-              </button>
-            </form>
-          )}
-        </div>
-      </main>
     </div>
   )
 }
 
 function RouteMark() {
   return (
-    <svg className="login__routemark" viewBox="0 0 220 120" fill="none" aria-hidden="true">
+    <svg className="mt-6 h-auto w-44 text-brand-accent" viewBox="0 0 220 120" fill="none" aria-hidden="true">
       <path
         d="M18 96 C 60 96, 60 40, 100 40 S 160 20, 202 20"
-        stroke="#00ac00"
+        stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="18" cy="96" r="5" fill="#00ac00" />
-      <circle cx="100" cy="40" r="5" fill="#00ac00" />
-      <circle cx="202" cy="20" r="5" fill="#00ac00" />
+      <circle cx="18" cy="96" r="5" fill="currentColor" />
+      <circle cx="100" cy="40" r="5" fill="currentColor" />
+      <circle cx="202" cy="20" r="5" fill="currentColor" />
     </svg>
   )
 }
