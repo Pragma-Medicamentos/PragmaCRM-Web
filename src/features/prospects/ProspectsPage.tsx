@@ -1,7 +1,10 @@
-import { MapPin } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { MapPin, MapPinPlus, Plus } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
+import { Button } from '../../components/ui/button'
 import {
   Table,
   TableBody,
@@ -11,6 +14,8 @@ import {
   TableRow,
 } from '../../components/ui/table'
 import { useProspects } from './useProspects'
+import { CreateProspectDialog } from './CreateProspectDialog'
+import { SetProspectLocationDialog } from './SetProspectLocationDialog'
 import type { Prospect } from './prospects.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium', timeStyle: 'short' })
@@ -20,7 +25,12 @@ function formatDate(value: string): string {
   return Number.isNaN(date.getTime()) ? '—' : dateFormatter.format(date)
 }
 
-function ProspectsTable({ prospects }: { prospects: Prospect[] }) {
+interface ProspectsTableProps {
+  prospects: Prospect[]
+  onSetLocation: (prospect: Prospect) => void
+}
+
+function ProspectsTable({ prospects, onSetLocation }: ProspectsTableProps) {
   if (prospects.length === 0) {
     return <p className="py-10 text-center text-sm text-muted-foreground">No hay prospectos registrados.</p>
   }
@@ -52,7 +62,9 @@ function ProspectsTable({ prospects }: { prospects: Prospect[] }) {
                   <MapPin className="size-4" /> Ver mapa
                 </a>
               ) : (
-                <span className="text-xs text-muted-foreground">sin ubicación</span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => onSetLocation(prospect)}>
+                  <MapPinPlus className="size-4" /> Agregar ubicación
+                </Button>
               )}
             </TableCell>
             <TableCell className="text-muted-foreground">{prospect.seller_name ?? prospect.user_id}</TableCell>
@@ -64,16 +76,23 @@ function ProspectsTable({ prospects }: { prospects: Prospect[] }) {
   )
 }
 
-/** Listado admin de prospectos: quién detectó + cuándo (PCRM-64). */
+/** Listado admin de prospectos: quién detectó + cuándo (PCRM-64). Alta manual y GPS a posteriori, ver CreateProspectDialog / SetProspectLocationDialog. */
 export function ProspectsPage() {
-  const { state } = useProspects()
+  const { state, reload } = useProspects()
   const prospects = state.status === 'ready' ? state.prospects : []
+  const [createOpen, setCreateOpen] = useState(false)
+  const [settingLocation, setSettingLocation] = useState<Prospect | null>(null)
 
   return (
     <AppShell>
       <PageHeader
         title="Prospectos"
         subtitle={state.status === 'ready' ? `${prospects.length} prospectos detectados` : undefined}
+        actions={
+          <Button type="button" onClick={() => setCreateOpen(true)}>
+            <Plus data-icon="inline-start" /> Agregar prospecto
+          </Button>
+        }
       />
 
       {state.status === 'loading' && <p className="text-sm text-muted-foreground">Cargando prospectos…</p>}
@@ -86,8 +105,31 @@ export function ProspectsPage() {
 
       {state.status === 'ready' && (
         <div className="overflow-hidden rounded-xl border border-border bg-background">
-          <ProspectsTable prospects={prospects} />
+          <ProspectsTable prospects={prospects} onSetLocation={setSettingLocation} />
         </div>
+      )}
+
+      {createOpen && (
+        <CreateProspectDialog
+          onClose={() => setCreateOpen(false)}
+          onCreated={(prospect) => {
+            setCreateOpen(false)
+            toast.success(`${prospect.name}: prospecto registrado.`)
+            reload()
+          }}
+        />
+      )}
+
+      {settingLocation && (
+        <SetProspectLocationDialog
+          prospect={settingLocation}
+          onClose={() => setSettingLocation(null)}
+          onUpdated={(prospect) => {
+            setSettingLocation(null)
+            toast.success(`${prospect.name}: ubicación guardada.`)
+            reload()
+          }}
+        />
       )}
     </AppShell>
   )

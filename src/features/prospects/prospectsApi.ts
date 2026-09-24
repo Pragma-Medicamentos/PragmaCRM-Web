@@ -1,5 +1,10 @@
 import { apiRequest } from '../../lib/api/apiClient'
-import type { Paginated, Prospect } from './prospects.types'
+import type {
+  CreateProspectInput,
+  Paginated,
+  Prospect,
+  UpdateProspectLocationInput,
+} from './prospects.types'
 
 export interface ListProspectsParams {
   page?: number
@@ -16,4 +21,14 @@ export function listProspects(params: ListProspectsParams = {}): Promise<Paginat
 
   const qs = query.toString()
   return apiRequest<Paginated<Prospect>>(`/api/v1/prospects${qs ? `?${qs}` : ''}`)
+}
+
+// POST /api/v1/prospects/admin (ADMIN) — alta manual a nombre de un vendedor.
+export function createProspect(input: CreateProspectInput): Promise<Prospect> {
+  return apiRequest<Prospect>('/api/v1/prospects/admin', { method: 'POST', data: input })
+}
+
+// PATCH /api/v1/prospects/:id/location (ADMIN) — fija o corrige el GPS.
+export function updateProspectLocation(id: string, input: UpdateProspectLocationInput): Promise<Prospect> {
+  return apiRequest<Prospect>(`/api/v1/prospects/${id}/location`, { method: 'PATCH', data: input })
 }
