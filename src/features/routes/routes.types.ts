@@ -47,6 +47,8 @@ export type ReassignRouteInput = AssignRouteInput
 // 1 = Lunes ... 7 = Domingo, en ese orden (route_user_day_check en la base).
 export const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const
 export const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const
+// X para miércoles: evita dos "M" seguidas en la tira semanal.
+export const DAY_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const
 export const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 
 // PCRM-141 — contrato bloqueado por PragmaCRM-Api PCRM-140 (PR #28).

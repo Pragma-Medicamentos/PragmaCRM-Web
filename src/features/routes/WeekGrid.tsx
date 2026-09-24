@@ -1,4 +1,5 @@
-import { DayColumn } from './DayColumn'
+import { DayRow } from './DayRow'
+import type { DropHint } from './DayRow'
 import { WEEK_DAYS } from './routes.types'
 import type { Route, RouteAssignment } from './routes.types'
 
@@ -6,23 +7,27 @@ interface WeekGridProps {
   assignmentsByDay: Map<number, RouteAssignment[]>
   routesById: Map<string, Route>
   busyAssignmentIds: Set<string>
+  today: number
+  dropHintFor: (day: number) => DropHint | null
   onRemove: (assignment: RouteAssignment) => void
 }
 
-/** Grilla semanal del vendedor seleccionado (wireframe 1g). Lun-Dom (1-7): el sketch dibuja 6 columnas por espacio, pero el backend acepta los 7 días (route_user_day_check). */
-export function WeekGrid({ assignmentsByDay, routesById, busyAssignmentIds, onRemove }: WeekGridProps) {
+/** Semana del vendedor seleccionado, un día por fila (Lun-Dom, 1-7: el backend acepta los 7 días). */
+export function WeekGrid({ assignmentsByDay, routesById, busyAssignmentIds, today, dropHintFor, onRemove }: WeekGridProps) {
   return (
-    <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+    <ol className="divide-y divide-border/70" aria-label="Semana">
       {WEEK_DAYS.map((day) => (
-        <DayColumn
+        <DayRow
           key={day}
           day={day}
+          isToday={day === today}
           assignments={assignmentsByDay.get(day) ?? []}
           routesById={routesById}
           busyAssignmentIds={busyAssignmentIds}
+          dropHint={dropHintFor(day)}
           onRemove={onRemove}
         />
       ))}
-    </div>
+    </ol>
   )
 }
