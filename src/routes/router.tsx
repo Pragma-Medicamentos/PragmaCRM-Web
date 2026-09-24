@@ -7,6 +7,7 @@ import { RoutePlannerPage } from '../features/routes/RoutePlannerPage'
 import { RouteStopsPage } from '../features/routes/RouteStopsPage'
 import { CustomersPage } from '../features/customers/CustomersPage'
 import { CustomerProfilePage } from '../features/customers/CustomerProfilePage'
+import { ProductsPage } from '../features/products/ProductsPage'
 import { ProspectsPage } from '../features/prospects/ProspectsPage'
 import { ImportPage } from '../features/uploads/ImportPage'
 
@@ -60,6 +61,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <CustomerProfilePage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/productos"
+          element={
+            <AdminRoute>
+              <ProductsPage />
             </AdminRoute>
           }
         />
