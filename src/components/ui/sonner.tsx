@@ -1,13 +1,13 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { useTheme } from "@/lib/theme"
 
-// El archivo original usa next-themes para seguir el tema del sistema. Este
-// dashboard solo tiene tema claro (nadie aplica la clase `dark`), así que se
-// fija "light" y se evita esa dependencia.
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme } = useTheme()
+
   return (
     <Sonner
-      theme="light"
+      theme={theme}
       className="toaster group"
       icons={{
         success: (
