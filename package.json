@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:remote": "bash scripts/dev-remote-api.sh",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
