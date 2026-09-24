@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { createVendor } from './vendorsApi'
 import type { Vendor } from './vendors.types'
@@ -59,10 +58,7 @@ export function CreateVendorDialog({ onClose, onCreated }: CreateVendorDialogPro
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const vendor = await createVendor(session?.access_token ?? null, {
+      const vendor = await createVendor({
         name: name.trim(),
         email: email.trim(),
       })

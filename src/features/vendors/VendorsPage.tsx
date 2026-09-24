@@ -40,7 +40,6 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu'
 import { cn } from '../../lib/utils'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { useVendors } from './useVendors'
 import { CreateVendorDialog } from './CreateVendorDialog'
@@ -195,8 +194,7 @@ export function VendorsPage() {
   async function applyStatusChange(vendor: Vendor, active: boolean) {
     await withBusy(vendor.id, async () => {
       try {
-        const { data } = await supabase.auth.getSession()
-        await setVendorActive(data.session?.access_token ?? null, vendor.id, active)
+        await setVendorActive(vendor.id, active)
         toast.success(`${vendor.name}: ${active ? 'habilitado' : 'deshabilitado'}.`)
         reload()
       } catch (err) {
@@ -218,8 +216,7 @@ export function VendorsPage() {
   async function handleResendOtp(vendor: Vendor) {
     await withBusy(vendor.id, async () => {
       try {
-        const { data } = await supabase.auth.getSession()
-        await resendVendorOtp(data.session?.access_token ?? null, vendor.id)
+        await resendVendorOtp(vendor.id)
         toast.success(`Código reenviado a ${vendor.email ?? vendor.name}.`)
       } catch (err) {
         toast.error(err instanceof ApiError ? err.message : 'No se pudo reenviar el código.')

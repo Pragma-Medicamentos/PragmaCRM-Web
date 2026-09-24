@@ -1,8 +1,9 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Link, matchPath, useLocation } from 'react-router-dom'
-import { ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Route, UserCog, Users } from 'lucide-react'
+import { ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Moon, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
+import { useTheme } from '../lib/theme'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -62,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Comercial',
     items: [
       { to: '/clientes', label: 'Clientes', icon: Users },
+      { to: '/prospectos', label: 'Prospectos', icon: UserSearch },
       { to: '/importar', label: 'Importar datos', icon: FileUp },
     ],
   },
@@ -131,7 +133,7 @@ function AppSidebar({ name, email }: { name: string; email: string | null }) {
 
 function AccountAvatar({ name }: { name: string }) {
   return (
-    <Avatar className="size-8 ring-2 ring-white">
+    <Avatar className="size-8 ring-2 ring-background">
       <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{initials(name)}</AvatarFallback>
     </Avatar>
   )
@@ -182,6 +184,7 @@ function NavUser({ name, email }: { name: string; email: string | null }) {
 // escritorio es el botón de panel que oculta o muestra el sidebar flotante.
 function TopBar() {
   const { isMobile, toggleSidebar } = useSidebar()
+  const { theme, toggleTheme } = useTheme()
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 px-4 sm:px-6 lg:h-16 lg:px-8">
@@ -193,6 +196,17 @@ function TopBar() {
         <SidebarTrigger className="-ml-2 text-muted-foreground" aria-label="Mostrar u ocultar menú" />
       )}
       <img src={brandIcon} alt="Farmacia Pragma" className="h-6 w-auto lg:hidden" />
+      <div className="ml-auto">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          onClick={toggleTheme}
+        >
+          {theme === 'dark' ? <Sun /> : <Moon />}
+        </Button>
+      </div>
     </header>
   )
 }

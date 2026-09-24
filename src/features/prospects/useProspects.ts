@@ -1,30 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
-import { listCustomers } from './customersApi'
-import type { Customer } from './customers.types'
+import { listProspects } from './prospectsApi'
+import type { Prospect } from './prospects.types'
 
-export type CustomersState =
+export type ProspectsState =
   | { status: 'loading' }
   | { status: 'pending-backend' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; customers: Customer[] }
+  | { status: 'ready'; prospects: Prospect[] }
 
-/**
- * Carga el listado de clientes (GET /api/v1/customers). Mientras el endpoint
- * no exista en PragmaCRM-Api, la llamada cae en el 404 genérico del backend
- * y el estado queda en 'pending-backend' (ver isRouteNotImplemented).
- */
-export function useCustomers(): { state: CustomersState; reload: () => void } {
-  const [state, setState] = useState<CustomersState>({ status: 'loading' })
+// Carga el listado de prospectos (GET /api/v1/prospects). Si el endpoint aún
+// no existe en PragmaCRM-Api, cae en el 404 genérico y el estado queda en
+// 'pending-backend' (ver isRouteNotImplemented).
+export function useProspects(): { state: ProspectsState; reload: () => void } {
+  const [state, setState] = useState<ProspectsState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     setState({ status: 'loading' })
 
-    listCustomers()
+    listProspects({ page: 1, limit: 100 })
       .then((page) => {
-        if (!cancelled) setState({ status: 'ready', customers: page.items })
+        if (!cancelled) setState({ status: 'ready', prospects: page.items })
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -34,7 +32,7 @@ export function useCustomers(): { state: CustomersState; reload: () => void } {
         }
         setState({
           status: 'error',
-          message: err instanceof ApiError ? err.message : 'Error al cargar los clientes',
+          message: err instanceof ApiError ? err.message : 'Error al cargar los prospectos',
         })
       })
 

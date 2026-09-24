@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { LoaderCircle, MapPinOff } from 'lucide-react'
 import { getGoogleMapsApiKey, loadGoogleMaps } from '../../lib/googleMaps'
 import type { GeoPoint } from './routes.types'
 
@@ -33,6 +34,7 @@ export function SequenceMap({ stops }: SequenceMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<google.maps.Marker[]>([])
+  const pathRef = useRef<google.maps.Polyline | null>(null)
 
   const [loadState, setLoadState] = useState<LoadState>(() =>
     getGoogleMapsApiKey() ? { status: 'loading' } : { status: 'missing-key' }
@@ -70,6 +72,8 @@ export function SequenceMap({ stops }: SequenceMapProps) {
       cancelled = true
       markersRef.current.forEach((marker) => marker.setMap(null))
       markersRef.current = []
+      pathRef.current?.setMap(null)
+      pathRef.current = null
       mapRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,16 +85,48 @@ export function SequenceMap({ stops }: SequenceMapProps) {
 
     markersRef.current.forEach((marker) => marker.setMap(null))
     markersRef.current = []
+    pathRef.current?.setMap(null)
+    pathRef.current = null
 
     if (stops.length === 0) return
 
+    // Se lee en cada pintada para seguir el tema (el verde de dark es otro).
+    const brand = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#008000'
+    const ordered = stops.slice().sort((a, b) => a.sequence - b.sequence)
+
+    if (ordered.length > 1) {
+      pathRef.current = new google.maps.Polyline({
+        map,
+        path: ordered.map((stop) => stop.location),
+        strokeColor: brand,
+        strokeOpacity: 0.6,
+        strokeWeight: 3,
+        icons: [
+          {
+            icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 2.5, strokeOpacity: 0.9, fillOpacity: 0.9 },
+            offset: '50%',
+            repeat: '140px',
+          },
+        ],
+      })
+    }
+
     const bounds = new google.maps.LatLngBounds()
-    stops.forEach((stop) => {
+    ordered.forEach((stop) => {
       const marker = new google.maps.Marker({
         map,
         position: stop.location,
-        label: String(stop.sequence),
         title: `${stop.sequence}. ${stop.label}`,
+        label: { text: String(stop.sequence), color: '#ffffff', fontSize: '12px', fontWeight: '600' },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 13,
+          fillColor: brand,
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+        },
+        zIndex: 1000 - stop.sequence,
       })
       markersRef.current.push(marker)
       bounds.extend(stop.location)
@@ -104,34 +140,37 @@ export function SequenceMap({ stops }: SequenceMapProps) {
     }
   }, [stops, loadState.status])
 
-  if (loadState.status === 'missing-key') {
+  if (loadState.status === 'missing-key' || loadState.status === 'error') {
     return (
-      <div className="flex h-full min-h-40 items-center justify-center rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
-        Falta configurar <code>VITE_GOOGLE_MAPS_API_KEY</code> para mostrar el mapa. La lista de paradas
-        sigue disponible.
-      </div>
-    )
-  }
-
-  if (loadState.status === 'error') {
-    return (
-      <div role="alert" className="flex h-full min-h-40 items-center justify-center rounded-lg bg-destructive/10 p-4 text-center text-sm text-destructive">
-        {loadState.message}
+      <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/40 p-6 text-center">
+        <MapPinOff className="size-5 text-muted-foreground" />
+        {loadState.status === 'missing-key' ? (
+          <p className="max-w-[22rem] text-sm text-muted-foreground">
+            Falta configurar <code className="font-mono text-xs">VITE_GOOGLE_MAPS_API_KEY</code> para mostrar el mapa. El
+            itinerario sigue funcionando.
+          </p>
+        ) : (
+          <p role="alert" className="max-w-[22rem] text-sm text-destructive">
+            {loadState.message}
+          </p>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="relative h-full min-h-40 overflow-hidden rounded-lg border border-border">
+    <div className="relative h-full">
       {loadState.status === 'loading' && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted text-sm text-muted-foreground">
-          Cargando mapa…
+        <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-muted/40 text-sm text-muted-foreground">
+          <LoaderCircle className="size-4 animate-spin" /> Cargando mapa…
         </div>
       )}
-      <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+      <div ref={containerRef} className="h-full w-full" />
       {loadState.status === 'ready' && stops.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 text-sm text-muted-foreground">
-          Sin paradas con ubicación GPS todavía.
+        <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center">
+          <p className="rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground shadow-float">
+            Ninguna parada tiene ubicación GPS todavía.
+          </p>
         </div>
       )}
     </div>

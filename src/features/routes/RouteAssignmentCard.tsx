@@ -1,5 +1,7 @@
 import { X } from 'lucide-react'
 import { Button } from '../../components/ui/button'
+import { Spinner } from '../../components/ui/spinner'
+import { routeMeta } from './DraggableRouteCard'
 import type { Route } from './routes.types'
 
 interface RouteAssignmentCardProps {
@@ -8,13 +10,14 @@ interface RouteAssignmentCardProps {
   onRemove: () => void
 }
 
-/** Tarjeta de una asignación activa dentro de una columna de día (wireframe 1g). */
+/** Ruta asignada dentro de la fila de un día. */
 export function RouteAssignmentCard({ route, busy, onRemove }: RouteAssignmentCardProps) {
+  const meta = route ? routeMeta(route) : ''
   return (
-    <div className="flex items-start justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-sm">
-      <div>
-        <p className="font-medium text-foreground">{route?.name ?? 'Ruta'}</p>
-        {route?.zone && <p className="text-xs text-muted-foreground">{route.zone}</p>}
+    <div className="flex max-w-full min-w-0 items-center gap-1 rounded-lg bg-primary/[0.09] py-1.5 pr-1 pl-3 ring-1 ring-primary/15 ring-inset">
+      <div className="min-w-0">
+        <p className="truncate text-sm leading-tight font-medium text-foreground">{route?.name ?? 'Ruta'}</p>
+        {meta && <p className="truncate text-xs leading-tight text-muted-foreground">{meta}</p>}
       </div>
       <Button
         type="button"
@@ -22,9 +25,10 @@ export function RouteAssignmentCard({ route, busy, onRemove }: RouteAssignmentCa
         size="icon-xs"
         disabled={busy}
         onClick={onRemove}
-        aria-label="Quitar de este día"
+        aria-label={`Quitar ${route?.name ?? 'la ruta'} de este día`}
+        className="shrink-0 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
       >
-        <X />
+        {busy ? <Spinner /> : <X />}
       </Button>
     </div>
   )

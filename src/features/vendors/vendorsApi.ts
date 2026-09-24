@@ -1,34 +1,22 @@
-import { apiFetch } from '../../lib/api/apiClient'
+import { apiRequest } from '../../lib/api/apiClient'
 import type { CreateVendorInput, UpdateVendorInput, Vendor } from './vendors.types'
 
-export function listVendors(token: string | null): Promise<Vendor[]> {
-  return apiFetch<Vendor[]>('/api/v1/sellers', token)
+export function listVendors(): Promise<Vendor[]> {
+  return apiRequest<Vendor[]>('/api/v1/sellers')
 }
 
-export function createVendor(token: string | null, input: CreateVendorInput): Promise<Vendor> {
-  return apiFetch<Vendor>('/api/v1/sellers', token, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  })
+export function createVendor(input: CreateVendorInput): Promise<Vendor> {
+  return apiRequest<Vendor>('/api/v1/sellers', { method: 'POST', data: input })
 }
 
-export function updateVendor(token: string | null, id: string, input: UpdateVendorInput): Promise<Vendor> {
-  return apiFetch<Vendor>(`/api/v1/sellers/${id}`, token, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  })
+export function updateVendor(id: string, input: UpdateVendorInput): Promise<Vendor> {
+  return apiRequest<Vendor>(`/api/v1/sellers/${id}`, { method: 'PATCH', data: input })
 }
 
-export function setVendorActive(token: string | null, id: string, active: boolean): Promise<Vendor> {
-  return apiFetch<Vendor>(`/api/v1/sellers/${id}/active`, token, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ active }),
-  })
+export function setVendorActive(id: string, active: boolean): Promise<Vendor> {
+  return apiRequest<Vendor>(`/api/v1/sellers/${id}/active`, { method: 'PATCH', data: { active } })
 }
 
-export function resendVendorOtp(token: string | null, id: string): Promise<Vendor> {
-  return apiFetch<Vendor>(`/api/v1/sellers/${id}/resend-otp`, token, { method: 'POST' })
+export function resendVendorOtp(id: string): Promise<Vendor> {
+  return apiRequest<Vendor>(`/api/v1/sellers/${id}/resend-otp`, { method: 'POST' })
 }

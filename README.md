@@ -115,7 +115,7 @@ src/
 ├── lib/
 │   ├── utils.ts                      # cn() para componer clases
 │   ├── supabase/client.ts            # cliente único de supabase-js (solo Auth)
-│   └── api/apiClient.ts              # fetch a la API con Bearer token, distingue 401/403
+│   └── api/apiClient.ts              # instancia de Axios: Bearer + x-api-key, 401 => cierra sesión
 ├── components/ui/                    # componentes de shadcn/ui (generados por el CLI)
 ├── features/auth/
 │   ├── auth.types.ts
