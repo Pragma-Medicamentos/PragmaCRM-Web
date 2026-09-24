@@ -246,7 +246,13 @@ function Sidebar({
           data-slot="sidebar-inner"
           // Local: la variante floating usa el liquid glass del panel (utilidades
           // `glass` / `glass-strong` de styles/shadcn.css) en vez de ring + shadow-sm.
-          className="relative flex size-full flex-col bg-sidebar group-data-[variant=floating]:glass group-data-[variant=floating]:glass-strong group-data-[variant=floating]:rounded-3xl"
+          className={cn(
+            "relative flex size-full flex-col bg-sidebar text-sidebar-foreground",
+            // Clases literales `glass` (no solo la variante group-data): el dark
+            // del utility @variant dark necesita el selector `.dark .glass`.
+            (variant === "floating" || variant === "inset") &&
+              "glass glass-strong rounded-3xl"
+          )}
         >
           {children}
         </div>
@@ -473,7 +479,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 // Local: rounded-xl, gap-3/px-3 y el estado activo como píldora blanca en
 // relieve sobre el vidrio del sidebar (en vez de bg-sidebar-accent).
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button flex w-full items-center gap-3 overflow-hidden rounded-xl px-3 py-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-white data-active:font-medium data-active:text-sidebar-primary data-active:shadow-[inset_0_1px_0_white,0_0_0_1px_oklch(0.52_0.17_145/0.1),0_1px_2px_oklch(0.24_0.07_148/0.08),0_4px_12px_-4px_oklch(0.24_0.07_148/0.16)] [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button flex w-full items-center gap-3 overflow-hidden rounded-xl px-3 py-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-white data-active:font-medium data-active:text-sidebar-primary data-active:shadow-[inset_0_1px_0_white,0_0_0_1px_oklch(0.52_0.17_145/0.1),0_1px_2px_oklch(0.24_0.07_148/0.08),0_4px_12px_-4px_oklch(0.24_0.07_148/0.16)] dark:data-active:bg-secondary dark:data-active:text-sidebar-primary dark:data-active:shadow-[inset_0_1px_0_oklch(1_0_0/0.12),0_0_0_1px_oklch(1_0_0/0.1),0_4px_12px_-4px_oklch(0_0_0/0.45)] [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {

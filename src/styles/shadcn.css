@@ -156,41 +156,45 @@
     --sidebar-ring: var(--primary);
 }
 
-/* Modo oscuro: la infraestructura está, pero no se activa en ninguna parte (no
-   hay toggle ni ThemeProvider). Ojo si algún día se enciende: aquí `--primary`
-   es gris, así que el verde de marca se pierde. */
+/* Modo oscuro: clase `dark` en <html> (ThemeProvider + toggle).
+   CA PCRM-152: paleta MÁS intensa que light — primary verde Pragma saturado
+   (#22c55e, rango #16a34a–#22c55e), sin pasteles/sage; neutros con más contraste. */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: oklch(0.14 0.025 148);
+    --foreground: oklch(0.99 0.005 148);
+    --card: oklch(0.19 0.03 148);
+    --card-foreground: oklch(0.99 0.005 148);
+    --popover: oklch(0.19 0.03 148);
+    --popover-foreground: oklch(0.99 0.005 148);
+    --primary: #22c55e;
+    --primary-foreground: #052e16;
+    --brand-accent: #22c55e;
+    --brand-deep: oklch(0.18 0.07 148);
+    --brand-pale: oklch(0.72 0.16 145);
+    --surface: oklch(0.155 0.028 148);
+    --secondary: oklch(0.26 0.035 148);
+    --secondary-foreground: oklch(0.98 0.01 148);
+    --muted: oklch(0.26 0.03 148);
+    --muted-foreground: oklch(0.82 0.03 148);
+    --accent: oklch(0.27 0.05 148);
+    --accent-foreground: oklch(0.99 0.01 148);
+    --destructive: oklch(0.72 0.2 22);
+    --border: oklch(1 0 0 / 18%);
+    --input: oklch(1 0 0 / 22%);
+    --ring: #22c55e;
+    --chart-1: #22c55e;
+    --chart-2: #16a34a;
+    --chart-3: #4ade80;
+    --chart-4: #15803d;
+    --chart-5: #86efac;
+    --sidebar: oklch(0.17 0.03 148);
+    --sidebar-foreground: oklch(0.99 0.005 148);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: #052e16;
+    --sidebar-accent: oklch(1 0 0 / 0.1);
+    --sidebar-accent-foreground: oklch(0.99 0.005 148);
+    --sidebar-border: oklch(1 0 0 / 16%);
+    --sidebar-ring: var(--primary);
 }
 
 /* <Progress> sin `value` (indeterminado). El componente fija un transform en
@@ -316,6 +320,41 @@
         -webkit-backdrop-filter: none;
         backdrop-filter: none;
     }
+
+    /* Dark: dentro del utility para que también gane con variantes
+       (`group-data-[…]:glass`) y no solo con la clase literal `.glass`. */
+    @variant dark {
+        background: linear-gradient(
+            135deg,
+            oklch(0.26 0.035 148 / calc(var(--glass-alpha, 0.68) + 0.1)) 0%,
+            oklch(0.22 0.03 148 / calc(var(--glass-alpha, 0.68) + 0.05)) 45%,
+            oklch(0.18 0.028 160 / var(--glass-alpha, 0.68)) 100%
+        );
+        box-shadow:
+            inset 0 1px 0 oklch(1 0 0 / 0.1),
+            inset 0 -1px 0 oklch(0 0 0 / 0.35),
+            var(--glass-shadow, var(--shadow-card));
+
+        &::before {
+            background: linear-gradient(
+                135deg,
+                oklch(1 0 0 / 0.28) 0%,
+                oklch(1 0 0 / 0.06) 35%,
+                oklch(0.4 0.08 148 / 0.14) 65%,
+                oklch(1 0 0 / 0.16) 100%
+            );
+        }
+
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            background: oklch(0.2 0.03 148 / 0.96);
+        }
+
+        @media (prefers-reduced-transparency: reduce) {
+            background: oklch(0.2 0.03 148);
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+    }
 }
 
 /* Variante para el sidebar, junto a `glass`: más opaca y con sombra
@@ -325,6 +364,7 @@
     --glass-alpha: 0.8;
     --glass-shadow: var(--shadow-float);
 }
+
 
 @layer base {
   * {
@@ -340,6 +380,11 @@
       radial-gradient(ellipse 55% 60% at 0% 0%, oklch(0.88 0.08 148 / 0.55), transparent 70%),
       radial-gradient(ellipse 50% 55% at 100% 100%, oklch(0.9 0.05 190 / 0.45), transparent 70%);
     background-attachment: fixed;
+    }
+  .dark body {
+    background-image:
+      radial-gradient(ellipse 55% 60% at 0% 0%, oklch(0.32 0.07 148 / 0.55), transparent 70%),
+      radial-gradient(ellipse 50% 55% at 100% 100%, oklch(0.28 0.04 190 / 0.4), transparent 70%);
     }
   html {
     @apply font-sans;

@@ -8,6 +8,7 @@ import { RouteStopsPage } from '../features/routes/RouteStopsPage'
 import { CustomersPage } from '../features/customers/CustomersPage'
 import { CustomerProfilePage } from '../features/customers/CustomerProfilePage'
 import { ProductsPage } from '../features/products/ProductsPage'
+import { ProspectsPage } from '../features/prospects/ProspectsPage'
 import { ImportPage } from '../features/uploads/ImportPage'
 
 export function AppRouter() {
@@ -68,6 +69,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <ProductsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/prospectos"
+          element={
+            <AdminRoute>
+              <ProspectsPage />
             </AdminRoute>
           }
         />
