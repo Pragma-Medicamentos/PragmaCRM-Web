@@ -11,16 +11,15 @@ export function requestLoginOtp(email: string): Promise<string> {
 }
 
 /**
- * POST /api/v1/auth/otp/verify — la API verifica el código y fija la sesión
- * en cookies HttpOnly. El body usa `token` (el mismo nombre que
- * `verifyOtp` de Supabase, que es lo que el servidor llama).
- * Contrato PCRM-109: depende del PR de PragmaCRM-Api.
+ * POST /api/v1/auth/login — la API verifica el código y fija la sesión en
+ * cookies HttpOnly. El body es `{ email, otp }` (el código de 6 dígitos).
+ * Contrato PCRM-109: depende de PragmaCRM-Api #40.
  */
 export function verifyLoginOtp(email: string, code: string): Promise<string> {
   clearLegacyAuthStorage()
-  return apiCall('/api/v1/auth/otp/verify', {
+  return apiCall('/api/v1/auth/login', {
     method: 'POST',
-    data: { email, token: code },
+    data: { email, otp: code },
     skipAuth: true,
   })
 }

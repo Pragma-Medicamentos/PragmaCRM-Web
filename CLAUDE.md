@@ -8,7 +8,7 @@ Contexto específico del dashboard web. El contexto de proyecto completo (DER, R
 
 ## Decisión vigente de autenticación
 
-**Supabase Auth** es el proveedor de identidad, pero el navegador no guarda la sesión. `POST /api/v1/auth/otp` dispara un código de 6 dígitos; `POST /api/v1/auth/otp/verify` lo verifica en la API y esa responde con cookies HttpOnly (`credentials` / `withCredentials`). Si la cuenta todavía no tiene contraseña (`passwordSetAt` null en `/api/v1/me`) el mismo formulario la fija con `POST /api/v1/auth/password` — ver `LoginPage.tsx` y `authApi.ts`. (Nota: una versión anterior verificaba el código con `supabase.auth.verifyOtp` en el cliente y el SDK persistía el access/refresh en `localStorage`. PCRM-109 lo reemplazó por la cookie de la API.) Solo `Administrador` usa este dashboard (RF-01); `Vendedor` usa exclusivamente la app Android.
+**Supabase Auth** es el proveedor de identidad, pero el navegador no guarda la sesión. `POST /api/v1/auth/otp` dispara un código de 6 dígitos; `POST /api/v1/auth/login` con `{ email, otp }` lo verifica en la API y esa responde con cookies HttpOnly (`credentials` / `withCredentials`). Si la cuenta todavía no tiene contraseña (`passwordSetAt` null en `/api/v1/me`) el mismo formulario la fija con `POST /api/v1/auth/password` — ver `LoginPage.tsx` y `authApi.ts`. (Nota: una versión anterior verificaba el código con `supabase.auth.verifyOtp` en el cliente y el SDK persistía el access/refresh en `localStorage`. PCRM-109 lo reemplazó por la cookie de la API.) Solo `Administrador` usa este dashboard (RF-01); `Vendedor` usa exclusivamente la app Android.
 
 Dos caminos hacia los datos, igual que en `PragmaCRM-Api`:
 
