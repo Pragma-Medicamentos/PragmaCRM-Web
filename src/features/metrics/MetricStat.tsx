@@ -66,8 +66,10 @@ export function MetricStat({
 }: MetricStatProps) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <div className="flex min-h-6 items-center gap-0.5">
-        <span className="truncate text-sm font-medium text-muted-foreground">{label}</span>
+      {/* La etiqueta se parte en líneas en vez de cortarse con "…": en una
+          fila de cuatro cifras no siempre cabe entera y es lo que explica el número. */}
+      <div className="flex min-h-6 items-start gap-0.5">
+        <span className="py-0.5 text-sm leading-5 font-medium text-pretty text-muted-foreground">{label}</span>
         {hint && <MetricHint label={label} hint={hint} />}
       </div>
       <span

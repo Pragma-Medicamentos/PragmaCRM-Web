@@ -59,140 +59,142 @@ export function GeneralTab({ range, granularity }: GeneralTabProps) {
       />
 
       <Refreshing active={isRefreshing(kpis.state, trends.state, frequency.state)} className="flex flex-col gap-6">
-        <div className="grid gap-6 xl:grid-cols-3">
-          <Card className="xl:col-span-2">
-            <CardHeader>
-              <CardTitle>Ventas</CardTitle>
-              <CardDescription>Ventas confirmadas en el ERP, IVA incluido</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <div className="grid items-end gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
-                <KpiSlot kpis={kpis.state} name="total_sales" comparison={COMPARISON} size="hero" className="lg:pb-8" />
-                <ChartSlot state={trends.state} className="h-52">
-                  {(data) => (
-                    <TrendChart
-                      points={data.points}
-                      granularity={data.granularity}
-                      metric="total_sales"
-                      kind="area"
-                      className="h-52"
-                    />
-                  )}
-                </ChartSlot>
-              </div>
-              <Separator />
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4">
-                <KpiSlot kpis={kpis.state} name="orders_count" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="average_monthly_sales" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="route_effectiveness" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="goal_compliance" comparison={COMPARISON} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Ticket promedio</CardTitle>
-              <CardDescription>Venta total entre pedidos, por {bucketNoun}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col justify-between gap-6">
-              <KpiSlot kpis={kpis.state} name="average_ticket" label="En el periodo" comparison={COMPARISON} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Ventas</CardTitle>
+            <CardDescription>Ventas confirmadas en el ERP, IVA incluido</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <div className="grid items-end gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+              <KpiSlot kpis={kpis.state} name="total_sales" comparison={COMPARISON} size="hero" className="lg:pb-8" />
               <ChartSlot state={trends.state} className="h-52">
                 {(data) => (
                   <TrendChart
                     points={data.points}
                     granularity={data.granularity}
-                    metric="average_ticket"
-                    kind="line"
+                    metric="total_sales"
+                    kind="area"
                     className="h-52"
                   />
                 )}
               </ChartSlot>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <Separator />
+            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiSlot kpis={kpis.state} name="orders_count" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="average_monthly_sales" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="route_effectiveness" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="goal_compliance" comparison={COMPARISON} />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Actividad en campo</CardTitle>
-              <CardDescription>Paradas registradas por los vendedores desde la app</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4">
-                <KpiSlot kpis={kpis.state} name="stops_executed" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="visited_customers" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="effective_visits_rate" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="average_visit_minutes" comparison={COMPARISON} />
-              </div>
-              <Separator />
-              <div className="flex flex-col gap-3">
-                <BlockHeading title="Paradas por tipo" />
-                {stopsByType ? (
-                  <PartToWholeBar
-                    noun="paradas"
-                    segments={STOP_TYPES.map((type) => ({ ...type, value: stopsByType[type.key] }))}
-                  />
-                ) : (
-                  <Skeleton className="h-14 w-full" />
-                )}
-              </div>
-              <Separator />
-              <div className="flex flex-col gap-3">
-                <BlockHeading title={`Paradas por ${bucketNoun}`} />
-                <ChartSlot state={trends.state} className="h-48">
-                  {(data) => (
-                    <TrendChart points={data.points} granularity={data.granularity} metric="stops" kind="bar" className="h-48" />
-                  )}
-                </ChartSlot>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Cartera y clientes</CardTitle>
-              <CardDescription>Cobertura, recompra y saldo pendiente</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4">
-                <KpiSlot kpis={kpis.state} name="customers_without_visit" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="recovered_customers" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="new_prospects" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="purchase_frequency_days" comparison={COMPARISON} />
-              </div>
-              <Separator />
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                <KpiSlot kpis={kpis.state} name="pending_collections" comparison={COMPARISON} />
-                <KpiSlot kpis={kpis.state} name="overdue_portfolio" comparison={COMPARISON} note={overdueShare(kpis.state)} />
-              </div>
-              <Separator />
-              <div className="flex flex-col gap-3">
-                <BlockHeading
-                  title="Frecuencia de compra"
-                  aside={
-                    frequency.state.status === 'ready' && frequency.state.data.average_days !== null
-                      ? `Promedio: cada ${formatDays(frequency.state.data.average_days)}`
-                      : undefined
-                  }
+        <Card>
+          <CardHeader>
+            <CardTitle>Ticket promedio</CardTitle>
+            <CardDescription>Venta total entre pedidos, por {bucketNoun}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid items-end gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+            <KpiSlot
+              kpis={kpis.state}
+              name="average_ticket"
+              label="En el periodo"
+              comparison={COMPARISON}
+              className="lg:pb-8"
+            />
+            <ChartSlot state={trends.state} className="h-52">
+              {(data) => (
+                <TrendChart
+                  points={data.points}
+                  granularity={data.granularity}
+                  metric="average_ticket"
+                  kind="line"
+                  className="h-52"
                 />
-                <ChartSlot state={frequency.state} className="h-52">
-                  {(data) => (
-                    <div className="flex flex-col gap-2">
-                      <PurchaseFrequencyChart buckets={data.buckets} />
-                      {data.insufficient_data > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatCount(data.insufficient_data)} clientes compraron sin una compra anterior con la
-                          cual comparar; no entran en el cálculo.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </ChartSlot>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              )}
+            </ChartSlot>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Actividad en campo</CardTitle>
+            <CardDescription>Paradas registradas por los vendedores desde la app</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiSlot kpis={kpis.state} name="stops_executed" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="visited_customers" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="effective_visits_rate" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="average_visit_minutes" comparison={COMPARISON} />
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-3">
+              <BlockHeading title="Paradas por tipo" />
+              {stopsByType ? (
+                <PartToWholeBar
+                  noun="paradas"
+                  segments={STOP_TYPES.map((type) => ({ ...type, value: stopsByType[type.key] }))}
+                />
+              ) : (
+                <Skeleton className="h-14 w-full" />
+              )}
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-3">
+              <BlockHeading title={`Paradas por ${bucketNoun}`} />
+              <ChartSlot state={trends.state} className="h-48">
+                {(data) => (
+                  <TrendChart points={data.points} granularity={data.granularity} metric="stops" kind="bar" className="h-48" />
+                )}
+              </ChartSlot>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cartera y clientes</CardTitle>
+            <CardDescription>Cobertura, recompra y saldo pendiente</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiSlot kpis={kpis.state} name="customers_without_visit" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="recovered_customers" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="new_prospects" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="purchase_frequency_days" comparison={COMPARISON} />
+            </div>
+            <Separator />
+            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+              <KpiSlot kpis={kpis.state} name="pending_collections" comparison={COMPARISON} />
+              <KpiSlot kpis={kpis.state} name="overdue_portfolio" comparison={COMPARISON} note={overdueShare(kpis.state)} />
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-3">
+              <BlockHeading
+                title="Frecuencia de compra"
+                aside={
+                  frequency.state.status === 'ready' && frequency.state.data.average_days !== null
+                    ? `Promedio: cada ${formatDays(frequency.state.data.average_days)}`
+                    : undefined
+                }
+              />
+              <ChartSlot state={frequency.state} className="h-52">
+                {(data) => (
+                  <div className="flex flex-col gap-2">
+                    <PurchaseFrequencyChart buckets={data.buckets} />
+                    {data.insufficient_data > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {formatCount(data.insufficient_data)} clientes compraron sin una compra anterior con la
+                        cual comparar; no entran en el cálculo.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </ChartSlot>
+            </div>
+          </CardContent>
+        </Card>
       </Refreshing>
     </div>
   )

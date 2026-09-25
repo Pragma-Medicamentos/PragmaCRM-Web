@@ -130,8 +130,8 @@ export function TeamTab({ range }: { range: MetricsRange }) {
           </Empty>
         </Card>
       ) : (
-        <Refreshing active={isRefreshing(sellers.state)} className="grid items-start gap-6 xl:grid-cols-5">
-          <Card className="xl:col-span-2">
+        <Refreshing active={isRefreshing(sellers.state)} className="flex flex-col gap-6">
+          <Card>
             <CardHeader>
               <CardTitle>Venta por vendedor</CardTitle>
               <CardDescription>Ventas confirmadas atribuidas a cada vendedor</CardDescription>
@@ -141,7 +141,7 @@ export function TeamTab({ range }: { range: MetricsRange }) {
             </CardContent>
           </Card>
 
-          <Card className="xl:col-span-3">
+          <Card>
             <CardHeader>
               <CardTitle>Desempeño por vendedor</CardTitle>
               <CardDescription>Selecciona un vendedor para ver su detalle</CardDescription>
