@@ -10,16 +10,36 @@ import { PartToWholeBar } from './charts/PartToWholeBar'
 import { CoverageMap } from './CoverageMap'
 import type { CoverageCustomer, CoverageResponse, MetricsRange } from './metrics.types'
 import { getCoverage } from './metricsApi'
-import { formatTimestamp, parseDay, todayInSv } from './metricsDates'
+import { type ComparisonTarget, formatRange, formatTimestamp, parseDay, todayInSv } from './metricsDates'
 import { formatCount, formatPercent } from './metricsFormat'
 import { MetricStat, MetricStatSkeleton } from './MetricStat'
 import { QueryAlerts } from './QueryAlerts'
 import { Refreshing, isRefreshing } from './slots'
 import { useMetricsQuery } from './useMetricsQuery'
 
-function CoverageSummary({ data }: { data: CoverageResponse }) {
+function coverageSegments(data: CoverageResponse) {
+  return [
+    { key: 'visited', label: 'Visitados', value: data.visited, color: 'var(--chart-1)' },
+    { key: 'not_visited', label: 'Sin visita', value: data.not_visited, color: 'var(--chart-2)' },
+    { key: 'without_location', label: 'Sin ubicación', value: data.without_location, color: 'var(--chart-4)' },
+  ]
+}
+
+function visitedShare(data: CoverageResponse): number | null {
   const total = data.visited + data.not_visited + data.without_location
-  const share = total > 0 ? Math.round((data.visited / total) * 1000) / 10 : null
+  return total > 0 ? Math.round((data.visited / total) * 1000) / 10 : null
+}
+
+interface CoverageSummaryProps {
+  data: CoverageResponse
+  range: MetricsRange
+  /** La misma cobertura en el periodo de comparación: segunda barra y su % en la nota. */
+  other?: { data: CoverageResponse; range: MetricsRange }
+}
+
+function CoverageSummary({ data, range, other }: CoverageSummaryProps) {
+  const total = data.visited + data.not_visited + data.without_location
+  const share = visitedShare(data)
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,15 +47,25 @@ function CoverageSummary({ data }: { data: CoverageResponse }) {
         label="Cartera visitada"
         value={formatPercent(share)}
         size="hero"
-        note={`${formatCount(data.visited)} de ${formatCount(total)} clientes activos`}
+        note={
+          <>
+            {formatCount(data.visited)} de {formatCount(total)} clientes activos
+            {other && (
+              <span className="block">
+                vs {formatPercent(visitedShare(other.data))} en {formatRange(other.range)}
+              </span>
+            )}
+          </>
+        }
       />
       <PartToWholeBar
         noun="clientes activos"
-        segments={[
-          { key: 'visited', label: 'Visitados', value: data.visited, color: 'var(--chart-1)' },
-          { key: 'not_visited', label: 'Sin visita', value: data.not_visited, color: 'var(--chart-2)' },
-          { key: 'without_location', label: 'Sin ubicación', value: data.without_location, color: 'var(--chart-4)' },
-        ]}
+        segments={coverageSegments(data)}
+        comparison={
+          other
+            ? { segments: coverageSegments(other.data), label: formatRange(other.range), currentLabel: formatRange(range) }
+            : undefined
+        }
       />
       <p className="text-xs text-muted-foreground">
         Los clientes sin ubicación GPS cuentan en el total pero no aparecen en el mapa.
@@ -112,9 +142,17 @@ function PendingCustomersTable({ customers }: { customers: CoverageCustomer[] })
 }
 
 /** Pestaña Cobertura (1e "Cobertura de cartera"): qué parte de la cartera se visitó y dónde está el resto. */
-export function CoverageTab({ range }: { range: MetricsRange }) {
+export function CoverageTab({ range, comparison }: { range: MetricsRange; comparison: ComparisonTarget | null }) {
   const coverage = useMetricsQuery(`${range.from}:${range.to}`, (signal) => getCoverage(range, { signal }))
   const data = coverage.state.status === 'ready' ? coverage.state.data : null
+  // El mapa y el listado no se comparan (son "dónde está cada cliente hoy"); solo el resumen.
+  const otherCoverage = useMetricsQuery(comparison && `${comparison.range.from}:${comparison.range.to}`, (signal) =>
+    getCoverage(comparison!.range, { signal })
+  )
+  const other =
+    comparison && otherCoverage.state.status === 'ready'
+      ? { data: otherCoverage.state.data, range: comparison.range }
+      : undefined
 
   const pending = useMemo(() => (data ? data.customers.filter((c) => !c.visited).sort(byLastVisit) : []), [data])
   const [search, setSearch] = useState('')
@@ -126,9 +164,18 @@ export function CoverageTab({ range }: { range: MetricsRange }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <QueryAlerts queries={[{ label: 'la cobertura', endpoint: 'GET /api/v1/metrics/coverage', ...coverage }]} />
+      <QueryAlerts
+        queries={[
+          { label: 'la cobertura', endpoint: 'GET /api/v1/metrics/coverage', ...coverage },
+          {
+            label: 'la cobertura del periodo de comparación',
+            endpoint: 'GET /api/v1/metrics/coverage (comparación)',
+            ...otherCoverage,
+          },
+        ]}
+      />
 
-      <Refreshing active={isRefreshing(coverage.state)} className="flex flex-col gap-6">
+      <Refreshing active={isRefreshing(coverage.state, otherCoverage.state)} className="flex flex-col gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Cobertura de cartera</CardTitle>
@@ -136,7 +183,7 @@ export function CoverageTab({ range }: { range: MetricsRange }) {
           </CardHeader>
           <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)]">
             {data ? (
-              <CoverageSummary data={data} />
+              <CoverageSummary data={data} range={range} other={other} />
             ) : (
               <div className="flex flex-col gap-6">
                 <MetricStatSkeleton size="hero" />

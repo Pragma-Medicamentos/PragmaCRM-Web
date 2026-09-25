@@ -68,6 +68,33 @@ export function yearAgoRange(value: MetricsRange): MetricsRange {
   return range(subYears(parseDay(value.from), 1), subYears(parseDay(value.to), 1))
 }
 
+/**
+ * Contra qué periodo se dibujan los gráficos (?comparar=). No cambia el
+ * delta de las KPIs: ese siempre es contra `previous_period`, lo decide el API.
+ */
+export type ComparisonMode = 'none' | 'previous' | 'year'
+
+export interface ComparisonTarget {
+  mode: Exclude<ComparisonMode, 'none'>
+  /** Nombre corto para tooltips y leyendas: "Periodo anterior". */
+  label: string
+  range: MetricsRange
+}
+
+export const COMPARISON_OPTIONS: {
+  mode: Exclude<ComparisonMode, 'none'>
+  label: string
+  resolve: (range: MetricsRange) => MetricsRange
+}[] = [
+  { mode: 'previous', label: 'Periodo anterior', resolve: previousRange },
+  { mode: 'year', label: 'Mismo periodo, año anterior', resolve: yearAgoRange },
+]
+
+export function comparisonTarget(mode: ComparisonMode, range: MetricsRange): ComparisonTarget | null {
+  const option = COMPARISON_OPTIONS.find((o) => o.mode === mode)
+  return option ? { mode: option.mode, label: option.label, range: option.resolve(range) } : null
+}
+
 export type RangePresetId = 'this-week' | 'this-month' | 'last-month' | 'last-90' | 'year-to-date'
 
 export const RANGE_PRESETS: { id: RangePresetId; label: string; resolve: () => MetricsRange }[] = [

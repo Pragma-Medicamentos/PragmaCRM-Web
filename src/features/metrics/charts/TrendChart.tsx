@@ -1,4 +1,4 @@
-import { Area, Bar, BarChart, CartesianGrid, ComposedChart, LabelList, Line, LineChart, XAxis, YAxis } from 'recharts'
+import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { cn } from 'cn'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '../../../components/ui/chart'
 import type { TrendGranularity, TrendPoint } from '../metrics.types'
@@ -26,9 +26,10 @@ interface TrendChartProps {
    */
   emphasizeLast?: boolean
   /**
-   * Otro periodo dibujado detrás, en gris punteado (solo área y línea). Se
-   * alinea por posición: el primer balde contra el primero, y así. El eje X
-   * sigue siendo el del periodo principal; el tooltip nombra el balde del otro.
+   * Otro periodo en gris: línea punteada detrás (área y línea) o barra al
+   * lado (barras). Se alinea por posición: el primer balde contra el primero,
+   * y así. El eje X sigue siendo el del periodo principal; el tooltip nombra
+   * el balde del otro.
    */
   comparison?: { points: TrendPoint[]; label: string }
   className?: string
@@ -52,7 +53,7 @@ export function TrendChart({
   const { label, money } = METRICS[metric]
   const format = (value: number | null) => (money ? formatMoney(value) : formatCount(value))
   const lastIndex = points.length - 1
-  const showComparison = !!comparison && kind !== 'bar'
+  const showComparison = !!comparison
   const readValue = (point: TrendPoint) => (money ? toAmount(point[metric]) : (point[metric] as number))
 
   const data = points.map((point, index) => {
@@ -110,7 +111,7 @@ export function TrendChart({
     </>
   )
 
-  // Va antes de la serie principal para quedar detrás.
+  // Va antes de la serie principal: detrás en líneas, a la izquierda en barras.
   const comparisonSeries = showComparison && (
     <Line
       dataKey="compare"
@@ -157,6 +158,13 @@ export function TrendChart({
       ) : (
         <BarChart data={data} margin={MARGIN} accessibilityLayer>
           {axes}
+          {showComparison && (
+            <Bar dataKey="compare" radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false}>
+              {data.map((entry) => (
+                <Cell key={entry.key} fill="var(--color-compare)" fillOpacity={0.35} />
+              ))}
+            </Bar>
+          )}
           <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={24}>
             {emphasizeLast && (
               <LabelList dataKey="valueLabel" position="top" offset={8} className="fill-foreground" fontSize={12} />

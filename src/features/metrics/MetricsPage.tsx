@@ -6,7 +6,8 @@ import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { CoverageTab } from './CoverageTab'
 import { GeneralTab } from './GeneralTab'
 import type { TrendGranularity } from './metrics.types'
-import { describeRange, formatRange, previousRange } from './metricsDates'
+import { ComparisonPicker } from './ComparisonPicker'
+import { comparisonTarget, describeRange, formatRange, previousRange } from './metricsDates'
 import { PeriodPicker } from './PeriodPicker'
 import { TeamTab } from './TeamTab'
 import { type MetricsTab, useMetricsSearch } from './useMetricsSearch'
@@ -18,7 +19,8 @@ import { type MetricsTab, useMetricsSearch } from './useMetricsSearch'
  * URL (useMetricsSearch).
  */
 export function MetricsPage() {
-  const { range, tab, granularity, setRange, setTab, setGranularity } = useMetricsSearch()
+  const { range, tab, granularity, comparison, setRange, setTab, setGranularity, setComparison } = useMetricsSearch()
+  const target = comparisonTarget(comparison, range)
 
   return (
     <AppShell>
@@ -42,30 +44,33 @@ export function MetricsPage() {
             </TabsTrigger>
           </TabsList>
 
-          {tab === 'general' && (
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              size="sm"
-              spacing={0}
-              value={granularity}
-              onValueChange={(value) => value && setGranularity(value as TrendGranularity)}
-              aria-label="Agrupar tendencias"
-            >
-              <ToggleGroupItem value="week">Por semana</ToggleGroupItem>
-              <ToggleGroupItem value="month">Por mes</ToggleGroupItem>
-            </ToggleGroup>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <ComparisonPicker value={comparison} onChange={setComparison} />
+            {tab === 'general' && (
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                spacing={0}
+                value={granularity}
+                onValueChange={(value) => value && setGranularity(value as TrendGranularity)}
+                aria-label="Agrupar tendencias"
+              >
+                <ToggleGroupItem value="week">Por semana</ToggleGroupItem>
+                <ToggleGroupItem value="month">Por mes</ToggleGroupItem>
+              </ToggleGroup>
+            )}
+          </div>
         </div>
 
         <TabsContent value="general">
-          <GeneralTab range={range} granularity={granularity} />
+          <GeneralTab range={range} granularity={granularity} comparison={target} />
         </TabsContent>
         <TabsContent value="equipo">
-          <TeamTab range={range} />
+          <TeamTab range={range} comparison={target} />
         </TabsContent>
         <TabsContent value="cobertura">
-          <CoverageTab range={range} />
+          <CoverageTab range={range} comparison={target} />
         </TabsContent>
       </Tabs>
     </AppShell>

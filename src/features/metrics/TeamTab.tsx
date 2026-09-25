@@ -8,9 +8,11 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '..
 import { Progress } from '../../components/ui/progress'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
+import { ComparisonLegend } from './charts/ComparisonLegend'
 import { SellersSalesChart } from './charts/SellersSalesChart'
 import type { MetricsRange, SellerPerformance } from './metrics.types'
 import { getSellerPerformance } from './metricsApi'
+import { type ComparisonTarget, formatRange } from './metricsDates'
 import { formatCount, formatMoney, formatPercent, initials } from './metricsFormat'
 import { QueryAlerts } from './QueryAlerts'
 import { SellerDetailSheet } from './SellerDetailSheet'
@@ -107,15 +109,28 @@ function TeamSkeleton() {
  * vendedor?". El ranking de venta en barras da la lectura rápida; la tabla,
  * las cifras; el Sheet, el detalle de uno.
  */
-export function TeamTab({ range }: { range: MetricsRange }) {
+export function TeamTab({ range, comparison }: { range: MetricsRange; comparison: ComparisonTarget | null }) {
   const sellers = useMetricsQuery(`${range.from}:${range.to}`, (signal) => getSellerPerformance(range, { signal }))
+  const otherSellers = useMetricsQuery(comparison && `${comparison.range.from}:${comparison.range.to}`, (signal) =>
+    getSellerPerformance(comparison!.range, { signal })
+  )
   const [selected, setSelected] = useState<SellerPerformance | null>(null)
 
   const rows = sellers.state.status === 'ready' ? sellers.state.data.sellers : null
+  const otherRows = comparison && otherSellers.state.status === 'ready' ? otherSellers.state.data.sellers : null
 
   return (
     <div className="flex flex-col gap-6">
-      <QueryAlerts queries={[{ label: 'los vendedores', endpoint: 'GET /api/v1/metrics/sellers', ...sellers }]} />
+      <QueryAlerts
+        queries={[
+          { label: 'los vendedores', endpoint: 'GET /api/v1/metrics/sellers', ...sellers },
+          {
+            label: 'los vendedores del periodo de comparación',
+            endpoint: 'GET /api/v1/metrics/sellers (comparación)',
+            ...otherSellers,
+          },
+        ]}
+      />
 
       {rows && rows.length === 0 ? (
         <Card>
@@ -130,14 +145,28 @@ export function TeamTab({ range }: { range: MetricsRange }) {
           </Empty>
         </Card>
       ) : (
-        <Refreshing active={isRefreshing(sellers.state)} className="flex flex-col gap-6">
+        <Refreshing active={isRefreshing(sellers.state, otherSellers.state)} className="flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Venta por vendedor</CardTitle>
               <CardDescription>Ventas confirmadas atribuidas a cada vendedor</CardDescription>
             </CardHeader>
             <CardContent>
-              {rows ? <SellersSalesChart sellers={rows} /> : sellers.state.status === 'loading' && <Skeleton className="h-40 w-full" />}
+              {rows ? (
+                <div className="flex flex-col gap-3">
+                  <SellersSalesChart
+                    sellers={rows}
+                    comparison={comparison && otherRows ? { sellers: otherRows, label: comparison.label } : undefined}
+                  />
+                  {comparison && otherRows && (
+                    <ComparisonLegend
+                      items={[{ label: formatRange(range) }, { label: formatRange(comparison.range), compare: true }]}
+                    />
+                  )}
+                </div>
+              ) : (
+                sellers.state.status === 'loading' && <Skeleton className="h-40 w-full" />
+              )}
             </CardContent>
           </Card>
 
@@ -153,7 +182,12 @@ export function TeamTab({ range }: { range: MetricsRange }) {
         </Refreshing>
       )}
 
-      <SellerDetailSheet seller={selected} range={range} onOpenChange={(open) => !open && setSelected(null)} />
+      <SellerDetailSheet
+        seller={selected}
+        range={range}
+        comparison={comparison}
+        onOpenChange={(open) => !open && setSelected(null)}
+      />
     </div>
   )
 }

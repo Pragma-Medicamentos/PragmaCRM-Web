@@ -5,12 +5,13 @@ import { Separator } from '../../components/ui/separator'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../../components/ui/sheet'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
+import { ComparisonLegend } from './charts/ComparisonLegend'
 import { PartToWholeBar } from './charts/PartToWholeBar'
 import { TrendChart } from './charts/TrendChart'
 import { STOP_TYPES } from './kpiCatalog'
 import type { InactiveCustomer, MetricsRange, SellerPerformance } from './metrics.types'
 import { getSellerDetail } from './metricsApi'
-import { formatRange, formatTimestamp } from './metricsDates'
+import { type ComparisonTarget, formatRange, formatTimestamp } from './metricsDates'
 import { formatCount, formatMoney, formatPercent } from './metricsFormat'
 import { MetricStat } from './MetricStat'
 import { QueryAlerts } from './QueryAlerts'
@@ -21,6 +22,8 @@ interface SellerDetailSheetProps {
   /** Fila del listado: pinta el encabezado y las cifras mientras llega el detalle. */
   seller: SellerPerformance | null
   range: MetricsRange
+  /** Periodo que los gráficos del detalle dibujan en gris; `null` sin comparar. */
+  comparison: ComparisonTarget | null
   onOpenChange: (open: boolean) => void
 }
 
@@ -92,7 +95,7 @@ function InactiveCustomersTable({ customers }: { customers: InactiveCustomer[] }
  * lateral: cifras del periodo, paradas por tipo, tendencia semanal y los
  * clientes de sus rutas que llevan más de N días sin visita.
  */
-export function SellerDetailSheet({ seller, range, onOpenChange }: SellerDetailSheetProps) {
+export function SellerDetailSheet({ seller, range, comparison, onOpenChange }: SellerDetailSheetProps) {
   // Se conserva el último vendedor para que el contenido no desaparezca
   // durante la animación de cierre.
   const [shown, setShown] = useState(seller)
@@ -103,6 +106,14 @@ export function SellerDetailSheet({ seller, range, onOpenChange }: SellerDetailS
     (signal) => getSellerDetail(shown!.user_id, range, { signal }),
     { keepPrevious: false }
   )
+
+  const other = comparison?.range ?? null
+  const otherDetail = useMetricsQuery(
+    shown && other ? `${shown.user_id}:${other.from}:${other.to}` : null,
+    (signal) => getSellerDetail(shown!.user_id, other!, { signal }),
+    { keepPrevious: false }
+  )
+  const otherData = comparison && otherDetail.state.status === 'ready' ? otherDetail.state.data : null
 
   const current = detail.state.status === 'ready' ? detail.state.data.seller : shown
   const inactivityDays = detail.state.status === 'ready' ? detail.state.data.thresholds.inactivity_days : null
@@ -124,7 +135,14 @@ export function SellerDetailSheet({ seller, range, onOpenChange }: SellerDetailS
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               <QueryAlerts
-                queries={[{ label: 'el detalle del vendedor', endpoint: 'GET /api/v1/metrics/sellers/:id', ...detail }]}
+                queries={[
+                  { label: 'el detalle del vendedor', endpoint: 'GET /api/v1/metrics/sellers/:id', ...detail },
+                  {
+                    label: 'el periodo de comparación',
+                    endpoint: 'GET /api/v1/metrics/sellers/:id (comparación)',
+                    ...otherDetail,
+                  },
+                ]}
               />
 
               <SellerStats seller={current} />
@@ -136,6 +154,18 @@ export function SellerDetailSheet({ seller, range, onOpenChange }: SellerDetailS
                 <PartToWholeBar
                   noun="paradas"
                   segments={STOP_TYPES.map((type) => ({ ...type, value: current.stops_by_type[type.key] }))}
+                  comparison={
+                    comparison && otherData
+                      ? {
+                          segments: STOP_TYPES.map((type) => ({
+                            ...type,
+                            value: otherData.seller.stops_by_type[type.key],
+                          })),
+                          label: formatRange(comparison.range),
+                          currentLabel: formatRange(range),
+                        }
+                      : undefined
+                  }
                 />
                 {current.dispatches_for_others > 0 && (
                   <p className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -153,7 +183,30 @@ export function SellerDetailSheet({ seller, range, onOpenChange }: SellerDetailS
                 <BlockHeading title="Paradas por semana" />
                 <ChartSlot state={detail.state} className="h-44">
                   {(data) => (
-                    <TrendChart points={data.weekly_trend} granularity="week" metric="stops" kind="bar" className="h-44" />
+                    <div className="flex flex-col gap-3">
+                      <TrendChart
+                        points={data.weekly_trend}
+                        granularity="week"
+                        metric="stops"
+                        kind="bar"
+                        comparison={
+                          comparison && otherData ? { points: otherData.weekly_trend, label: comparison.label } : undefined
+                        }
+                        className="h-44"
+                      />
+                      {comparison && otherData && (
+                        <ComparisonLegend
+                          items={[
+                            { label: formatRange(range), value: formatCount(current.stops_executed) },
+                            {
+                              label: formatRange(comparison.range),
+                              value: formatCount(otherData.seller.stops_executed),
+                              compare: true,
+                            },
+                          ]}
+                        />
+                      )}
+                    </div>
                   )}
                 </ChartSlot>
               </div>
