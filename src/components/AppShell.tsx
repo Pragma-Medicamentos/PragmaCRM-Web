@@ -1,6 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Link, matchPath, useLocation } from 'react-router-dom'
-import { ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Moon, Package, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
+import { ChartColumn, ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Moon, Package, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { useTheme } from '../lib/theme'
@@ -34,6 +34,7 @@ import {
   useSidebar,
 } from './ui/sidebar'
 import { Toaster } from './ui/sonner'
+import { TooltipProvider } from './ui/tooltip'
 import brandWordmark from '../assets/brand-wordmark.png'
 import brandIcon from '../assets/brand-icon.png'
 
@@ -56,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Operación',
     items: [
       { to: '/', label: 'Resumen', icon: LayoutDashboard, end: true },
+      { to: '/metricas', label: 'Panel de métricas', icon: ChartColumn },
       { to: '/rutas', label: 'Planificador de rutas', icon: Route },
     ],
   },
@@ -230,19 +232,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const email = state.status === 'ready' ? state.appUser.email : ''
 
   return (
-    <SidebarProvider defaultOpen={readSidebarOpen()} style={SIDEBAR_STYLE}>
-      <AppSidebar name={name} email={email} />
+    // TooltipProvider: los Tooltip de Radix lo exigen (ej. el "cómo se calcula" de las métricas).
+    <TooltipProvider delayDuration={200}>
+      <SidebarProvider defaultOpen={readSidebarOpen()} style={SIDEBAR_STYLE}>
+        <AppSidebar name={name} email={email} />
 
-      {/* Transparente: el fondo con velos de `body` queda detrás del contenido. */}
-      <SidebarInset className="min-w-0 bg-transparent">
-        <TopBar />
+        {/* Transparente: el fondo con velos de `body` queda detrás del contenido. */}
+        <SidebarInset className="min-w-0 bg-transparent">
+          <TopBar />
 
-        <div className="flex-1 px-4 pt-4 pb-10 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
-        </div>
-      </SidebarInset>
+          <div className="flex-1 px-4 pt-4 pb-10 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+          </div>
+        </SidebarInset>
 
-      <Toaster position="bottom-right" />
-    </SidebarProvider>
+        <Toaster position="bottom-right" />
+      </SidebarProvider>
+    </TooltipProvider>
   )
 }

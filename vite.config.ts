@@ -24,6 +24,8 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           supabase: ['@supabase/supabase-js'],
+          // Gráficos y calendario del panel de métricas (RF-09).
+          charts: ['recharts', 'react-day-picker', 'date-fns'],
         },
       },
     },
