@@ -1,7 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from '../features/auth/LoginPage'
 import { AdminRoute } from '../features/auth/AdminRoute'
-import { DashboardPlaceholder } from '../pages/DashboardPlaceholder'
+import { HomePage } from '../pages/HomePage'
+import { MetricsPage } from '../features/metrics/MetricsPage'
 import { VendorsPage } from '../features/vendors/VendorsPage'
 import { RoutePlannerPage } from '../features/routes/RoutePlannerPage'
 import { RouteStopsPage } from '../features/routes/RouteStopsPage'
@@ -20,7 +21,15 @@ export function AppRouter() {
           path="/"
           element={
             <AdminRoute>
-              <DashboardPlaceholder />
+              <HomePage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/metricas"
+          element={
+            <AdminRoute>
+              <MetricsPage />
             </AdminRoute>
           }
         />

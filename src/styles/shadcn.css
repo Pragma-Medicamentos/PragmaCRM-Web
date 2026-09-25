@@ -130,13 +130,18 @@
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: #008000;
-    /* Rampa verde de marca en vez de la escala de grises del preset, para que
-       cualquier métrica futura nazca dentro de la paleta. */
+    /* Paleta de gráficos (RF-09). 1–3 son categóricos por entidad, en orden
+       fijo (Visita/Despacho/Cobro, Visitado/Sin visita): verde de marca, azul
+       y ámbar, validados para daltonismo en todos los pares (validate_palette,
+       skill dataviz). El ámbar queda bajo 3:1 sobre blanco, así que nunca va
+       solo: siempre con leyenda y conteo en texto. 4 es el gris verdoso de
+       contexto para gráficos de énfasis (una barra en verde, el resto en 4);
+       5 es su paso más claro. */
     --chart-1: #008000;
-    --chart-2: #00ac00;
-    --chart-3: oklch(0.72 0.14 145);
-    --chart-4: oklch(0.82 0.09 145);
-    --chart-5: oklch(0.89 0.05 145);
+    --chart-2: #2a78d6;
+    --chart-3: #eda100;
+    --chart-4: oklch(0.86 0.025 148);
+    --chart-5: oklch(0.93 0.015 148);
     --radius: 0.625rem; /* 10px: el preset traía 6px, que con esta densidad se ve duro */
     /* Sidebar retintado hacia la marca: la navegación es donde el verde
        identifica el producto sin competir con el contenido. Son mezclas del
@@ -182,11 +187,13 @@
     --border: oklch(1 0 0 / 18%);
     --input: oklch(1 0 0 / 22%);
     --ring: #22c55e;
-    --chart-1: #22c55e;
-    --chart-2: #16a34a;
-    --chart-3: #4ade80;
-    --chart-4: #15803d;
-    --chart-5: #86efac;
+    /* Mismos tres tonos, con pasos elegidos para la banda oscura (el #22c55e
+       de primary queda demasiado claro al lado del naranja para protanopía). */
+    --chart-1: #16a34a;
+    --chart-2: #3987e5;
+    --chart-3: #d97706;
+    --chart-4: oklch(0.36 0.03 148);
+    --chart-5: oklch(0.28 0.03 148);
     --sidebar: oklch(0.17 0.03 148);
     --sidebar-foreground: oklch(0.99 0.005 148);
     --sidebar-primary: var(--primary);
