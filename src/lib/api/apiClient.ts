@@ -1,5 +1,6 @@
-import axios, { type AxiosRequestConfig } from 'axios'
-import { supabase } from '../supabase/client'
+import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
+import { clearLegacyAuthStorage } from '../auth/legacyAuthStorage'
+import { notifySessionEnded } from '../auth/sessionEvents'
 
 export interface ApiEnvelope<T> {
   success: boolean
@@ -43,10 +44,12 @@ export function isRequestCanceled(err: unknown): boolean {
 declare module 'axios' {
   interface AxiosRequestConfig {
     /**
-     * Endpoint público (ej. pedir el OTP de login): no se adjunta el token
-     * de sesión ni un 401 se interpreta como sesión vencida.
+     * No intenta refrescar la cookie ni cierra la sesión ante un 401.
+     * Lo usan el OTP (público), el propio refresh y el logout.
      */
     skipAuth?: boolean
+    /** Marca interna: este request ya se reintentó tras un refresh. */
+    _retriedAfterRefresh?: boolean
   }
 }
 
@@ -59,25 +62,26 @@ const API_KEY_REJECTED_MESSAGE = 'Invalid or missing API key'
 /**
  * Única instancia de Axios hacia PragmaCRM-Api. Todo request del dashboard
  * pasa por aquí (vía `apiRequest` / `apiCall`), de modo que la URL base, el
- * `x-api-key`, el Bearer de Supabase y el manejo de sesión vencida viven en
- * un solo lugar.
+ * `x-api-key`, la cookie de sesión (credentials) y el refresh viven en un
+ * solo lugar. El access token no se lee ni se manda: lo pone la API en una
+ * cookie HttpOnly.
  */
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: { 'x-api-key': import.meta.env.VITE_API_KEY },
+  withCredentials: true,
 })
 
-// Adjunta el access token de la sesión vigente. `getSession()` lo toma del
-// storage del SDK y lo refresca si está por vencer, así que no se cachea
-// aquí ni hace falta que cada llamador lo pida y lo pase.
-api.interceptors.request.use(async (config) => {
-  if (config.skipAuth) return config
+const REFRESH_PATH = '/api/v1/auth/refresh'
 
-  const { data } = await supabase.auth.getSession()
-  if (data.session) {
-    config.headers.set('Authorization', `Bearer ${data.session.access_token}`)
-  }
-  return config
+// Hubo una respuesta autenticada en esta pestaña. Sirve para distinguir un
+// 401 de "nunca hubo sesión" (abrir / sin cookie) de una sesión que la API
+// dejó de aceptar.
+let hadSession = false
+
+api.interceptors.response.use((response) => {
+  if (!response.config.skipAuth) hadSession = true
+  return response
 })
 
 // Cuando la API rechaza un token que sí se envió (revocado, usuario baneado,
@@ -96,19 +100,46 @@ export function clearSessionExpired(): void {
   sessionExpired = false
 }
 
+/** Logout voluntario: limpia residuo local y avisa, sin marcarlo como expiración. */
+export function abandonSession(): void {
+  hadSession = false
+  sessionExpired = false
+  clearLegacyAuthStorage()
+  notifySessionEnded()
+}
+
 // Varias peticiones en vuelo (el planificador lanza una por ruta) pueden
 // recibir 401 a la vez; comparten un solo cierre de sesión.
 let signingOut: Promise<unknown> | null = null
 
 function expireSession(): Promise<unknown> {
-  sessionExpired = true
-  // scope 'local': solo limpia este navegador, sin llamar al servidor con un
-  // token que ya sabemos inválido ni cerrar las sesiones del usuario en otros
-  // dispositivos.
-  signingOut ??= supabase.auth.signOut({ scope: 'local' }).finally(() => {
-    signingOut = null
-  })
+  if (hadSession) sessionExpired = true
+  hadSession = false
+  clearLegacyAuthStorage()
+  // La cookie puede seguir viva si el access venció y el refresh falló.
+  // El logout es best-effort y no vuelve a entrar a este interceptor.
+  signingOut ??= api
+    .request({ url: '/api/v1/auth/logout', method: 'POST', skipAuth: true })
+    .catch(() => undefined)
+    .finally(() => {
+      signingOut = null
+      notifySessionEnded()
+    })
   return signingOut
+}
+
+let refreshing: Promise<void> | null = null
+
+function refreshSession(): Promise<void> {
+  refreshing ??= api
+    .request({ url: REFRESH_PATH, method: 'POST', skipAuth: true })
+    .then(() => {
+      hadSession = true
+    })
+    .finally(() => {
+      refreshing = null
+    })
+  return refreshing
 }
 
 // Normaliza todo fallo a `ApiError` con el `status` HTTP y el `message` del
@@ -130,14 +161,25 @@ api.interceptors.response.use(undefined, async (error: unknown) => {
       ? (data as ApiEnvelope<unknown>).message
       : undefined
 
-  // Un 401 por API key no es culpa de la sesión: cerrarla no lo arregla.
+  const config = error.config as InternalAxiosRequestConfig | undefined
   const sessionRejected =
-    status === 401 &&
-    !error.config?.skipAuth &&
-    error.config?.headers.has('Authorization') &&
-    message !== API_KEY_REJECTED_MESSAGE
+    status === 401 && !config?.skipAuth && message !== API_KEY_REJECTED_MESSAGE
 
-  if (sessionRejected) await expireSession()
+  if (sessionRejected && config && !config._retriedAfterRefresh) {
+    config._retriedAfterRefresh = true
+    try {
+      await refreshSession()
+    } catch {
+      await expireSession()
+      throw new ApiError(
+        status,
+        message ?? (status ? `Error ${status} al contactar la API` : 'No se pudo contactar la API')
+      )
+    }
+    return api.request(config)
+  } else if (sessionRejected && hadSession) {
+    await expireSession()
+  }
 
   throw new ApiError(
     status,

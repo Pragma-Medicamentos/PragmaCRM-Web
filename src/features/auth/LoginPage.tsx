@@ -1,9 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '../../lib/supabase/client'
 import { apiRequest, ApiError } from '../../lib/api/apiClient'
-import { requestLoginOtp } from './authApi'
+import { requestLoginOtp, setLoginPassword, verifyLoginOtp } from './authApi'
 import type { AppUser, RedirectReason } from './auth.types'
 import { Alert, AlertDescription } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
@@ -35,10 +34,10 @@ function reasonMessage(reason: RedirectReason): string {
   return reason.kind === 'forbidden' ? reason.message : 'Esta cuenta no tiene permisos de Administrador.'
 }
 
-// Login sin contraseña propia: la API dispara un código, Supabase lo
-// verifica y, si la cuenta todavía no tiene contraseña (`passwordSetAt`
-// null en /api/v1/me), este mismo formulario la pide antes de entrar. Ver
-// "Flujo de login (OTP)" en PragmaCRM-Web/CLAUDE.md.
+// Login sin contraseña propia: la API dispara un código, lo verifica y
+// fija la sesión en una cookie HttpOnly. Si la cuenta todavía no tiene
+// contraseña (`passwordSetAt` null en /api/v1/me), este mismo formulario
+// la pide antes de entrar. Ver CLAUDE.md.
 type Step =
   | { kind: 'email' }
   | { kind: 'code'; email: string; info: string }
@@ -79,15 +78,11 @@ export function LoginPage() {
     setSubmitting(true)
     setError(null)
 
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      email: currentStep.email,
-      token: code.trim(),
-      type: 'email',
-    })
-
-    if (verifyError || !data.session) {
+    try {
+      await verifyLoginOtp(currentStep.email, code.trim())
+    } catch (err) {
       setSubmitting(false)
-      setError('Código inválido o expirado. Pedí uno nuevo.')
+      setError(err instanceof ApiError ? err.message : 'Código inválido o expirado. Pedí uno nuevo.')
       return
     }
 
@@ -122,14 +117,15 @@ export function LoginPage() {
     setSubmitting(true)
     setError(null)
 
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-
-    setSubmitting(false)
-
-    if (updateError) {
-      setError('No se pudo fijar la contraseña. Intenta de nuevo.')
+    try {
+      await setLoginPassword(newPassword)
+    } catch (err) {
+      setSubmitting(false)
+      setError(err instanceof ApiError ? err.message : 'No se pudo fijar la contraseña. Intenta de nuevo.')
       return
     }
+
+    setSubmitting(false)
 
     navigate('/', { replace: true })
   }

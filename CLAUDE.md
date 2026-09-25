@@ -8,16 +8,16 @@ Contexto específico del dashboard web. El contexto de proyecto completo (DER, R
 
 ## Decisión vigente de autenticación
 
-**Supabase Auth** es el proveedor de identidad. El login del dashboard es sin contraseña propia por correo: `POST /api/v1/auth/otp` dispara un código de 6 dígitos, `supabase.auth.verifyOtp` lo verifica contra Supabase, y si la cuenta todavía no tiene contraseña (`passwordSetAt` null en `/api/v1/me`) el mismo formulario la pide antes de dejar entrar — ver `LoginPage.tsx` y `authApi.ts`. (Nota: una versión anterior de este documento describía `supabase.auth.signInWithPassword`; quedó reemplazado por este flujo de OTP, compartido con el alta de vendedores.) Solo `Administrador` usa este dashboard (RF-01); `Vendedor` usa exclusivamente la app Android.
+**Supabase Auth** es el proveedor de identidad, pero el navegador no guarda la sesión. `POST /api/v1/auth/otp` dispara un código de 6 dígitos; `POST /api/v1/auth/otp/verify` lo verifica en la API y esa responde con cookies HttpOnly (`credentials` / `withCredentials`). Si la cuenta todavía no tiene contraseña (`passwordSetAt` null en `/api/v1/me`) el mismo formulario la fija con `POST /api/v1/auth/password` — ver `LoginPage.tsx` y `authApi.ts`. (Nota: una versión anterior verificaba el código con `supabase.auth.verifyOtp` en el cliente y el SDK persistía el access/refresh en `localStorage`. PCRM-109 lo reemplazó por la cookie de la API.) Solo `Administrador` usa este dashboard (RF-01); `Vendedor` usa exclusivamente la app Android.
 
 Dos caminos hacia los datos, igual que en `PragmaCRM-Api`:
 
 | Camino | Quién decide | Cuándo lo usa este repo |
 |---|---|---|
-| Cliente → Supabase (`supabase-js`) | Las políticas RLS | Solo Auth: login, logout, sesión |
-| Cliente → `PragmaCRM-Api` | `requireAuth` / `requireRole` | Todo lo demás: `/me`, alta de vendedores |
+| Cliente → `PragmaCRM-Api` con cookie | `requireAuth` / `requireRole` | Login, logout, refresh, `/me` y el resto del dominio |
+| Cliente → Supabase (`supabase-js`) | Las políticas RLS | No. El cliente existe con `persistSession: false` para no reintroducir tokens en `localStorage`. |
 
-Este repo **no** consulta tablas del dominio directamente contra Supabase (nada de `supabase.from(...)`); eso sigue siendo trabajo de la API, que se conecta con un rol que ignora RLS. `supabase-js` aquí es solo el cliente de Auth.
+Este repo **no** consulta tablas del dominio directamente contra Supabase (nada de `supabase.from(...)`); eso sigue siendo trabajo de la API, que se conecta con un rol que ignora RLS. Tampoco lee ni escribe access/refresh tokens: `clearLegacyAuthStorage` borra las claves `sb-*-auth-token` que haya dejado un login viejo.
 
 ## Lo que sí tiene que hacer este repo
 
@@ -34,20 +34,16 @@ Este repo **no** consulta tablas del dominio directamente contra Supabase (nada 
 
    `VITE_API_KEY` debe ser igual al `API_KEY` del `.env` de `PragmaCRM-Api` (2026-09: gate de transporte agregado en `middleware/apiKey.ts`, exigido en **toda** ruta bajo `/api/v1` salvo `/api/health`, por delante de `requireAuth`). No es sensible de la misma forma que la `service_role` key — no otorga identidad ni permisos por sí sola — pero sin ella cualquier llamada a la API, incluido pedir el OTP de login, responde 401 "Invalid or missing API key". Se manda como header `x-api-key` desde la instancia de Axios de `lib/api/apiClient.ts`.
 
-2. **Login con `supabase-js`** (`@supabase/supabase-js`). El cliente único vive en `src/lib/supabase/client.ts`. `LoginPage.tsx` implementa el formulario de email + contraseña a mano — no hay componente de UI prearmado como el `<SignIn/>` de Clerk, así que los estados de error (credenciales inválidas, etc.) se manejan aquí.
+2. **Login contra la API, no contra `supabase-js`.** `LoginPage.tsx` arma el formulario a mano. Verificar el código, fijar la contraseña, refrescar y cerrar sesión son rutas de `PragmaCRM-Api` que setean o borran cookies HttpOnly. El cliente en `src/lib/supabase/client.ts` queda con `persistSession: false` por si algo lo importa: no es el camino de login.
 
-3. **Todas las peticiones a la API pasan por una única instancia de Axios** (`api` en `lib/api/apiClient.ts`; los módulos `*Api.ts` la usan vía `apiRequest` — devuelve el `data` del envelope — o `apiCall` — solo el `message`). Nunca se llama a `fetch` directo ni se pasa el token como parámetro:
+3. **Todas las peticiones a la API pasan por una única instancia de Axios** (`api` en `lib/api/apiClient.ts`; los módulos `*Api.ts` la usan vía `apiRequest` — devuelve el `data` del envelope — o `apiCall` — solo el `message`). Nunca se llama a `fetch` directo ni se lee un token para mandarlo:
 
-   - `baseURL` (`VITE_API_URL`) y `x-api-key` son valores por defecto de la instancia.
-   - Un interceptor de request adjunta `Authorization: Bearer <access_token>` tomado de `supabase.auth.getSession()` (el SDK lo cachea y refresca; aquí no se guarda). Los endpoints públicos (pedir el OTP) pasan `skipAuth: true`.
-   - Un interceptor de response convierte todo fallo en `ApiError(status, message)` (status 0 = sin respuesta). Si la API responde **401** a un request que sí llevaba token (salvo el 401 por API key, que cerrar sesión no arregla), cierra la sesión local (`signOut({ scope: 'local' })`, una sola vez aunque haya varios requests en vuelo) y marca la sesión como vencida; `useCurrentAppUser` la ve pasar a `expired` y `AdminRoute` redirige a `/login` con el aviso "Tu sesión expiró".
-   - `useCurrentAppUser.ts` se suscribe a `supabase.auth.onAuthStateChange` solo para saber cuándo volver a pedir `/api/v1/me`.
+   - `baseURL` (`VITE_API_URL`), `x-api-key` y `withCredentials: true` son valores por defecto de la instancia. La cookie de sesión viaja sola; no hay header `Authorization`.
+   - Los endpoints que no deben disparar el refresh (OTP, verify, refresh, logout) pasan `skipAuth: true`.
+   - Un interceptor de response convierte todo fallo en `ApiError(status, message)` (status 0 = sin respuesta). Si la API responde **401** (salvo el 401 por API key), se intenta una vez `POST /api/v1/auth/refresh` y se reintenta el request. Si el refresh falla y esta pestaña ya había tenido sesión, se llama `POST /api/v1/auth/logout`, se borran tokens viejos de `localStorage` y `useCurrentAppUser` pasa a `expired`.
+   - `useCurrentAppUser.ts` pide `GET /api/v1/me` al montar. La cookie decide si hay sesión; un reload no depende de `localStorage`.
 
-   ```
-   Authorization: Bearer <access_token>
-   ```
-
-4. **Resolver el estado inicial con `GET /api/v1/me`.** Es el único endpoint necesario para el login — `useCurrentAppUser.ts` lo llama con el token de la sesión de Supabase.
+4. **Resolver el estado inicial con `GET /api/v1/me`.** Es el único endpoint necesario para saber quién entró — `useCurrentAppUser.ts` lo llama con la cookie.
 
    Respuesta 200:
 
@@ -138,7 +134,7 @@ No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se
 
 ## Cosas a tener presentes durante la integración
 
-**a) CORS.** Si aparece un error de CORS en el navegador al llamar a `localhost:3000` desde `localhost:5173`, es configuración pendiente del lado de `PragmaCRM-Api`, no de este repo.
+**a) CORS.** Si aparece un error de CORS en el navegador al llamar a `localhost:3000` desde `localhost:5173`, es configuración pendiente del lado de `PragmaCRM-Api`, no de este repo. Con la cookie de sesión el preflight tiene que permitir credenciales (`Access-Control-Allow-Credentials: true` y un `Allow-Origin` concreto, no `*`).
 
 **b) Un login exitoso puede devolver 403 de todas formas.** Si el usuario de prueba en Supabase Auth no está enlazado a una fila de `app_user` (`auth_user_id`), la API responde 403 "El usuario no está registrado en el CRM" con un token perfectamente válido. Pedirle a backend que enlace el usuario de prueba, no depurar el frontend primero.
 

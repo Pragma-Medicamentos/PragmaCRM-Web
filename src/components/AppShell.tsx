@@ -1,7 +1,7 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Link, matchPath, useLocation } from 'react-router-dom'
 import { ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Moon, Package, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
-import { supabase } from '../lib/supabase/client'
+import { logout } from '../features/auth/authApi'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { useTheme } from '../lib/theme'
 import { Avatar, AvatarFallback } from './ui/avatar'
@@ -170,7 +170,7 @@ function NavUser({ name, email }: { name: string; email: string | null }) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={() => supabase.auth.signOut()}>
+            <DropdownMenuItem onSelect={() => void logout()}>
               <LogOut /> Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuGroup>

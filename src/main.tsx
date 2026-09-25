@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { clearLegacyAuthStorage } from './lib/auth/legacyAuthStorage'
 import './styles/shadcn.css'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -18,6 +19,8 @@ if (!supabaseAnonKey) {
 if (!apiUrl) {
   throw new Error('Falta VITE_API_URL. Copia .env.example a .env y completa las claves.')
 }
+
+clearLegacyAuthStorage()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
