@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { differenceInCalendarDays } from 'date-fns'
 import { Badge } from '../../components/ui/badge'
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../../components/ui/input-group'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
@@ -76,7 +76,7 @@ function PendingCustomersTable({ customers }: { customers: CoverageCustomer[] })
           <TableRow>
             <TableHead className="pl-4">Cliente</TableHead>
             <TableHead className="hidden md:table-cell">Razón social</TableHead>
-            <TableHead>Última visita</TableHead>
+            <TableHead className="hidden sm:table-cell">Última visita</TableHead>
             <TableHead className="pr-4 text-right">Sin visita</TableHead>
           </TableRow>
         </TableHeader>
@@ -94,7 +94,9 @@ function PendingCustomersTable({ customers }: { customers: CoverageCustomer[] })
                 <TableCell className="hidden max-w-72 truncate text-muted-foreground md:table-cell">
                   {customer.trade_name ? customer.name : '—'}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{formatTimestamp(customer.last_visit_at)}</TableCell>
+                <TableCell className="hidden text-muted-foreground sm:table-cell">
+                  {formatTimestamp(customer.last_visit_at)}
+                </TableCell>
                 <TableCell className="pr-4 text-right">
                   <Badge variant={days === null ? 'destructive' : 'secondary'}>
                     {days === null ? 'Nunca' : `${formatCount(days)} d`}
@@ -154,21 +156,20 @@ export function CoverageTab({ range }: { range: MetricsRange }) {
               Con ubicación GPS y sin parada en el periodo, los nunca visitados primero
               {data ? ` · ${formatCount(pending.length)} clientes` : ''}
             </CardDescription>
-            <CardAction>
-              <InputGroup className="w-56 sm:w-64">
-                <InputGroupAddon>
-                  <Search />
-                </InputGroupAddon>
-                <InputGroupInput
-                  type="search"
-                  placeholder="Buscar cliente"
-                  aria-label="Buscar cliente sin visita"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  disabled={!data || pending.length === 0}
-                />
-              </InputGroup>
-            </CardAction>
+            {/* Título, descripción y buscador, cada uno en su fila y a todo el ancho. */}
+            <InputGroup className="mt-2">
+              <InputGroupAddon>
+                <Search />
+              </InputGroupAddon>
+              <InputGroupInput
+                type="search"
+                placeholder="Buscar cliente"
+                aria-label="Buscar cliente sin visita"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                disabled={!data || pending.length === 0}
+              />
+            </InputGroup>
           </CardHeader>
           <CardContent className="border-t px-0">
             {data ? (
