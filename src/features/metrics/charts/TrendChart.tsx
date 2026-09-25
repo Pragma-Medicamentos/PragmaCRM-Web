@@ -1,4 +1,4 @@
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis } from 'recharts'
+import { Area, Bar, BarChart, CartesianGrid, ComposedChart, LabelList, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { cn } from 'cn'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '../../../components/ui/chart'
 import type { TrendGranularity, TrendPoint } from '../metrics.types'
@@ -25,6 +25,12 @@ interface TrendChartProps {
    * los anteriores en el gris de contexto. Para "¿cómo va esta semana?".
    */
   emphasizeLast?: boolean
+  /**
+   * Otro periodo dibujado detrás, en gris punteado (solo área y línea). Se
+   * alinea por posición: el primer balde contra el primero, y así. El eje X
+   * sigue siendo el del periodo principal; el tooltip nombra el balde del otro.
+   */
+  comparison?: { points: TrendPoint[]; label: string }
   className?: string
 }
 
@@ -34,14 +40,25 @@ const MARGIN = { top: 20, right: 8, left: 0, bottom: 0 }
  * Una serie de /metrics/trends en el tiempo. Una sola serie y un solo eje:
  * el título de la Card ya nombra lo que se grafica, así que no lleva leyenda.
  */
-export function TrendChart({ points, granularity, metric, kind, emphasizeLast = false, className }: TrendChartProps) {
+export function TrendChart({
+  points,
+  granularity,
+  metric,
+  kind,
+  emphasizeLast = false,
+  comparison,
+  className,
+}: TrendChartProps) {
   const { label, money } = METRICS[metric]
   const format = (value: number | null) => (money ? formatMoney(value) : formatCount(value))
   const lastIndex = points.length - 1
+  const showComparison = !!comparison && kind !== 'bar'
+  const readValue = (point: TrendPoint) => (money ? toAmount(point[metric]) : (point[metric] as number))
 
   const data = points.map((point, index) => {
-    const value = money ? toAmount(point[metric]) : (point[metric] as number)
+    const value = readValue(point)
     const isLast = index === lastIndex
+    const other = showComparison ? comparison.points[index] : undefined
     return {
       key: point.bucket_start,
       label: formatBucket(point.bucket_start, granularity),
@@ -49,10 +66,15 @@ export function TrendChart({ points, granularity, metric, kind, emphasizeLast = 
       value,
       fill: emphasizeLast && !isLast ? 'var(--chart-4)' : 'var(--color-value)',
       valueLabel: emphasizeLast && isLast ? format(value) : '',
+      compare: other ? readValue(other) : null,
+      compareLong: other ? formatBucketLong(other.bucket_start, granularity) : '',
     }
   })
 
-  const config = { value: { label, color: 'var(--chart-1)' } } satisfies ChartConfig
+  const config = {
+    value: { label, color: 'var(--chart-1)' },
+    compare: { label: comparison?.label ?? '', color: 'var(--muted-foreground)' },
+  } satisfies ChartConfig
 
   const axes = (
     <>
@@ -71,20 +93,43 @@ export function TrendChart({ points, granularity, metric, kind, emphasizeLast = 
           <ChartTooltipContent
             indicator="line"
             labelFormatter={(_, payload) => payload?.[0]?.payload?.long}
-            formatter={(value) => (
-              <ChartTooltipRow color="var(--color-value)" label={label} value={format(value as number | null)} />
-            )}
+            formatter={(value, name, item) =>
+              name === 'compare' ? (
+                <ChartTooltipRow
+                  color="var(--color-compare)"
+                  label={`${comparison?.label} · ${item.payload.compareLong}`}
+                  value={format(value as number | null)}
+                />
+              ) : (
+                <ChartTooltipRow color="var(--color-value)" label={label} value={format(value as number | null)} />
+              )
+            }
           />
         }
       />
     </>
   )
 
+  // Va antes de la serie principal para quedar detrás.
+  const comparisonSeries = showComparison && (
+    <Line
+      dataKey="compare"
+      type="monotone"
+      stroke="var(--color-compare)"
+      strokeWidth={1.5}
+      strokeDasharray="4 4"
+      dot={false}
+      activeDot={{ r: 3, strokeWidth: 0, fill: 'var(--color-compare)' }}
+      isAnimationActive={false}
+    />
+  )
+
   return (
     <ChartContainer config={config} className={cn('aspect-auto h-60 w-full', className)}>
       {kind === 'area' ? (
-        <AreaChart data={data} margin={MARGIN} accessibilityLayer>
+        <ComposedChart data={data} margin={MARGIN} accessibilityLayer>
           {axes}
+          {comparisonSeries}
           <Area
             dataKey="value"
             type="monotone"
@@ -94,10 +139,11 @@ export function TrendChart({ points, granularity, metric, kind, emphasizeLast = 
             fillOpacity={0.1}
             activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--background)' }}
           />
-        </AreaChart>
+        </ComposedChart>
       ) : kind === 'line' ? (
         <LineChart data={data} margin={MARGIN} accessibilityLayer>
           {axes}
+          {comparisonSeries}
           <Line
             dataKey="value"
             type="monotone"

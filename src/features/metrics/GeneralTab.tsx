@@ -1,13 +1,16 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { useState } from 'react'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Separator } from '../../components/ui/separator'
 import { Skeleton } from '../../components/ui/skeleton'
 import { PartToWholeBar } from './charts/PartToWholeBar'
 import { PurchaseFrequencyChart } from './charts/PurchaseFrequencyChart'
 import { TrendChart } from './charts/TrendChart'
 import { STOP_TYPES } from './kpiCatalog'
-import type { KpiValuesResponse, MetricsRange, TrendGranularity } from './metrics.types'
+import type { KpiValuesResponse, MetricsRange, TrendGranularity, TrendPoint } from './metrics.types'
 import { getKpiValues, getPurchaseFrequency, getTrends } from './metricsApi'
-import { formatCount, formatDays, formatPercent, toAmount } from './metricsFormat'
+import { formatRange, previousRange, yearAgoRange } from './metricsDates'
+import { formatCount, formatDays, formatMoney, formatPercent, toAmount } from './metricsFormat'
 import { QueryAlerts } from './QueryAlerts'
 import { BlockHeading, ChartSlot, KpiSlot, Refreshing, isRefreshing } from './slots'
 import { useMetricsQuery, type MetricsQueryState } from './useMetricsQuery'
@@ -18,6 +21,44 @@ interface GeneralTabProps {
 }
 
 const COMPARISON = 'vs periodo anterior'
+
+/**
+ * Prueba en la Card de Ventas: dibujar otro periodo detrás de la tendencia.
+ * "Periodo anterior" es el mismo contra el que se calcula el delta de la KPI.
+ */
+type SalesComparison = 'none' | 'previous' | 'year'
+
+const SALES_COMPARISONS: { id: SalesComparison; label: string; resolve?: (range: MetricsRange) => MetricsRange }[] = [
+  { id: 'none', label: 'Sin comparar' },
+  { id: 'previous', label: 'Periodo anterior', resolve: previousRange },
+  { id: 'year', label: 'Mismo periodo, año anterior', resolve: yearAgoRange },
+]
+
+function totalSales(points: TrendPoint[]): number {
+  return points.reduce((sum, point) => sum + (toAmount(point.total_sales) ?? 0), 0)
+}
+
+/** Leyenda del gráfico comparado: qué es cada trazo y cuánto suma. */
+function ComparisonLegend({ items }: { items: { label: string; total: number; dashed?: boolean }[] }) {
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className={
+              item.dashed
+                ? 'w-4 border-t-[1.5px] border-dashed border-muted-foreground'
+                : 'h-0.5 w-4 rounded-full bg-(--chart-1)'
+            }
+          />
+          <span>{item.label}</span>
+          <span className="font-medium text-foreground tabular-nums">{formatMoney(item.total)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 /** Porción vencida del saldo por cobrar, para la nota de "Cartera vencida". */
 function overdueShare(kpis: MetricsQueryState<KpiValuesResponse>): string | undefined {
@@ -42,6 +83,16 @@ export function GeneralTab({ range, granularity }: GeneralTabProps) {
   const trends = useMetricsQuery(`${rangeKey}:${granularity}`, (signal) => getTrends(range, granularity, { signal }))
   const frequency = useMetricsQuery(rangeKey, (signal) => getPurchaseFrequency(range, { signal }))
 
+  const [salesComparison, setSalesComparison] = useState<SalesComparison>('none')
+  const comparisonOption = SALES_COMPARISONS.find((option) => option.id === salesComparison)
+  const comparisonRange = comparisonOption?.resolve?.(range) ?? null
+  const comparisonTrends = useMetricsQuery(
+    comparisonRange && `${comparisonRange.from}:${comparisonRange.to}:${granularity}`,
+    (signal) => getTrends(comparisonRange!, granularity, { signal })
+  )
+  const comparisonPoints =
+    comparisonRange && comparisonTrends.state.status === 'ready' ? comparisonTrends.state.data.points : null
+
   const bucketNoun = granularity === 'month' ? 'mes' : 'semana'
   const stopsByType =
     kpis.state.status === 'ready' && kpis.state.data.kpis.stops_by_type && !('error' in kpis.state.data.kpis.stops_by_type)
@@ -54,6 +105,11 @@ export function GeneralTab({ range, granularity }: GeneralTabProps) {
         queries={[
           { label: 'los indicadores', endpoint: 'GET /api/v1/metrics/kpis/values', ...kpis },
           { label: 'las tendencias', endpoint: 'GET /api/v1/metrics/trends', ...trends },
+          {
+            label: 'el periodo de comparación de ventas',
+            endpoint: 'GET /api/v1/metrics/trends (comparación)',
+            ...comparisonTrends,
+          },
           { label: 'la frecuencia de compra', endpoint: 'GET /api/v1/metrics/purchase-frequency', ...frequency },
         ]}
       />
@@ -63,19 +119,48 @@ export function GeneralTab({ range, granularity }: GeneralTabProps) {
           <CardHeader>
             <CardTitle>Ventas</CardTitle>
             <CardDescription>Ventas confirmadas en el ERP, IVA incluido</CardDescription>
+            <CardAction>
+              <Select value={salesComparison} onValueChange={(value) => setSalesComparison(value as SalesComparison)}>
+                <SelectTrigger size="sm" aria-label="Comparar la gráfica con">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {SALES_COMPARISONS.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <div className="grid items-end gap-6 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
               <KpiSlot kpis={kpis.state} name="total_sales" comparison={COMPARISON} size="hero" className="lg:pb-8" />
               <ChartSlot state={trends.state} className="h-52">
                 {(data) => (
-                  <TrendChart
-                    points={data.points}
-                    granularity={data.granularity}
-                    metric="total_sales"
-                    kind="area"
-                    className="h-52"
-                  />
+                  <div className="flex flex-col gap-3">
+                    <TrendChart
+                      points={data.points}
+                      granularity={data.granularity}
+                      metric="total_sales"
+                      kind="area"
+                      comparison={
+                        comparisonPoints && comparisonOption
+                          ? { points: comparisonPoints, label: comparisonOption.label }
+                          : undefined
+                      }
+                      className="h-52"
+                    />
+                    {comparisonRange && comparisonPoints && (
+                      <ComparisonLegend
+                        items={[
+                          { label: formatRange(range), total: totalSales(data.points) },
+                          { label: formatRange(comparisonRange), total: totalSales(comparisonPoints), dashed: true },
+                        ]}
+                      />
+                    )}
+                  </div>
                 )}
               </ChartSlot>
             </div>

@@ -11,6 +11,7 @@ import {
   startOfYear,
   subMonths,
   subWeeks,
+  subYears,
 } from 'date-fns'
 import type { MetricsRange } from './metrics.types'
 
@@ -60,6 +61,11 @@ function range(from: Date, to: Date): MetricsRange {
 export function previousRange(value: MetricsRange): MetricsRange {
   const end = addDays(parseDay(value.from), -1)
   return range(addDays(end, -(rangeLength(value) - 1)), end)
+}
+
+/** Las mismas fechas un año antes, para comparar contra la misma temporada. */
+export function yearAgoRange(value: MetricsRange): MetricsRange {
+  return range(subYears(parseDay(value.from), 1), subYears(parseDay(value.to), 1))
 }
 
 export type RangePresetId = 'this-week' | 'this-month' | 'last-month' | 'last-90' | 'year-to-date'
