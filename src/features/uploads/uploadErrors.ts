@@ -50,9 +50,13 @@ const BY_MESSAGE: Record<string, string> = {
   'Duplicate record.':
     'Ya hay una carga de este archivo en proceso. Espera unos segundos y vuelve a intentarlo.',
 
-  // --- 500 ---
+  // --- 504: Prisma P2028 (transaction timeout) from Api handleError ---
+  'The import timed out while writing sales. Try a smaller file, or contact support if a single month fails.':
+    'La importación agotó el tiempo al guardar las ventas. Si un solo mes falla, avisá al equipo técnico; si el archivo es muy grande, probá un rango más chico.',
+
+  // --- 500: generic (no tip de meses: ese copy era engañoso ante timeouts P2028) ---
   'Internal server error':
-    'Error interno del servidor al procesar el archivo. Si el archivo cubre muchos meses, prueba a dividirlo por rangos de fecha; si no, avisa al equipo técnico.',
+    'Error interno del servidor al procesar el archivo. Avisa al equipo técnico.',
 
   // --- Mensajes que la API ya envía en español (requireAuth / requireRole).
   // Se listan como entradas identidad en vez de detectarlos por heurística:

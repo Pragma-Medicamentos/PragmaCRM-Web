@@ -70,6 +70,7 @@ VITE_SUPABASE_ANON_KEY=...
 VITE_API_URL=https://api.<dominio>
 VITE_API_KEY=...                     # igual al API_KEY del .env de PragmaCRM-Api
 VITE_UPLOAD_MAX_FILE_SIZE_MB=100     # opcional, default 100
+VITE_GOOGLE_MAPS_API_KEY=...         # opcional: sin ella, el mapa de ubicación de cliente no se muestra
 ```
 
 **Estas variables se hornean en el bundle al compilar**, así que Dokploy tiene que propagarlas como
