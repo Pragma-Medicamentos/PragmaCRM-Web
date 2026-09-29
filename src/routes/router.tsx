@@ -4,6 +4,7 @@ import { AdminRoute } from '../features/auth/AdminRoute'
 import { HomePage } from '../pages/HomePage'
 import { MetricsPage } from '../features/metrics/MetricsPage'
 import { VendorsPage } from '../features/vendors/VendorsPage'
+import { SellerDailyRoutePage } from '../features/daily-route/SellerDailyRoutePage'
 import { RoutePlannerPage } from '../features/routes/RoutePlannerPage'
 import { RouteStopsPage } from '../features/routes/RouteStopsPage'
 import { CustomersPage } from '../features/customers/CustomersPage'
@@ -38,6 +39,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <VendorsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/vendedores/:sellerId/ruta"
+          element={
+            <AdminRoute>
+              <SellerDailyRoutePage />
             </AdminRoute>
           }
         />
