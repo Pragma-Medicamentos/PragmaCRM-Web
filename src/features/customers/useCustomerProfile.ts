@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
 import { getCustomerProfile } from './customersApi'
 import type { CustomerProfile } from './customers.types'
@@ -11,11 +10,14 @@ export type CustomerProfileState =
   | { status: 'ready'; profile: CustomerProfile }
 
 /**
- * Carga el perfil de un cliente (GET /api/v1/customers/:id/profile). Mientras
- * el endpoint no exista en PragmaCRM-Api, la llamada cae en el 404 genérico
- * del backend y el estado queda en 'pending-backend' (ver isRouteNotImplemented).
+ * Carga el perfil de un cliente (GET /api/v1/customers/:id). Si el backend
+ * responde el 404 genérico (ruta inexistente), el estado queda en
+ * 'pending-backend' (ver isRouteNotImplemented).
  */
-export function useCustomerProfile(customerId: string): { state: CustomerProfileState; reload: () => void } {
+export function useCustomerProfile(customerId: string): {
+  state: CustomerProfileState
+  reload: () => void
+} {
   const [state, setState] = useState<CustomerProfileState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -23,9 +25,7 @@ export function useCustomerProfile(customerId: string): { state: CustomerProfile
     let cancelled = false
     setState({ status: 'loading' })
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => getCustomerProfile(data.session?.access_token ?? null, customerId))
+    getCustomerProfile(customerId)
       .then((profile) => {
         if (!cancelled) setState({ status: 'ready', profile })
       })

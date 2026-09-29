@@ -1,11 +1,29 @@
 import { useMemo, useState } from 'react'
-import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Search } from 'lucide-react'
+import { toast } from 'sonner'
+import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
+import { Card, CardContent, CardHeader } from '../../components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '../../components/ui/empty'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '../../components/ui/input-group'
 import { Badge } from '../../components/ui/badge'
+import { Skeleton } from '../../components/ui/skeleton'
+import { Spinner } from '../../components/ui/spinner'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import {
   Table,
   TableBody,
@@ -17,11 +35,11 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu'
 import { cn } from '../../lib/utils'
-import { supabase } from '../../lib/supabase/client'
 import { ApiError } from '../../lib/api/apiClient'
 import { useVendors } from './useVendors'
 import { CreateVendorDialog } from './CreateVendorDialog'
@@ -31,7 +49,6 @@ import type { Vendor } from './vendors.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium' })
 
-type Notice = { kind: 'success' | 'error'; message: string }
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
@@ -39,6 +56,37 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: 'active', label: 'Activos' },
   { value: 'inactive', label: 'Deshabilitados' },
 ]
+
+const COLUMNS = ['Nombre', 'Correo', 'Estado', 'Fecha de alta'] as const
+
+function VendorsTableSkeleton() {
+  return (
+    <Table>
+      <TableHeader className="bg-muted/40">
+        <TableRow>
+          {COLUMNS.map((column) => (
+            <TableHead key={column}>{column}</TableHead>
+          ))}
+          <TableHead className="text-right">Acciones</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: 5 }, (_, row) => (
+          <TableRow key={row}>
+            {COLUMNS.map((column) => (
+              <TableCell key={column}>
+                <Skeleton className="h-4 w-28" />
+              </TableCell>
+            ))}
+            <TableCell className="text-right">
+              <Skeleton className="ml-auto size-7 rounded-lg" />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
 
 interface VendorsTableProps {
   vendors: Vendor[]
@@ -49,18 +97,13 @@ interface VendorsTableProps {
 }
 
 function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }: VendorsTableProps) {
-  if (vendors.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">No hay vendedores que coincidan con el filtro.</p>
-  }
-
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className="bg-muted/40">
         <TableRow>
-          <TableHead>Nombre</TableHead>
-          <TableHead>Correo</TableHead>
-          <TableHead>Estado</TableHead>
-          <TableHead>Fecha de alta</TableHead>
+          {COLUMNS.map((column) => (
+            <TableHead key={column}>{column}</TableHead>
+          ))}
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
@@ -81,19 +124,21 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button type="button" variant="ghost" size="icon-sm" disabled={busy} aria-label="Acciones">
-                      <MoreHorizontal />
+                      {busy ? <Spinner /> : <MoreHorizontal />}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => onEdit(vendor)}>
-                      <Pencil /> Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onToggleActive(vendor)}>
-                      <Power /> {vendor.active ? 'Deshabilitar' : 'Habilitar'}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => onResendOtp(vendor)}>
-                      <KeyRound /> Reenviar código
-                    </DropdownMenuItem>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem onSelect={() => onEdit(vendor)}>
+                        <Pencil /> Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onToggleActive(vendor)}>
+                        <Power /> {vendor.active ? 'Deshabilitar' : 'Habilitar'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onResendOtp(vendor)}>
+                        <KeyRound /> Reenviar código
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -112,7 +157,6 @@ export function VendorsPage() {
   const [editing, setEditing] = useState<Vendor | null>(null)
   const [confirmingDisable, setConfirmingDisable] = useState<Vendor | null>(null)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
-  const [notice, setNotice] = useState<Notice | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
@@ -132,6 +176,8 @@ export function VendorsPage() {
     })
   }, [vendors, search, statusFilter])
 
+  const isFiltered = search.trim() !== '' || statusFilter !== 'all'
+
   async function withBusy(id: string, task: () => Promise<void>) {
     setBusyIds((prev) => new Set(prev).add(id))
     try {
@@ -146,21 +192,15 @@ export function VendorsPage() {
   }
 
   async function applyStatusChange(vendor: Vendor, active: boolean) {
-    setNotice(null)
     await withBusy(vendor.id, async () => {
       try {
-        const { data } = await supabase.auth.getSession()
-        await setVendorActive(data.session?.access_token ?? null, vendor.id, active)
-        setNotice({
-          kind: 'success',
-          message: `${vendor.name}: ${active ? 'habilitado' : 'deshabilitado'}.`,
-        })
+        await setVendorActive(vendor.id, active)
+        toast.success(`${vendor.name}: ${active ? 'habilitado' : 'deshabilitado'}.`)
         reload()
       } catch (err) {
-        setNotice({
-          kind: 'error',
-          message: err instanceof ApiError ? err.message : 'No se pudo actualizar el estado del vendedor.',
-        })
+        toast.error(
+          err instanceof ApiError ? err.message : 'No se pudo actualizar el estado del vendedor.'
+        )
       }
     })
   }
@@ -174,17 +214,12 @@ export function VendorsPage() {
   }
 
   async function handleResendOtp(vendor: Vendor) {
-    setNotice(null)
     await withBusy(vendor.id, async () => {
       try {
-        const { data } = await supabase.auth.getSession()
-        await resendVendorOtp(data.session?.access_token ?? null, vendor.id)
-        setNotice({ kind: 'success', message: `Código reenviado a ${vendor.email ?? vendor.name}.` })
+        await resendVendorOtp(vendor.id)
+        toast.success(`Código reenviado a ${vendor.email ?? vendor.name}.`)
       } catch (err) {
-        setNotice({
-          kind: 'error',
-          message: err instanceof ApiError ? err.message : 'No se pudo reenviar el código.',
-        })
+        toast.error(err instanceof ApiError ? err.message : 'No se pudo reenviar el código.')
       }
     })
   }
@@ -193,72 +228,106 @@ export function VendorsPage() {
     <AppShell>
       <PageHeader
         title="Vendedores"
-        subtitle={state.status === 'ready' ? `${activeCount} activos · ${inactiveCount} deshabilitados` : undefined}
+        subtitle={
+          state.status === 'ready' ? `${activeCount} activos · ${inactiveCount} deshabilitados` : undefined
+        }
         actions={
           <Button type="button" onClick={() => setCreateOpen(true)}>
-            <Plus /> Nuevo vendedor
+            <Plus data-icon="inline-start" /> Nuevo vendedor
           </Button>
         }
       />
 
-      {notice && (
-        <p
-          role="status"
-          className={cn(
-            'mb-4 rounded-lg border p-3 text-sm',
-            notice.kind === 'error'
-              ? 'border-destructive/20 bg-destructive/10 text-destructive'
-              : 'border-primary/20 bg-primary/10 text-primary'
-          )}
-        >
-          {notice.message}
-        </p>
-      )}
-
-      {state.status === 'loading' && <p className="text-sm text-muted-foreground">Cargando vendedores…</p>}
-      {state.status === 'error' && (
-        <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {state.message}
-        </p>
-      )}
-
-      {state.status === 'ready' && (
+      {state.status === 'error' ? (
+        <Alert variant="destructive">
+          <AlertTitle>No se pudo cargar el listado</AlertTitle>
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+      ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por nombre o correo"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <div className="flex gap-1.5">
-              {STATUS_FILTERS.map((filter) => (
-                <Button
-                  key={filter.value}
-                  type="button"
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <InputGroup className="flex-1">
+                  <InputGroupAddon>
+                    <Search />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    type="search"
+                    placeholder="Buscar por nombre o correo"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    disabled={state.status !== 'ready'}
+                  />
+                </InputGroup>
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
                   size="sm"
-                  variant={statusFilter === filter.value ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter(filter.value)}
+                  spacing={0}
+                  value={statusFilter}
+                  onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
+                  disabled={state.status !== 'ready'}
                 >
-                  {filter.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+                  {STATUS_FILTERS.map((filter) => (
+                    <ToggleGroupItem key={filter.value} value={filter.value}>
+                      {filter.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+            </CardHeader>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-background">
-            <VendorsTable
-              vendors={filteredVendors}
-              busyIds={busyIds}
-              onEdit={setEditing}
-              onToggleActive={handleToggleActive}
-              onResendOtp={handleResendOtp}
-            />
-          </div>
+            <CardContent className="border-t px-0">
+              {state.status === 'loading' && <VendorsTableSkeleton />}
+
+              {state.status === 'ready' && filteredVendors.length > 0 && (
+                <VendorsTable
+                  vendors={filteredVendors}
+                  busyIds={busyIds}
+                  onEdit={setEditing}
+                  onToggleActive={handleToggleActive}
+                  onResendOtp={handleResendOtp}
+                />
+              )}
+
+              {state.status === 'ready' && filteredVendors.length === 0 && (
+                <Empty className="py-14">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <UserCog />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {isFiltered ? 'Ningún vendedor coincide' : 'Todavía no hay vendedores'}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {isFiltered
+                        ? 'Probá con otro término de búsqueda o quitá el filtro de estado.'
+                        : 'Dá de alta al primero: la cuenta nace sin contraseña y recibe un código por correo.'}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    {isFiltered ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setSearch('')
+                          setStatusFilter('all')
+                        }}
+                      >
+                        Limpiar filtros
+                      </Button>
+                    ) : (
+                      <Button type="button" onClick={() => setCreateOpen(true)}>
+                        <Plus data-icon="inline-start" /> Nuevo vendedor
+                      </Button>
+                    )}
+                  </EmptyContent>
+                </Empty>
+              )}
+            </CardContent>
+          </Card>
 
           <p className="text-sm text-muted-foreground">
             Deshabilitar corta el acceso del APK sin borrar el histórico de rutas del vendedor.

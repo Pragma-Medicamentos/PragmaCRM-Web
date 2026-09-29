@@ -1,0 +1,56 @@
+# Plantilla procesada por el entrypoint de la imagen oficial de nginx.
+# Solo se sustituyen las variables con prefijo CSP_ (NGINX_ENVSUBST_FILTER en
+# el Dockerfile); $uri y demas variables de nginx quedan intactas.
+#
+# TLS lo termina Traefik de Dokploy por delante: aca solo hay HTTP en el 80.
+
+# Cache-Control resuelto por un map para poder declararlo junto al resto de
+# headers: un `add_header` dentro de un location descarta los heredados del
+# bloque server, y perderiamos la CSP en esas respuestas.
+map $uri $pragma_cache_control {
+    default    "no-cache";
+    ~^/assets/ "public, max-age=31536000, immutable";
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Los archivos bajo /assets/ ya vienen con hash en el nombre, por eso el
+    # immutable de un anio; index.html siempre se revalida para que un deploy
+    # nuevo no quede escondido detras del cache del navegador.
+    add_header Cache-Control $pragma_cache_control always;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), camera=(), microphone=()" always;
+
+    # HSTS no va aca: lo pone Traefik, que es quien ve el HTTPS.
+    #
+    # style-src necesita 'unsafe-inline' porque Radix, Leaflet y Sonner
+    # escriben atributos style en el DOM. script-src no lo necesita para Vite
+    # (no emite scripts inline), pero si para el loader de Google Maps JS +
+    # Places (AssignLocationDialog.tsx / lib/googleMaps.ts), que inyecta
+    # <script src="https://maps.googleapis.com/..."> en runtime; ese SDK a su
+    # vez pide tiles/iconos a maps.gstatic.com y hace XHR de Places contra
+    # maps.googleapis.com. CSP_CONNECT_SRC trae el proyecto de Supabase y la
+    # URL de PragmaCRM-Api desde las env vars del contenedor.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://maps.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://maps.gstatic.com https://maps.googleapis.com; connect-src 'self' https://maps.googleapis.com ${CSP_CONNECT_SRC}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    # El dashboard usa BrowserRouter: sin este fallback un refresh en
+    # /vendedores o /clientes/:id responde 404.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

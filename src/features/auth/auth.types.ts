@@ -16,5 +16,10 @@ export interface AppUser {
 // la API (usuario no registrado, deshabilitado, etc.) y trae el message
 // tal cual lo mandó el backend. 'role' es un gate propio de este
 // dashboard (RF-01: un vendedor no entra al panel web) — /api/v1/me no
-// lo rechaza, así que el mensaje se genera acá.
-export type RedirectReason = { kind: 'forbidden'; message: string } | { kind: 'role' }
+// lo rechaza, así que el mensaje se genera acá. 'expired': la API dejó de
+// aceptar el token de la sesión (revocado, usuario deshabilitado, vencido) y
+// `apiClient` la cerró.
+export type RedirectReason =
+  | { kind: 'forbidden'; message: string }
+  | { kind: 'role' }
+  | { kind: 'expired' }

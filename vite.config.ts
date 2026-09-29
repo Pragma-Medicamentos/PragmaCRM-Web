@@ -15,4 +15,19 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // React y supabase-js cambian mucho menos seguido que el codigo de la
+        // app: en chunks aparte el navegador los reusa entre deploys en lugar
+        // de rebajarlos con cada cambio de pantalla.
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+          // Gráficos y calendario del panel de métricas (RF-09).
+          charts: ['recharts', 'react-day-picker', 'date-fns'],
+        },
+      },
+    },
+  },
 })

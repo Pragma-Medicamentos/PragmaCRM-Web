@@ -32,11 +32,16 @@ Este repo **no** consulta tablas del dominio directamente contra Supabase (nada 
 
    La anon key es pública por diseño (viaja en el bundle web); igual que con Clerk, la que **nunca** va aquí es la `service_role` key — esa es solo de servidor, vive en `PragmaCRM-Api`. Valores locales: `npx supabase status` en `PragmaCRM-Api`.
 
-   `VITE_API_KEY` debe ser igual al `API_KEY` del `.env` de `PragmaCRM-Api` (2026-09: gate de transporte agregado en `middleware/apiKey.ts`, exigido en **toda** ruta bajo `/api/v1` salvo `/api/health`, por delante de `requireAuth`). No es sensible de la misma forma que la `service_role` key — no otorga identidad ni permisos por sí sola — pero sin ella cualquier llamada a la API, incluido pedir el OTP de login, responde 401 "Invalid or missing API key". Se manda como header `x-api-key` en `lib/api/apiClient.ts` (`apiFetch` y `apiCall`).
+   `VITE_API_KEY` debe ser igual al `API_KEY` del `.env` de `PragmaCRM-Api` (2026-09: gate de transporte agregado en `middleware/apiKey.ts`, exigido en **toda** ruta bajo `/api/v1` salvo `/api/health`, por delante de `requireAuth`). No es sensible de la misma forma que la `service_role` key — no otorga identidad ni permisos por sí sola — pero sin ella cualquier llamada a la API, incluido pedir el OTP de login, responde 401 "Invalid or missing API key". Se manda como header `x-api-key` desde la instancia de Axios de `lib/api/apiClient.ts`.
 
 2. **Login con `supabase-js`** (`@supabase/supabase-js`). El cliente único vive en `src/lib/supabase/client.ts`. `LoginPage.tsx` implementa el formulario de email + contraseña a mano — no hay componente de UI prearmado como el `<SignIn/>` de Clerk, así que los estados de error (credenciales inválidas, etc.) se manejan aquí.
 
-3. **Enviar el access token en cada petición a la API**, tomado de la sesión vigente de Supabase — nunca cacheado más allá de lo que el propio SDK cachea. `useCurrentAppUser.ts` se suscribe a `supabase.auth.onAuthStateChange`, que entrega la sesión inicial y cada cambio posterior (login, logout, refresh de token). Implementado en `lib/api/apiClient.ts` / `features/auth/useCurrentAppUser.ts`.
+3. **Todas las peticiones a la API pasan por una única instancia de Axios** (`api` en `lib/api/apiClient.ts`; los módulos `*Api.ts` la usan vía `apiRequest` — devuelve el `data` del envelope — o `apiCall` — solo el `message`). Nunca se llama a `fetch` directo ni se pasa el token como parámetro:
+
+   - `baseURL` (`VITE_API_URL`) y `x-api-key` son valores por defecto de la instancia.
+   - Un interceptor de request adjunta `Authorization: Bearer <access_token>` tomado de `supabase.auth.getSession()` (el SDK lo cachea y refresca; aquí no se guarda). Los endpoints públicos (pedir el OTP) pasan `skipAuth: true`.
+   - Un interceptor de response convierte todo fallo en `ApiError(status, message)` (status 0 = sin respuesta). Si la API responde **401** a un request que sí llevaba token (salvo el 401 por API key, que cerrar sesión no arregla), cierra la sesión local (`signOut({ scope: 'local' })`, una sola vez aunque haya varios requests en vuelo) y marca la sesión como vencida; `useCurrentAppUser` la ve pasar a `expired` y `AdminRoute` redirige a `/login` con el aviso "Tu sesión expiró".
+   - `useCurrentAppUser.ts` se suscribe a `supabase.auth.onAuthStateChange` solo para saber cuándo volver a pedir `/api/v1/me`.
 
    ```
    Authorization: Bearer <access_token>
@@ -111,6 +116,25 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 `POST /api/v1/sellers/:id/resend-otp` — reenvía el código si el vendedor no alcanzó a usarlo en los 10 minutos de vigencia. Disponible como acción por fila en el listado.
 
 Validación que corre en el frontend (la API la repite, nunca hay que confiar solo en el cliente): `name` no vacío, `email` con formato válido.
+
+## Contrato de `/api/v1/routes` (RF-04)
+
+**Implementado en este repo:** planificador semanal de rutas por vendedor (`src/features/routes/`), ruta `/rutas` (protegida por `AdminRoute`), entrada "Planificador de rutas" en el sidebar (grupo Operación). Wireframe de referencia: `1g` (`docs/wireframes/Wireframes Pragma CRM y App.html`), con dos recortes de alcance frente al sketch — ver el comentario de cabecera en `routes.types.ts` y en `CreateRouteDialog.tsx`:
+
+- Sin "Copiar semana anterior" ni "Publicar semana": `route_user` es una asignación **recurrente e indefinida** por día de la semana (CLAUDE.md de `PragmaCRM-Api`, sección 5.1), no un registro por semana. La grilla es una vista sobre esa asignación permanente.
+- "Nueva ruta" solo crea `name` / `municipality` / `zone`. La composición de clientes de la ruta (`route_customer`) no tiene endpoint todavía.
+
+Contrato real contra `PragmaCRM-Api` (`src/presentation/routes/`, `src/services/route.service.ts`, `src/use-cases/{assign,reassign}-route.use-case.ts`):
+
+- `GET /api/v1/routes?active=true|false` — lista rutas no borradas, sin paginar (el volumen es "decenas" de filas).
+- `POST /api/v1/routes` — body `{ name, municipality?, zone? }`. 201 con la ruta creada, `active: true` por defecto.
+- `PATCH /api/v1/routes/:id` — cualquier subconjunto de `{ name, municipality, zone, active }`, al menos uno.
+- `GET /api/v1/routes/:id/assignments` — asignaciones vigentes (`deleted_at IS NULL`) de esa ruta: `{ id, route_id, user_id, user_name, day, status, created_at, updated_at }`. `day` es `1..7` (1 = Lunes), el backend nunca manda el nombre del día — el mapeo vive en `routes.types.ts` (`DAY_LABELS`/`DAY_LABELS_SHORT`).
+- `POST /api/v1/routes/:id/assignments` — body `{ user_id, day }`. 201 con la asignación creada; **409** si ese día ya tiene un vendedor activo (hay que usar `reassign`, no reintentar el mismo POST).
+- `POST /api/v1/routes/:id/reassign` — mismo body. Cierra (soft-delete) la asignación activa de ese día y crea una nueva para el vendedor indicado, en una sola operación atómica del lado del backend. **400** si el día no tiene asignación activa; **409** si el vendedor ya es el mismo.
+- `DELETE /api/v1/routes/:id/assignments/:day` — vacía el día (soft-delete, sin reemplazo). Devuelve el envelope sin `data` (solo `message`), como `POST /api/v1/auth/otp` — por eso `unassignRouteDay` en `routesApi.ts` usa `apiCall`, no `apiRequest`. **404** si no había nada activo ese día.
+
+No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se arma en el cliente (`useRoutePlanner.ts`) pidiendo todas las rutas activas y las asignaciones de cada una en paralelo.
 
 ## Cosas a tener presentes durante la integración
 
