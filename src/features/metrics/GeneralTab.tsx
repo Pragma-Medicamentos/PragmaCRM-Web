@@ -1,13 +1,16 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { useState } from 'react'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Separator } from '../../components/ui/separator'
 import { Skeleton } from '../../components/ui/skeleton'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { ComparisonLegend } from './charts/ComparisonLegend'
 import { PartToWholeBar } from './charts/PartToWholeBar'
+import { ProductsSalesChart } from './charts/ProductsSalesChart'
 import { PurchaseFrequencyChart } from './charts/PurchaseFrequencyChart'
 import { TrendChart } from './charts/TrendChart'
 import { STOP_TYPES } from './kpiCatalog'
 import type { KpiValuesResponse, MetricsRange, StopsByType, TrendGranularity, TrendPoint } from './metrics.types'
-import { getKpiValues, getPurchaseFrequency, getTrends } from './metricsApi'
+import { getKpiValues, getProductRanking, getPurchaseFrequency, getTrends } from './metricsApi'
 import { type ComparisonTarget, formatRange } from './metricsDates'
 import { formatCount, formatDays, formatMoney, formatPercent, toAmount } from './metricsFormat'
 import { QueryAlerts } from './QueryAlerts'
@@ -41,6 +44,9 @@ function stopsByTypeOf(kpis: MetricsQueryState<KpiValuesResponse>): StopsByType 
   return result && !('error' in result) ? result.value : null
 }
 
+/** Tamaños del ranking de productos; 10 por defecto para que el gráfico no se haga eterno. */
+const PRODUCT_RANKING_SIZES = [10, 20, 50] as const
+
 function sumPoints(points: TrendPoint[], read: (point: TrendPoint) => number | null): number {
   return points.reduce((total, point) => total + (read(point) ?? 0), 0)
 }
@@ -56,6 +62,10 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
   const kpis = useMetricsQuery(rangeKey, (signal) => getKpiValues(range, undefined, { signal }))
   const trends = useMetricsQuery(`${rangeKey}:${granularity}`, (signal) => getTrends(range, granularity, { signal }))
   const frequency = useMetricsQuery(rangeKey, (signal) => getPurchaseFrequency(range, { signal }))
+  const [productLimit, setProductLimit] = useState<number>(PRODUCT_RANKING_SIZES[0])
+  const products = useMetricsQuery(`${rangeKey}:${productLimit}`, (signal) =>
+    getProductRanking(range, productLimit, { signal })
+  )
 
   const other = comparison?.range ?? null
   const otherKey = other && `${other.from}:${other.to}`
@@ -85,6 +95,8 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
     )
   }
 
+  const productRanking = products.state.status === 'ready' ? products.state.data : null
+
   const readSales = (point: TrendPoint) => toAmount(point.total_sales)
   const readStops = (point: TrendPoint) => point.stops
 
@@ -95,6 +107,7 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
           { label: 'los indicadores', endpoint: 'GET /api/v1/metrics/kpis/values', ...kpis },
           { label: 'las tendencias', endpoint: 'GET /api/v1/metrics/trends', ...trends },
           { label: 'la frecuencia de compra', endpoint: 'GET /api/v1/metrics/purchase-frequency', ...frequency },
+          { label: 'el ranking de productos', endpoint: 'GET /api/v1/metrics/products', ...products },
           {
             label: 'las tendencias del periodo de comparación',
             endpoint: 'GET /api/v1/metrics/trends (comparación)',
@@ -114,7 +127,15 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
       />
 
       <Refreshing
-        active={isRefreshing(kpis.state, trends.state, frequency.state, otherTrends.state, otherStops.state, otherFrequency.state)}
+        active={isRefreshing(
+          kpis.state,
+          trends.state,
+          frequency.state,
+          products.state,
+          otherTrends.state,
+          otherStops.state,
+          otherFrequency.state
+        )}
         className="flex flex-col gap-6"
       >
         <Card>
@@ -301,6 +322,45 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
                 }}
               </ChartSlot>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Ranking de productos</CardTitle>
+            <CardDescription>
+              {productRanking
+                ? `Productos con más monto vendido · ${formatMoney(productRanking.total_amount)} en el periodo`
+                : 'Productos con más monto vendido en el periodo'}
+            </CardDescription>
+            <CardAction>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                spacing={0}
+                value={String(productLimit)}
+                onValueChange={(value) => value && setProductLimit(Number(value))}
+                aria-label="Cantidad de productos del ranking"
+              >
+                {PRODUCT_RANKING_SIZES.map((size) => (
+                  <ToggleGroupItem key={size} value={String(size)}>
+                    Top {size}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {productRanking ? (
+              productRanking.products.length > 0 ? (
+                <ProductsSalesChart products={productRanking.products} />
+              ) : (
+                <p className="py-6 text-sm text-muted-foreground">Ningún producto registró ventas en este periodo.</p>
+              )
+            ) : (
+              products.state.status === 'loading' && <Skeleton className="h-40 w-full" />
+            )}
           </CardContent>
         </Card>
       </Refreshing>
