@@ -1,21 +1,16 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { useState } from 'react'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Separator } from '../../components/ui/separator'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { ComparisonLegend } from './charts/ComparisonLegend'
 import { PartToWholeBar } from './charts/PartToWholeBar'
+import { ProductsSalesChart } from './charts/ProductsSalesChart'
 import { PurchaseFrequencyChart } from './charts/PurchaseFrequencyChart'
 import { TrendChart } from './charts/TrendChart'
 import { STOP_TYPES } from './kpiCatalog'
-import type {
-  KpiValuesResponse,
-  MetricsRange,
-  ProductRankingRow,
-  StopsByType,
-  TrendGranularity,
-  TrendPoint,
-} from './metrics.types'
-import { PRODUCT_RANKING_LIMIT, getKpiValues, getProductRanking, getPurchaseFrequency, getTrends } from './metricsApi'
+import type { KpiValuesResponse, MetricsRange, StopsByType, TrendGranularity, TrendPoint } from './metrics.types'
+import { getKpiValues, getProductRanking, getPurchaseFrequency, getTrends } from './metricsApi'
 import { type ComparisonTarget, formatRange } from './metricsDates'
 import { formatCount, formatDays, formatMoney, formatPercent, toAmount } from './metricsFormat'
 import { QueryAlerts } from './QueryAlerts'
@@ -49,39 +44,8 @@ function stopsByTypeOf(kpis: MetricsQueryState<KpiValuesResponse>): StopsByType 
   return result && !('error' in result) ? result.value : null
 }
 
-/** `units` llega con hasta 4 decimales ("120.0000"); se muestra sin los ceros de relleno. */
-function formatUnits(units: string): string {
-  return formatCount(toAmount(units))
-}
-
-/** Ranking general de productos por monto (PCRM-172): sin comparación de periodo en este MVP. */
-function ProductRankingTable({ products }: { products: ProductRankingRow[] }) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-12 pl-4 text-right">#</TableHead>
-          <TableHead>Producto</TableHead>
-          <TableHead className="text-right">Monto</TableHead>
-          <TableHead className="pr-4 text-right">Unidades</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {products.map((product) => (
-          <TableRow key={product.product_id}>
-            <TableCell className="pl-4 text-right tabular-nums text-muted-foreground">{product.position}</TableCell>
-            <TableCell>
-              <span className="truncate font-medium">{product.name}</span>
-              {product.code && <span className="ml-2 text-xs text-muted-foreground">{product.code}</span>}
-            </TableCell>
-            <TableCell className="text-right font-medium tabular-nums">{formatMoney(product.amount)}</TableCell>
-            <TableCell className="pr-4 text-right tabular-nums">{formatUnits(product.units)}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
+/** Tamaños del ranking de productos; 10 por defecto para que el gráfico no se haga eterno. */
+const PRODUCT_RANKING_SIZES = [10, 20, 50] as const
 
 function sumPoints(points: TrendPoint[], read: (point: TrendPoint) => number | null): number {
   return points.reduce((total, point) => total + (read(point) ?? 0), 0)
@@ -98,7 +62,10 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
   const kpis = useMetricsQuery(rangeKey, (signal) => getKpiValues(range, undefined, { signal }))
   const trends = useMetricsQuery(`${rangeKey}:${granularity}`, (signal) => getTrends(range, granularity, { signal }))
   const frequency = useMetricsQuery(rangeKey, (signal) => getPurchaseFrequency(range, { signal }))
-  const products = useMetricsQuery(rangeKey, (signal) => getProductRanking(range, PRODUCT_RANKING_LIMIT, { signal }))
+  const [productLimit, setProductLimit] = useState<number>(PRODUCT_RANKING_SIZES[0])
+  const products = useMetricsQuery(`${rangeKey}:${productLimit}`, (signal) =>
+    getProductRanking(range, productLimit, { signal })
+  )
 
   const other = comparison?.range ?? null
   const otherKey = other && `${other.from}:${other.to}`
@@ -363,29 +330,36 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
             <CardTitle>Ranking de productos</CardTitle>
             <CardDescription>
               {productRanking
-                ? `Top ${formatCount(productRanking.products.length)} por monto · ${formatMoney(
-                    productRanking.total_amount
-                  )} vendidos en el periodo`
-                : `Los ${formatCount(PRODUCT_RANKING_LIMIT)} productos con más monto vendido en el periodo`}
+                ? `Productos con más monto vendido · ${formatMoney(productRanking.total_amount)} en el periodo`
+                : 'Productos con más monto vendido en el periodo'}
             </CardDescription>
+            <CardAction>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                spacing={0}
+                value={String(productLimit)}
+                onValueChange={(value) => value && setProductLimit(Number(value))}
+                aria-label="Cantidad de productos del ranking"
+              >
+                {PRODUCT_RANKING_SIZES.map((size) => (
+                  <ToggleGroupItem key={size} value={String(size)}>
+                    Top {size}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </CardAction>
           </CardHeader>
-          <CardContent className="border-t px-0">
+          <CardContent>
             {productRanking ? (
               productRanking.products.length > 0 ? (
-                <ProductRankingTable products={productRanking.products} />
+                <ProductsSalesChart products={productRanking.products} />
               ) : (
-                <p className="px-4 py-6 text-sm text-muted-foreground">
-                  Ningún producto registró ventas en este periodo.
-                </p>
+                <p className="py-6 text-sm text-muted-foreground">Ningún producto registró ventas en este periodo.</p>
               )
             ) : (
-              products.state.status === 'loading' && (
-                <div className="flex flex-col gap-3 px-4 py-2">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
-                  ))}
-                </div>
-              )
+              products.state.status === 'loading' && <Skeleton className="h-40 w-full" />
             )}
           </CardContent>
         </Card>
