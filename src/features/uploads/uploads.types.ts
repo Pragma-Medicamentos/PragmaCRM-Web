@@ -72,10 +72,29 @@ export type FileValidation =
     }
   | { ok: false; reason: string; detail?: string }
 
+/**
+ * Estado de GET /api/v1/uploads/sales/in-progress.
+ * `in_progress` es true si hay advisory lock o un upload staged/processing reciente.
+ */
+export interface SalesImportInProgress {
+  in_progress: boolean
+  upload_id: string | null
+  status: 'staged' | 'processing' | null
+  updated_at: string | null
+}
+
+/**
+ * 409 que no son el P2002 (`Duplicate record.`). El envelope solo trae
+ * `message`; el kind lo deduce la Web a partir de ese texto literal.
+ */
+export type UploadFailureKind = 'import_in_progress' | 'deadlock'
+
 export interface UploadFailure {
   /** Mensaje en español, listo para mostrar. */
   message: string
   /** Texto crudo del backend, para soporte. */
   detail?: string
   retryable: boolean
+  /** Ausente en el resto de errores, incluido `Duplicate record.` */
+  kind?: UploadFailureKind
 }
