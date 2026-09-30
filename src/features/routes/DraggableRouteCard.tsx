@@ -1,8 +1,7 @@
-import type { ReactNode } from 'react'
-import { useDraggable } from '@dnd-kit/core'
-import { Link } from 'react-router-dom'
-import { GripVertical, ListOrdered } from 'lucide-react'
-import { Button } from '../../components/ui/button'
+import { useRef, type ReactNode } from 'react'
+import { useDndMonitor, useDraggable } from '@dnd-kit/core'
+import { useNavigate } from 'react-router-dom'
+import { ChevronRight, GripVertical } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { DAY_LABELS, DAY_LETTERS, WEEK_DAYS } from './routes.types'
 import type { Route } from './routes.types'
@@ -88,21 +87,57 @@ interface DraggableRouteCardProps {
   coverage: DayCoverage[]
 }
 
-/** Ruta de la lista "Rutas guardadas": se arrastra a un día del tablero. */
-export function DraggableRouteCard({ route, coverage }: DraggableRouteCardProps) {
+interface OpenableRouteCardProps extends DraggableRouteCardProps {
+  /** `location.state` que recibe la página de paradas para volver a esta misma vista. */
+  linkState: unknown
+}
+
+/**
+ * Ruta de la lista "Rutas guardadas". Clic o Enter abren sus paradas; arrastrarla
+ * (o Espacio con el teclado) la asigna a un día del tablero.
+ */
+export function DraggableRouteCard({ route, coverage, linkState }: OpenableRouteCardProps) {
+  const navigate = useNavigate()
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: route.id,
     data: { routeId: route.id },
   })
 
+  // Soltar la ruta sobre sí misma dispara un click al final del arrastre: no debe abrirla.
+  const draggedRef = useRef(false)
+  useDndMonitor({
+    onDragStart: ({ active }) => {
+      if (active.id === route.id) draggedRef.current = true
+    },
+  })
+
+  const open = () => navigate(`/rutas/${route.id}/paradas`, { state: linkState })
+
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
       {...attributes}
+      {...listeners}
       aria-roledescription="ruta arrastrable"
+      title="Clic para ver paradas · arrastra para asignar"
+      onPointerDown={(e) => {
+        draggedRef.current = false
+        listeners?.onPointerDown?.(e)
+      }}
+      onClick={() => {
+        if (draggedRef.current) return
+        open()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !isDragging) {
+          e.preventDefault()
+          open()
+          return
+        }
+        listeners?.onKeyDown?.(e)
+      }}
       className={cn(
-        'group flex cursor-grab touch-none items-start gap-2 rounded-xl px-2.5 py-2.5 transition-colors outline-none select-none hover:bg-foreground/[0.04] focus-visible:ring-2 focus-visible:ring-ring/60 active:cursor-grabbing',
+        'group flex cursor-pointer touch-none items-start gap-2 rounded-xl px-2.5 py-2.5 transition-colors outline-none select-none hover:bg-foreground/[0.04] focus-visible:ring-2 focus-visible:ring-ring/60 active:cursor-grabbing',
         isDragging && 'opacity-40'
       )}
     >
@@ -110,22 +145,10 @@ export function DraggableRouteCard({ route, coverage }: DraggableRouteCardProps)
         route={route}
         coverage={coverage}
         action={
-          <Button
-            asChild
-            variant="ghost"
-            size="icon-xs"
-            className="-mt-0.5 -mr-1 text-muted-foreground hover:text-primary"
-          >
-            <Link
-              to={`/rutas/${route.id}/paradas`}
-              aria-label={`Editar paradas de ${route.name}`}
-              title="Editar paradas"
-              onPointerDown={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              <ListOrdered />
-            </Link>
-          </Button>
+          <ChevronRight
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary"
+          />
         }
       />
     </div>
