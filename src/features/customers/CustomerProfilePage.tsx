@@ -21,6 +21,7 @@ import {
 } from '../../components/ui/empty'
 import { Skeleton } from '../../components/ui/skeleton'
 import { AssignLocationDialog } from './AssignLocationDialog'
+import { CustomerStatsCard } from './CustomerStatsCard'
 import { useCustomerProfile } from './useCustomerProfile'
 import type { CustomerProfile, CustomerRouteRef, CustomerVisitNote } from './customers.types'
 
@@ -228,6 +229,8 @@ function ProfileView({
           <Stat label="Visitas" value={String(profile.summary.visits_count)} />
         </CardContent>
       </Card>
+
+      <CustomerStatsCard profile={profile} />
 
       <Card>
         <CardHeader>
