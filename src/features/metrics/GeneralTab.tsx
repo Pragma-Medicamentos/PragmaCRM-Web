@@ -1,13 +1,21 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Separator } from '../../components/ui/separator'
 import { Skeleton } from '../../components/ui/skeleton'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { ComparisonLegend } from './charts/ComparisonLegend'
 import { PartToWholeBar } from './charts/PartToWholeBar'
 import { PurchaseFrequencyChart } from './charts/PurchaseFrequencyChart'
 import { TrendChart } from './charts/TrendChart'
 import { STOP_TYPES } from './kpiCatalog'
-import type { KpiValuesResponse, MetricsRange, StopsByType, TrendGranularity, TrendPoint } from './metrics.types'
-import { getKpiValues, getPurchaseFrequency, getTrends } from './metricsApi'
+import type {
+  KpiValuesResponse,
+  MetricsRange,
+  ProductRankingRow,
+  StopsByType,
+  TrendGranularity,
+  TrendPoint,
+} from './metrics.types'
+import { PRODUCT_RANKING_LIMIT, getKpiValues, getProductRanking, getPurchaseFrequency, getTrends } from './metricsApi'
 import { type ComparisonTarget, formatRange } from './metricsDates'
 import { formatCount, formatDays, formatMoney, formatPercent, toAmount } from './metricsFormat'
 import { QueryAlerts } from './QueryAlerts'
@@ -41,6 +49,40 @@ function stopsByTypeOf(kpis: MetricsQueryState<KpiValuesResponse>): StopsByType 
   return result && !('error' in result) ? result.value : null
 }
 
+/** `units` llega con hasta 4 decimales ("120.0000"); se muestra sin los ceros de relleno. */
+function formatUnits(units: string): string {
+  return formatCount(toAmount(units))
+}
+
+/** Ranking general de productos por monto (PCRM-172): sin comparación de periodo en este MVP. */
+function ProductRankingTable({ products }: { products: ProductRankingRow[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-12 pl-4 text-right">#</TableHead>
+          <TableHead>Producto</TableHead>
+          <TableHead className="text-right">Monto</TableHead>
+          <TableHead className="pr-4 text-right">Unidades</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {products.map((product) => (
+          <TableRow key={product.product_id}>
+            <TableCell className="pl-4 text-right tabular-nums text-muted-foreground">{product.position}</TableCell>
+            <TableCell>
+              <span className="truncate font-medium">{product.name}</span>
+              {product.code && <span className="ml-2 text-xs text-muted-foreground">{product.code}</span>}
+            </TableCell>
+            <TableCell className="text-right font-medium tabular-nums">{formatMoney(product.amount)}</TableCell>
+            <TableCell className="pr-4 text-right tabular-nums">{formatUnits(product.units)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+
 function sumPoints(points: TrendPoint[], read: (point: TrendPoint) => number | null): number {
   return points.reduce((total, point) => total + (read(point) ?? 0), 0)
 }
@@ -56,6 +98,7 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
   const kpis = useMetricsQuery(rangeKey, (signal) => getKpiValues(range, undefined, { signal }))
   const trends = useMetricsQuery(`${rangeKey}:${granularity}`, (signal) => getTrends(range, granularity, { signal }))
   const frequency = useMetricsQuery(rangeKey, (signal) => getPurchaseFrequency(range, { signal }))
+  const products = useMetricsQuery(rangeKey, (signal) => getProductRanking(range, PRODUCT_RANKING_LIMIT, { signal }))
 
   const other = comparison?.range ?? null
   const otherKey = other && `${other.from}:${other.to}`
@@ -85,6 +128,8 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
     )
   }
 
+  const productRanking = products.state.status === 'ready' ? products.state.data : null
+
   const readSales = (point: TrendPoint) => toAmount(point.total_sales)
   const readStops = (point: TrendPoint) => point.stops
 
@@ -95,6 +140,7 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
           { label: 'los indicadores', endpoint: 'GET /api/v1/metrics/kpis/values', ...kpis },
           { label: 'las tendencias', endpoint: 'GET /api/v1/metrics/trends', ...trends },
           { label: 'la frecuencia de compra', endpoint: 'GET /api/v1/metrics/purchase-frequency', ...frequency },
+          { label: 'el ranking de productos', endpoint: 'GET /api/v1/metrics/products', ...products },
           {
             label: 'las tendencias del periodo de comparación',
             endpoint: 'GET /api/v1/metrics/trends (comparación)',
@@ -114,7 +160,15 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
       />
 
       <Refreshing
-        active={isRefreshing(kpis.state, trends.state, frequency.state, otherTrends.state, otherStops.state, otherFrequency.state)}
+        active={isRefreshing(
+          kpis.state,
+          trends.state,
+          frequency.state,
+          products.state,
+          otherTrends.state,
+          otherStops.state,
+          otherFrequency.state
+        )}
         className="flex flex-col gap-6"
       >
         <Card>
@@ -301,6 +355,38 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
                 }}
               </ChartSlot>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Ranking de productos</CardTitle>
+            <CardDescription>
+              {productRanking
+                ? `Top ${formatCount(productRanking.products.length)} por monto · ${formatMoney(
+                    productRanking.total_amount
+                  )} vendidos en el periodo`
+                : `Los ${formatCount(PRODUCT_RANKING_LIMIT)} productos con más monto vendido en el periodo`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="border-t px-0">
+            {productRanking ? (
+              productRanking.products.length > 0 ? (
+                <ProductRankingTable products={productRanking.products} />
+              ) : (
+                <p className="px-4 py-6 text-sm text-muted-foreground">
+                  Ningún producto registró ventas en este periodo.
+                </p>
+              )
+            ) : (
+              products.state.status === 'loading' && (
+                <div className="flex flex-col gap-3 px-4 py-2">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              )
+            )}
           </CardContent>
         </Card>
       </Refreshing>

@@ -4,6 +4,7 @@ import type {
   KpiName,
   KpiValuesResponse,
   MetricsRange,
+  ProductRankingResponse,
   PurchaseFrequencyResponse,
   SellerDetailResponse,
   SellerPerformanceResponse,
@@ -14,6 +15,9 @@ import type {
 interface RequestOptions {
   signal?: AbortSignal
 }
+
+/** Top que pide el panel al ranking de productos; es también el default del backend. */
+export const PRODUCT_RANKING_LIMIT = 50
 
 /** Sin `names` el backend calcula las 17 KPIs. */
 export function getKpiValues(
@@ -52,6 +56,15 @@ export function getSellerDetail(
 
 export function getCoverage(range: MetricsRange, { signal }: RequestOptions = {}): Promise<CoverageResponse> {
   return apiRequest<CoverageResponse>('/api/v1/metrics/coverage', { params: range, signal })
+}
+
+/** `limit` acota el top que devuelve el ranking; `total_amount` siempre es del periodo completo. */
+export function getProductRanking(
+  range: MetricsRange,
+  limit = PRODUCT_RANKING_LIMIT,
+  { signal }: RequestOptions = {}
+): Promise<ProductRankingResponse> {
+  return apiRequest<ProductRankingResponse>('/api/v1/metrics/products', { params: { ...range, limit }, signal })
 }
 
 export function getPurchaseFrequency(
