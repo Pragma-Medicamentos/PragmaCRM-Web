@@ -13,15 +13,6 @@ interface SavedRoutesRailProps {
   onCreateRoute: () => void
 }
 
-function LegendSwatch({ className, label }: { className: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span aria-hidden className={`size-2.5 rounded-[3px] ${className}`} />
-      {label}
-    </span>
-  )
-}
-
 /** Columna "Rutas guardadas": lista arrastrable con la cobertura semanal de cada ruta. */
 export function SavedRoutesRail({ routes, coverageFor, linkState, onCreateRoute }: SavedRoutesRailProps) {
   const [search, setSearch] = useState('')

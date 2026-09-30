@@ -6,7 +6,6 @@ import { Calendar } from '../../components/ui/calendar'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -146,9 +145,6 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
         <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
             <DialogTitle>Agregar parada</DialogTitle>
-            <DialogDescription>
-              Se agrega solo a la ruta de ese día; no modifica la ruta semanal del vendedor.
-            </DialogDescription>
           </DialogHeader>
 
           {error && (
