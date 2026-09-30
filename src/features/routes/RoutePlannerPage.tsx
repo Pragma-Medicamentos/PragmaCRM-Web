@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
+import { addDays, startOfWeek } from 'date-fns'
 import {
   DndContext,
   DragOverlay,
@@ -11,7 +13,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -22,8 +24,14 @@ import { Card } from '../../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Skeleton } from '../../components/ui/skeleton'
 import { ApiError } from '../../lib/api/apiClient'
+import { isValidDay, parseDay, toDay, todayInSv } from '../metrics/metricsDates'
 import { useVendors } from '../vendors/useVendors'
+import { AddExtraStopDialog } from '../daily-route/AddExtraStopDialog'
+import { deleteExtraStop } from '../daily-route/dailyRouteApi'
+import { dailyRouteErrorMessage } from '../daily-route/dailyRouteErrors'
+import type { DailyRouteStop } from '../daily-route/dailyRoute.types'
 import { useRoutePlanner } from './useRoutePlanner'
+import { useWeekExtraStops } from './useWeekExtraStops'
 import { assignRoute, reassignRoute, unassignRouteDay } from './routesApi'
 import { CreateRouteDialog } from './CreateRouteDialog'
 import { SavedRoutesRail } from './SavedRoutesRail'
@@ -51,8 +59,17 @@ function initials(name: string): string {
   )
 }
 
-// getDay() cuenta desde el domingo (0); `day` del backend va de 1 = Lunes a 7 = Domingo.
-const TODAY = ((new Date().getDay() + 6) % 7) + 1
+const weekRangeFormatter = new Intl.DateTimeFormat('es-SV', { day: 'numeric', month: 'short' })
+
+function mondayOf(day: string): string {
+  return toDay(startOfWeek(parseDay(day), { weekStartsOn: 1 }))
+}
+
+function formatWeekRange(weekStart: string): string {
+  const start = parseDay(weekStart)
+  const fmt = (d: Date) => weekRangeFormatter.format(d).replace('.', '')
+  return `${fmt(start)} – ${fmt(addDays(start, 6))}`
+}
 
 function PlannerSkeleton() {
   return (
@@ -87,8 +104,38 @@ function PlannerSkeleton() {
 export function RoutePlannerPage() {
   const { state: vendorsState } = useVendors()
   const { state: plannerState, reload } = useRoutePlanner()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+  // Vendedor y semana viven en la URL: al volver de las paradas de una ruta se conservan.
+  const selectedVendorId = searchParams.get('vendedor')
+  const today = todayInSv()
+  const currentWeek = mondayOf(today)
+  const semana = searchParams.get('semana')
+  const weekStart = isValidDay(semana) ? mondayOf(semana) : currentWeek
+  const weekDates = useMemo(
+    () => WEEK_DAYS.map((day) => toDay(addDays(parseDay(weekStart), day - 1))),
+    [weekStart]
+  )
+  const linkState = { from: `${location.pathname}${location.search}` }
+
+  function updateParams(changes: Record<string, string | null>) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null) next.delete(key)
+          else next.set(key, value)
+        }
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  const [extraStopDate, setExtraStopDate] = useState<string | null>(null)
+  const [pendingExtraRemoval, setPendingExtraRemoval] = useState<DailyRouteStop | null>(null)
+  const [busyExtraIds, setBusyExtraIds] = useState<Set<string>>(new Set())
   const [createOpen, setCreateOpen] = useState(false)
   const [pendingReassign, setPendingReassign] = useState<PendingReassign | null>(null)
   const [pendingRemoval, setPendingRemoval] = useState<RouteAssignment | null>(null)
@@ -96,10 +143,13 @@ export function RoutePlannerPage() {
   const [submitting, setSubmitting] = useState(false)
   const [activeRouteId, setActiveRouteId] = useState<string | null>(null)
 
-  // La distancia mínima deja hacer clic en "Editar paradas" sin arrancar un arrastre.
+  // La distancia mínima deja que un clic abra la ruta sin arrancar un arrastre; con
+  // teclado, Enter abre la ruta y Espacio la arrastra.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor, {
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] },
+    })
   )
 
   const activeVendors = vendorsState.status === 'ready' ? vendorsState.vendors.filter((v) => v.active) : []
@@ -128,6 +178,12 @@ export function RoutePlannerPage() {
     }
     return map
   }, [vendorAssignments])
+
+  const datesWithRoute = weekDates.filter((_, index) => assignmentsByDay.has(index + 1))
+  const { state: extrasState, reload: reloadExtras } = useWeekExtraStops(
+    plannerState.status === 'ready' ? vendorId : null,
+    datesWithRoute
+  )
 
   function coverageFor(routeId: string): DayCoverage[] {
     return WEEK_DAYS.map((day) => {
@@ -240,6 +296,26 @@ export function RoutePlannerPage() {
     }
   }
 
+  async function confirmExtraRemoval() {
+    if (!pendingExtraRemoval || !vendorId) return
+    const stop = pendingExtraRemoval
+    setBusyExtraIds((prev) => new Set(prev).add(stop.id))
+    try {
+      await deleteExtraStop(vendorId, stop.id)
+      toast.success('Parada extra eliminada.')
+      reloadExtras()
+    } catch (err) {
+      toast.error(dailyRouteErrorMessage(err))
+    } finally {
+      setBusyExtraIds((prev) => {
+        const next = new Set(prev)
+        next.delete(stop.id)
+        return next
+      })
+      setPendingExtraRemoval(null)
+    }
+  }
+
   const loading = plannerState.status === 'loading' || vendorsState.status === 'loading'
   const ready = plannerState.status === 'ready' && vendorsState.status === 'ready'
   const coveredDays = new Set(vendorAssignments.map((a) => a.day)).size
@@ -249,7 +325,7 @@ export function RoutePlannerPage() {
     <AppShell>
       <PageHeader
         title="Planificador de rutas"
-        subtitle="Asignación semanal recurrente: se repite cada semana hasta que la cambies o la quites."
+        subtitle="Las rutas se repiten cada semana hasta que las cambies o las quites. Las paradas extra aplican solo a su fecha."
         actions={
           <Button type="button" onClick={() => setCreateOpen(true)}>
             <Plus data-icon="inline-start" /> Nueva ruta
@@ -283,7 +359,7 @@ export function RoutePlannerPage() {
             announcements,
             screenReaderInstructions: {
               draggable:
-                'Para mover una ruta, pulsa espacio o enter. Usa las flechas para elegir el día y vuelve a pulsar espacio o enter para soltarla. Escape cancela.',
+                'Pulsa enter para ver las paradas de la ruta. Para asignarla, pulsa espacio, usa las flechas para elegir el día y vuelve a pulsar espacio para soltarla. Escape cancela.',
             },
           }}
           onDragStart={handleDragStart}
@@ -291,10 +367,15 @@ export function RoutePlannerPage() {
           onDragCancel={() => setActiveRouteId(null)}
         >
           <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start">
-            <SavedRoutesRail routes={routes} coverageFor={coverageFor} onCreateRoute={() => setCreateOpen(true)} />
+            <SavedRoutesRail
+              routes={routes}
+              coverageFor={coverageFor}
+              linkState={linkState}
+              onCreateRoute={() => setCreateOpen(true)}
+            />
 
             <Card className="gap-0 py-0">
-              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b px-4 py-3.5 sm:px-5">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3.5 sm:px-5">
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar size="lg">
                     <AvatarFallback className="bg-primary/10 font-semibold text-primary">
@@ -302,7 +383,7 @@ export function RoutePlannerPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <Select value={vendorId ?? undefined} onValueChange={setSelectedVendorId}>
+                    <Select value={vendorId ?? undefined} onValueChange={(id) => updateParams({ vendedor: id })}>
                       <SelectTrigger
                         aria-label="Vendedor"
                         className="-my-0.5 -ml-2 h-auto! max-w-[calc(100%+0.625rem)] border-transparent px-2 py-0.5 text-base font-semibold text-foreground hover:bg-foreground/[0.05] dark:bg-transparent"
@@ -323,16 +404,55 @@ export function RoutePlannerPage() {
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Arrastra una ruta de la lista a un día para asignarla.</p>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                  {weekStart !== currentWeek && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => updateParams({ semana: null })}>
+                      Esta semana
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Semana anterior"
+                    onClick={() => updateParams({ semana: toDay(addDays(parseDay(weekStart), -7)) })}
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <p className="px-1.5 text-center text-sm font-medium whitespace-nowrap text-foreground tabular-nums" aria-live="polite">
+                    {formatWeekRange(weekStart)}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Semana siguiente"
+                    onClick={() => updateParams({ semana: toDay(addDays(parseDay(weekStart), 7)) })}
+                  >
+                    <ChevronRight />
+                  </Button>
+                </div>
               </div>
 
+              {extrasState.status === 'error' && (
+                <p role="alert" className="border-b bg-destructive/5 px-5 py-2 text-xs text-destructive">
+                  No se pudieron cargar las paradas extra: {extrasState.message}
+                </p>
+              )}
+
               <WeekGrid
+                weekDates={weekDates}
+                today={today}
                 assignmentsByDay={assignmentsByDay}
                 routesById={routesById}
                 busyAssignmentIds={busyAssignmentIds}
-                today={TODAY}
+                extras={extrasState}
+                busyExtraIds={busyExtraIds}
+                linkState={linkState}
                 dropHintFor={dropHintFor}
                 onRemove={setPendingRemoval}
+                onAddExtra={setExtraStopDate}
+                onRemoveExtra={setPendingExtraRemoval}
               />
             </Card>
           </div>
@@ -361,6 +481,30 @@ export function RoutePlannerPage() {
           submitting={submitting}
           onCancel={() => setPendingReassign(null)}
           onConfirm={confirmReassign}
+        />
+      )}
+
+      {extraStopDate && vendorId && (
+        <AddExtraStopDialog
+          sellerId={vendorId}
+          defaultDate={extraStopDate}
+          onClose={() => setExtraStopDate(null)}
+          onCreated={() => {
+            setExtraStopDate(null)
+            toast.success('Parada extra agregada.')
+            reloadExtras()
+          }}
+        />
+      )}
+
+      {pendingExtraRemoval && (
+        <ConfirmDialog
+          title="Quitar parada extra"
+          message={`Se va a quitar la parada extra de ${pendingExtraRemoval.name}. La ruta semanal no cambia.`}
+          confirmLabel="Quitar"
+          submitting={busyExtraIds.has(pendingExtraRemoval.id)}
+          onCancel={() => setPendingExtraRemoval(null)}
+          onConfirm={confirmExtraRemoval}
         />
       )}
 

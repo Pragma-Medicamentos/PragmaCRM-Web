@@ -136,6 +136,10 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/routes/`, `src/services/
 
 No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se arma en el cliente (`useRoutePlanner.ts`) pidiendo todas las rutas activas y las asignaciones de cada una en paralelo.
 
+**Paradas extra (PCRM-158) en el planificador.** La tarjeta del vendedor navega por semanas (`?vendedor=&semana=` en la URL, lunes como inicio). Cada día muestra su fecha, las paradas extra de esa fecha y "+ Parada extra" (solo días con ruta, hoy o futuros), que abre `AddExtraStopDialog`. Las extras salen de `GET /api/v1/sellers/:id/daily-route?date=` para cada día con ruta (`useWeekExtraStops.ts`); se quitan con `DELETE .../extra-stops/:stopId`. Las asignaciones siguen siendo recurrentes: cambiar de semana no las modifica. Ya no existe la pantalla `/vendedores/:id/ruta`.
+
+**Entrada a las paradas de una ruta.** Clic (o Enter) en la tarjeta de "Rutas guardadas", o en el chip de la ruta dentro de un día, abre `/rutas/:id/paradas`. Arrastrar (o Espacio con teclado) sigue asignando. El planificador pasa su URL en `location.state.from` y `RouteStopsPage` vuelve ahí, con el mismo vendedor y semana.
+
 ## Cosas a tener presentes durante la integración
 
 **a) CORS.** Si aparece un error de CORS en el navegador al llamar a `localhost:3000` desde `localhost:5173`, es configuración pendiente del lado de `PragmaCRM-Api`, no de este repo.

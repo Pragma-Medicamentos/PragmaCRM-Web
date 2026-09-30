@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   DndContext,
   DragOverlay,
@@ -89,6 +89,9 @@ function StopsSkeleton() {
 export function RouteStopsPage() {
   const { routeId } = useParams<{ routeId: string }>()
   const navigate = useNavigate()
+  // El planificador pasa su URL (vendedor y semana) para volver a la misma vista.
+  const from = (useLocation().state as { from?: unknown } | null)?.from
+  const backTo = typeof from === 'string' && from.startsWith('/rutas') ? from : '/rutas'
   const { state: customersState } = useCustomers()
   const { state: stopsState } = useRouteStops(routeId ?? '')
 
@@ -238,7 +241,7 @@ export function RouteStopsPage() {
 
   function goBack() {
     if (dirty) setConfirmLeave(true)
-    else navigate('/rutas')
+    else navigate(backTo)
   }
 
   // Número = orden en la lista completa; las paradas sin coordenadas no aparecen
@@ -254,7 +257,7 @@ export function RouteStopsPage() {
 
   const backLink = (
     <Link
-      to="/rutas"
+      to={backTo}
       onClick={(e) => {
         e.preventDefault()
         goBack()
@@ -404,7 +407,7 @@ export function RouteStopsPage() {
           message="Los cambios en el itinerario de esta ruta se van a perder."
           confirmLabel="Salir sin guardar"
           onCancel={() => setConfirmLeave(false)}
-          onConfirm={() => navigate('/rutas')}
+          onConfirm={() => navigate(backTo)}
         />
       )}
     </AppShell>

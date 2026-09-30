@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CalendarClock, KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
+import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -95,10 +94,9 @@ interface VendorsTableProps {
   onEdit: (vendor: Vendor) => void
   onToggleActive: (vendor: Vendor) => void
   onResendOtp: (vendor: Vendor) => void
-  onDailyRoute: (vendor: Vendor) => void
 }
 
-function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp, onDailyRoute }: VendorsTableProps) {
+function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }: VendorsTableProps) {
   return (
     <Table>
       <TableHeader className="bg-muted/40">
@@ -140,9 +138,6 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp, o
                       <DropdownMenuItem onSelect={() => onResendOtp(vendor)}>
                         <KeyRound /> Reenviar código
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => onDailyRoute(vendor)}>
-                        <CalendarClock /> Ruta del día
-                      </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -157,7 +152,6 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp, o
 
 /** RF-01 / HU-01: listado, alta, edición y habilitar/deshabilitar vendedores (wireframe 1k). */
 export function VendorsPage() {
-  const navigate = useNavigate()
   const { state, reload } = useVendors()
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<Vendor | null>(null)
@@ -294,7 +288,6 @@ export function VendorsPage() {
                   onEdit={setEditing}
                   onToggleActive={handleToggleActive}
                   onResendOtp={handleResendOtp}
-                  onDailyRoute={(vendor) => navigate(`/vendedores/${vendor.id}/ruta`)}
                 />
               )}
 

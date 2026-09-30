@@ -9,6 +9,7 @@ import type { Route } from './routes.types'
 interface SavedRoutesRailProps {
   routes: Route[]
   coverageFor: (routeId: string) => DayCoverage[]
+  linkState: unknown
   onCreateRoute: () => void
 }
 
@@ -22,7 +23,7 @@ function LegendSwatch({ className, label }: { className: string; label: string }
 }
 
 /** Columna "Rutas guardadas": lista arrastrable con la cobertura semanal de cada ruta. */
-export function SavedRoutesRail({ routes, coverageFor, onCreateRoute }: SavedRoutesRailProps) {
+export function SavedRoutesRail({ routes, coverageFor, linkState, onCreateRoute }: SavedRoutesRailProps) {
   const [search, setSearch] = useState('')
 
   const filteredRoutes = useMemo(() => {
@@ -57,11 +58,12 @@ export function SavedRoutesRail({ routes, coverageFor, onCreateRoute }: SavedRou
           <LegendSwatch className="bg-foreground/15" label="Otro vendedor" />
           <LegendSwatch className="ring-1 ring-border ring-inset" label="Libre" />
         </div>
+        <p className="text-xs text-muted-foreground">Arrastra una ruta a un día para asignarla, o haz clic para ver sus paradas.</p>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-1.5">
         {filteredRoutes.map((route) => (
-          <DraggableRouteCard key={route.id} route={route} coverage={coverageFor(route.id)} />
+          <DraggableRouteCard key={route.id} route={route} coverage={coverageFor(route.id)} linkState={linkState} />
         ))}
 
         {filteredRoutes.length === 0 && (
