@@ -14,15 +14,12 @@ export type DropHint = { kind: 'assign' } | { kind: 'reassign'; fromVendor: stri
 
 interface DayRowProps {
   day: number
-  /** Fecha de este día en la semana que se está viendo, ya formateada ("29 sep"). */
-  dateLabel: string
   isToday: boolean
-  isPast: boolean
   assignments: RouteAssignment[]
   routesById: Map<string, Route>
   busyAssignmentIds: Set<string>
   onRemove: (assignment: RouteAssignment) => void
-  /** Paradas extra de esa fecha; null mientras cargan. */
+  /** Paradas extra de la próxima fecha de este día; null mientras cargan. */
   extras: DailyRouteStop[] | null
   busyExtraIds: Set<string>
   onAddExtra: () => void
@@ -61,9 +58,7 @@ function DropBadge({ hint }: { hint: DropHint }) {
 /** Fila de un día de la semana: zona de destino para soltar una ruta, y paradas extra de esa fecha. */
 export function DayRow({
   day,
-  dateLabel,
   isToday,
-  isPast,
   assignments,
   routesById,
   busyAssignmentIds,
@@ -77,7 +72,6 @@ export function DayRow({
 }: DayRowProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${day}`, data: { day } })
   const count = assignments.length
-  const canAddExtra = count > 0 && !isPast
 
   return (
     <li
@@ -87,16 +81,11 @@ export function DayRow({
         isOver && dropHint && 'bg-primary/[0.07] shadow-[inset_0_0_0_1.5px_var(--color-primary)]'
       )}
     >
-      <div className="flex items-center gap-2 sm:block">
-        <div className="flex items-center gap-2">
-          <p className={cn('text-sm font-semibold', count ? 'text-foreground' : 'text-muted-foreground')}>
-            {DAY_LABELS[day - 1]}
-          </p>
-          {isToday && <Badge>Hoy</Badge>}
-        </div>
-        <p className="text-xs text-muted-foreground tabular-nums">
-          {dateLabel} · {count === 0 ? 'Libre' : count === 1 ? '1 ruta' : `${count} rutas`}
+      <div className="flex items-center gap-2">
+        <p className={cn('text-sm font-semibold', count ? 'text-foreground' : 'text-muted-foreground')}>
+          {DAY_LABELS[day - 1]}
         </p>
+        {isToday && <Badge>Hoy</Badge>}
       </div>
 
       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -115,7 +104,7 @@ export function DayRow({
             key={stop.id}
             stop={stop}
             busy={busyExtraIds.has(stop.id)}
-            onRemove={isPast ? null : () => onRemoveExtra(stop)}
+            onRemove={() => onRemoveExtra(stop)}
           />
         ))}
         {count === 0 && (
@@ -123,7 +112,7 @@ export function DayRow({
         )}
       </div>
 
-      {canAddExtra && (
+      {count > 0 && (
         <div className="flex justify-start sm:justify-end">
           <Button
             type="button"
@@ -131,7 +120,7 @@ export function DayRow({
             size="sm"
             onClick={onAddExtra}
             className="text-muted-foreground hover:text-primary"
-            aria-label={`Agregar parada extra el ${DAY_LABELS[day - 1].toLowerCase()} ${dateLabel}`}
+            aria-label={`Agregar parada extra el ${DAY_LABELS[day - 1].toLowerCase()}`}
           >
             <Plus data-icon="inline-start" /> Parada extra
           </Button>

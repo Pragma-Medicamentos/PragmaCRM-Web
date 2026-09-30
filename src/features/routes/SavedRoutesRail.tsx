@@ -53,12 +53,6 @@ export function SavedRoutesRail({ routes, coverageFor, linkState, onCreateRoute 
             onChange={(e) => setSearch(e.target.value)}
           />
         </InputGroup>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <LegendSwatch className="bg-primary" label="Este vendedor" />
-          <LegendSwatch className="bg-foreground/15" label="Otro vendedor" />
-          <LegendSwatch className="ring-1 ring-border ring-inset" label="Libre" />
-        </div>
-        <p className="text-xs text-muted-foreground">Arrastra una ruta a un día para asignarla, o haz clic para ver sus paradas.</p>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-1.5">

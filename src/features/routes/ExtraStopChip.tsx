@@ -7,8 +7,7 @@ import type { DailyRouteStop } from '../daily-route/dailyRoute.types'
 interface ExtraStopChipProps {
   stop: DailyRouteStop
   busy: boolean
-  /** Null cuando ya no se puede quitar: día pasado o con check-in. */
-  onRemove: (() => void) | null
+  onRemove: () => void
 }
 
 /** Parada extra (PCRM-158) de una fecha concreta, junto a las rutas recurrentes del día. */
@@ -27,7 +26,7 @@ export function ExtraStopChip({ stop, busy, onRemove }: ExtraStopChipProps) {
         <span className="grid size-6 shrink-0 place-items-center text-primary" aria-label="Visitada">
           <Check className="size-3.5" />
         </span>
-      ) : onRemove ? (
+      ) : (
         <Button
           type="button"
           variant="ghost"
@@ -39,8 +38,6 @@ export function ExtraStopChip({ stop, busy, onRemove }: ExtraStopChipProps) {
         >
           {busy ? <Spinner /> : <X />}
         </Button>
-      ) : (
-        <span className="w-1" />
       )}
     </div>
   )

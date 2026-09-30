@@ -1,15 +1,12 @@
 import { DayRow } from './DayRow'
 import type { DropHint } from './DayRow'
-import { parseDay } from '../metrics/metricsDates'
 import { WEEK_DAYS } from './routes.types'
 import type { Route, RouteAssignment } from './routes.types'
 import type { WeekExtraStopsState } from './useWeekExtraStops'
 import type { DailyRouteStop } from '../daily-route/dailyRoute.types'
 
-const shortDateFormatter = new Intl.DateTimeFormat('es-SV', { day: 'numeric', month: 'short' })
-
 interface WeekGridProps {
-  /** YYYY-MM-DD de Lunes a Domingo de la semana que se está viendo. */
+  /** YYYY-MM-DD de la próxima fecha de cada día, de Lunes a Domingo. */
   weekDates: string[]
   today: string
   assignmentsByDay: Map<number, RouteAssignment[]>
@@ -47,9 +44,7 @@ export function WeekGrid({
           <DayRow
             key={day}
             day={day}
-            dateLabel={shortDateFormatter.format(parseDay(date)).replace('.', '')}
             isToday={date === today}
-            isPast={date < today}
             assignments={assignmentsByDay.get(day) ?? []}
             routesById={routesById}
             busyAssignmentIds={busyAssignmentIds}

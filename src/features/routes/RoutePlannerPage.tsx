@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import { addDays, startOfWeek } from 'date-fns'
+import { addDays } from 'date-fns'
 import {
   DndContext,
   DragOverlay,
@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -24,7 +24,7 @@ import { Card } from '../../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Skeleton } from '../../components/ui/skeleton'
 import { ApiError } from '../../lib/api/apiClient'
-import { isValidDay, parseDay, toDay, todayInSv } from '../metrics/metricsDates'
+import { parseDay, toDay, todayInSv } from '../metrics/metricsDates'
 import { useVendors } from '../vendors/useVendors'
 import { AddExtraStopDialog } from '../daily-route/AddExtraStopDialog'
 import { deleteExtraStop } from '../daily-route/dailyRouteApi'
@@ -57,18 +57,6 @@ function initials(name: string): string {
       .map((part) => part[0]?.toUpperCase() ?? '')
       .join('') || '—'
   )
-}
-
-const weekRangeFormatter = new Intl.DateTimeFormat('es-SV', { day: 'numeric', month: 'short' })
-
-function mondayOf(day: string): string {
-  return toDay(startOfWeek(parseDay(day), { weekStartsOn: 1 }))
-}
-
-function formatWeekRange(weekStart: string): string {
-  const start = parseDay(weekStart)
-  const fmt = (d: Date) => weekRangeFormatter.format(d).replace('.', '')
-  return `${fmt(start)} – ${fmt(addDays(start, 6))}`
 }
 
 function PlannerSkeleton() {
@@ -107,16 +95,15 @@ export function RoutePlannerPage() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Vendedor y semana viven en la URL: al volver de las paradas de una ruta se conservan.
+  // El vendedor vive en la URL: al volver de las paradas de una ruta se conserva.
   const selectedVendorId = searchParams.get('vendedor')
   const today = todayInSv()
-  const currentWeek = mondayOf(today)
-  const semana = searchParams.get('semana')
-  const weekStart = isValidDay(semana) ? mondayOf(semana) : currentWeek
-  const weekDates = useMemo(
-    () => WEEK_DAYS.map((day) => toDay(addDays(parseDay(weekStart), day - 1))),
-    [weekStart]
-  )
+  // Cada día de la semana representa su próxima fecha (hoy incluido): ahí caen sus paradas extra.
+  const weekDates = useMemo(() => {
+    const base = parseDay(today)
+    const todayDay = ((base.getDay() + 6) % 7) + 1
+    return WEEK_DAYS.map((day) => toDay(addDays(base, (day - todayDay + 7) % 7)))
+  }, [today])
   const linkState = { from: `${location.pathname}${location.search}` }
 
   function updateParams(changes: Record<string, string | null>) {
@@ -404,34 +391,7 @@ export function RoutePlannerPage() {
                     </p>
                   </div>
                 </div>
-                <div className="ml-auto flex shrink-0 items-center gap-1">
-                  {weekStart !== currentWeek && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => updateParams({ semana: null })}>
-                      Esta semana
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label="Semana anterior"
-                    onClick={() => updateParams({ semana: toDay(addDays(parseDay(weekStart), -7)) })}
-                  >
-                    <ChevronLeft />
-                  </Button>
-                  <p className="px-1.5 text-center text-sm font-medium whitespace-nowrap text-foreground tabular-nums" aria-live="polite">
-                    {formatWeekRange(weekStart)}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label="Semana siguiente"
-                    onClick={() => updateParams({ semana: toDay(addDays(parseDay(weekStart), 7)) })}
-                  >
-                    <ChevronRight />
-                  </Button>
-                </div>
+                <p className="text-xs text-muted-foreground">Arrastra una ruta de la lista a un día para asignarla.</p>
               </div>
 
               {extrasState.status === 'error' && (
