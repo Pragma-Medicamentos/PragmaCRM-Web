@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChartNoAxesColumn, KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -57,7 +58,12 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: 'inactive', label: 'Deshabilitados' },
 ]
 
-const COLUMNS = ['Nombre', 'Correo', 'Estado', 'Fecha de alta'] as const
+const COLUMNS = [
+  { label: 'Nombre', className: '' },
+  { label: 'Correo', className: 'hidden sm:table-cell' },
+  { label: 'Estado', className: '' },
+  { label: 'Fecha de alta', className: 'hidden md:table-cell' },
+] as const
 
 function VendorsTableSkeleton() {
   return (
@@ -65,7 +71,9 @@ function VendorsTableSkeleton() {
       <TableHeader className="bg-muted/40">
         <TableRow>
           {COLUMNS.map((column) => (
-            <TableHead key={column}>{column}</TableHead>
+            <TableHead key={column.label} className={column.className}>
+              {column.label}
+            </TableHead>
           ))}
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
@@ -74,7 +82,7 @@ function VendorsTableSkeleton() {
         {Array.from({ length: 5 }, (_, row) => (
           <TableRow key={row}>
             {COLUMNS.map((column) => (
-              <TableCell key={column}>
+              <TableCell key={column.label} className={column.className}>
                 <Skeleton className="h-4 w-28" />
               </TableCell>
             ))}
@@ -102,7 +110,9 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
       <TableHeader className="bg-muted/40">
         <TableRow>
           {COLUMNS.map((column) => (
-            <TableHead key={column}>{column}</TableHead>
+            <TableHead key={column.label} className={column.className}>
+              {column.label}
+            </TableHead>
           ))}
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
@@ -112,14 +122,22 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
           const busy = busyIds.has(vendor.id)
           return (
             <TableRow key={vendor.id} className={cn(!vendor.active && 'opacity-55')}>
-              <TableCell className="font-medium text-foreground">{vendor.name}</TableCell>
-              <TableCell className="text-muted-foreground">{vendor.email ?? '—'}</TableCell>
+              <TableCell className="max-w-44 sm:max-w-64">
+                <Link
+                  to={`/vendedores/${vendor.id}`}
+                  className="block truncate font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  {vendor.name}
+                </Link>
+                <div className="truncate text-xs text-muted-foreground sm:hidden">{vendor.email ?? '—'}</div>
+              </TableCell>
+              <TableCell className="hidden text-muted-foreground sm:table-cell">{vendor.email ?? '—'}</TableCell>
               <TableCell>
                 <Badge variant={vendor.active ? 'default' : 'outline'}>
                   {vendor.active ? 'Activo' : 'Deshabilitado'}
                 </Badge>
               </TableCell>
-              <TableCell className="text-muted-foreground">{dateFormatter.format(new Date(vendor.created_at))}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">{dateFormatter.format(new Date(vendor.created_at))}</TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -129,6 +147,11 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
+                      <DropdownMenuItem asChild>
+                        <Link to={`/vendedores/${vendor.id}`}>
+                          <ChartNoAxesColumn /> Ver desempeño
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => onEdit(vendor)}>
                         <Pencil /> Editar
                       </DropdownMenuItem>

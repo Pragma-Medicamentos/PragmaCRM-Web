@@ -40,17 +40,20 @@ function ProspectsTable({ prospects, onSetLocation }: ProspectsTableProps) {
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
-          <TableHead>Teléfono</TableHead>
+          <TableHead className="hidden sm:table-cell">Teléfono</TableHead>
           <TableHead>GPS</TableHead>
-          <TableHead>Vendedor</TableHead>
-          <TableHead>Detectado</TableHead>
+          <TableHead className="hidden md:table-cell">Vendedor</TableHead>
+          <TableHead className="hidden lg:table-cell">Detectado</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {prospects.map((prospect) => (
           <TableRow key={prospect.id}>
-            <TableCell className="font-medium text-foreground">{prospect.name}</TableCell>
-            <TableCell className="text-muted-foreground">{prospect.phone ?? '—'}</TableCell>
+            <TableCell className="max-w-44 sm:max-w-64">
+              <div className="truncate font-medium text-foreground">{prospect.name}</div>
+              {prospect.phone && <div className="truncate text-xs text-muted-foreground sm:hidden">{prospect.phone}</div>}
+            </TableCell>
+            <TableCell className="hidden text-muted-foreground sm:table-cell">{prospect.phone ?? '—'}</TableCell>
             <TableCell>
               {prospect.location ? (
                 <a
@@ -67,8 +70,8 @@ function ProspectsTable({ prospects, onSetLocation }: ProspectsTableProps) {
                 </Button>
               )}
             </TableCell>
-            <TableCell className="text-muted-foreground">{prospect.seller_name ?? prospect.user_id}</TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(prospect.created_at)}</TableCell>
+            <TableCell className="hidden text-muted-foreground md:table-cell">{prospect.seller_name ?? prospect.user_id}</TableCell>
+            <TableCell className="hidden text-muted-foreground lg:table-cell">{formatDate(prospect.created_at)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

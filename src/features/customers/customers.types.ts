@@ -92,6 +92,20 @@ export interface CustomerProfile extends CustomerCore {
   recent_notes: CustomerVisitNote[]
 }
 
+// Totales de GET /api/v1/customers/:id/credits (facturas con saldo, plazo de 60 días).
+export interface CustomerCreditTotals {
+  pending_balance: string
+  overdue_amount: string
+  overdue_count: number
+  credit_limit: string | null
+  credit_available: string | null
+}
+
+export interface CustomerCreditsPage {
+  total: number
+  totals: CustomerCreditTotals
+}
+
 // Body de PATCH /api/v1/customers/:id/location.
 // address / place_id opcionales: omitir = no tocar; null = limpiar.
 export interface UpdateCustomerLocationInput {

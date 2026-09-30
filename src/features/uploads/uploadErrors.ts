@@ -3,6 +3,17 @@ import { MAX_UPLOAD_MB } from './validateSalesFile'
 import type { UploadFailure } from './uploads.types'
 
 /**
+ * PCRM-169. El envelope de error es solo `{ success: false, message }` más el
+ * status: no hay `code`. Estas cadenas son el texto LITERAL de la API.
+ * `Duplicate record.` (P2002) sigue en BY_MESSAGE y no se mezcla con estas.
+ */
+const IMPORT_IN_PROGRESS_MESSAGE =
+  'An import is already in progress. Wait until it finishes before uploading again.'
+
+const IMPORT_DEADLOCK_MESSAGE =
+  'A database deadlock occurred during import. Wait until any running import finishes, then retry.'
+
+/**
  * Traducción de los errores de POST /api/v1/uploads/sales.
  *
  * El endpoint responde en inglés por convención del backend; los middlewares
@@ -102,6 +113,27 @@ export function toUploadFailure(err: unknown): UploadFailure {
       message: 'Ocurrió un error inesperado al importar el archivo.',
       detail: err instanceof Error ? err.message : undefined,
       retryable: true,
+    }
+  }
+
+  // Antes de BY_MESSAGE: un 409 genérico es reintentable, y estos dos no.
+  if (err.message === IMPORT_IN_PROGRESS_MESSAGE) {
+    return {
+      message:
+        'Ya hay una importación en curso en el servidor. Espera a que termine antes de subir otro archivo. Cerrar esta pestaña no cancela esa importación.',
+      detail: err.message,
+      retryable: false,
+      kind: 'import_in_progress',
+    }
+  }
+
+  if (err.message === IMPORT_DEADLOCK_MESSAGE) {
+    return {
+      message:
+        'Hubo un conflicto al guardar la importación. Espera a que termine cualquier importación en curso y después reintenta. No lo reintentes de inmediato.',
+      detail: err.message,
+      retryable: false,
+      kind: 'deadlock',
     }
   }
 
