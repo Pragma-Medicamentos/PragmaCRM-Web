@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChartNoAxesColumn, KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -122,7 +123,12 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
           return (
             <TableRow key={vendor.id} className={cn(!vendor.active && 'opacity-55')}>
               <TableCell className="max-w-44 sm:max-w-64">
-                <div className="truncate font-medium text-foreground">{vendor.name}</div>
+                <Link
+                  to={`/vendedores/${vendor.id}`}
+                  className="block truncate font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  {vendor.name}
+                </Link>
                 <div className="truncate text-xs text-muted-foreground sm:hidden">{vendor.email ?? '—'}</div>
               </TableCell>
               <TableCell className="hidden text-muted-foreground sm:table-cell">{vendor.email ?? '—'}</TableCell>
@@ -141,6 +147,11 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuGroup>
+                      <DropdownMenuItem asChild>
+                        <Link to={`/vendedores/${vendor.id}`}>
+                          <ChartNoAxesColumn /> Ver desempeño
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => onEdit(vendor)}>
                         <Pencil /> Editar
                       </DropdownMenuItem>
