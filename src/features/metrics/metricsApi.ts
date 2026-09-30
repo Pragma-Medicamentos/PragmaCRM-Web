@@ -4,6 +4,7 @@ import type {
   KpiName,
   KpiValuesResponse,
   MetricsRange,
+  ProductRankingResponse,
   PurchaseFrequencyResponse,
   SellerDetailResponse,
   SellerPerformanceResponse,
@@ -52,6 +53,15 @@ export function getSellerDetail(
 
 export function getCoverage(range: MetricsRange, { signal }: RequestOptions = {}): Promise<CoverageResponse> {
   return apiRequest<CoverageResponse>('/api/v1/metrics/coverage', { params: range, signal })
+}
+
+/** `limit` acota el top que devuelve el ranking; `total_amount` siempre es del periodo completo. */
+export function getProductRanking(
+  range: MetricsRange,
+  limit: number,
+  { signal }: RequestOptions = {}
+): Promise<ProductRankingResponse> {
+  return apiRequest<ProductRankingResponse>('/api/v1/metrics/products', { params: { ...range, limit }, signal })
 }
 
 export function getPurchaseFrequency(
