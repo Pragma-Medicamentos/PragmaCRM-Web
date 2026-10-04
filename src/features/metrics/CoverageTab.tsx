@@ -5,7 +5,6 @@ import { Badge } from '../../components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../../components/ui/input-group'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { PartToWholeBar } from './charts/PartToWholeBar'
 import { CoverageMap } from './CoverageMap'
 import type { CoverageCustomer, CoverageResponse, MetricsRange } from './metrics.types'
@@ -15,6 +14,7 @@ import { formatCount, formatPercent } from './metricsFormat'
 import { MetricStat, MetricStatSkeleton } from './MetricStat'
 import { QueryAlerts } from './QueryAlerts'
 import { Refreshing, isRefreshing } from './slots'
+import { SortableTable, type SortableColumn } from './SortableTable'
 import { useMetricsQuery } from './useMetricsQuery'
 
 function coverageSegments(data: CoverageResponse) {
@@ -99,44 +99,61 @@ function PendingCustomersTable({ customers }: { customers: CoverageCustomer[] })
     return <p className="px-4 py-6 text-sm text-muted-foreground">Ningún cliente coincide con la búsqueda.</p>
   }
 
+  const columns: SortableColumn<CoverageCustomer>[] = [
+    {
+      key: 'customer',
+      label: 'Cliente',
+      sort: { kind: 'text', value: (customer) => customer.trade_name ?? customer.name },
+      headClassName: 'pl-4',
+      cellClassName: 'max-w-72 pl-4',
+      cell: (customer) => (
+        <>
+          <div className="truncate font-medium">{customer.trade_name ?? customer.name}</div>
+          {customer.trade_name && <div className="truncate text-xs text-muted-foreground md:hidden">{customer.name}</div>}
+        </>
+      ),
+    },
+    {
+      key: 'name',
+      label: 'Razón social',
+      sort: { kind: 'text', value: (customer) => (customer.trade_name ? customer.name : null) },
+      headClassName: 'hidden md:table-cell',
+      cellClassName: 'hidden max-w-72 truncate text-muted-foreground md:table-cell',
+      cell: (customer) => (customer.trade_name ? customer.name : '—'),
+    },
+    {
+      key: 'last_visit_at',
+      label: 'Última visita',
+      sort: { kind: 'date', value: (customer) => customer.last_visit_at },
+      headClassName: 'hidden sm:table-cell',
+      cellClassName: 'hidden text-muted-foreground sm:table-cell',
+      cell: (customer) => formatTimestamp(customer.last_visit_at),
+    },
+    {
+      key: 'days',
+      label: 'Sin visita',
+      sort: { kind: 'number', value: (customer) => daysSince(customer.last_visit_at) },
+      headClassName: 'pr-4 text-right',
+      cellClassName: 'pr-4 text-right',
+      cell: (customer) => {
+        const days = daysSince(customer.last_visit_at)
+        return (
+          <Badge variant={days === null ? 'destructive' : 'secondary'}>
+            {days === null ? 'Nunca' : `${formatCount(days)} d`}
+          </Badge>
+        )
+      },
+    },
+  ]
+
   return (
     <div className="max-h-[28rem] overflow-auto [&>[data-slot=table-container]]:overflow-visible">
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-card">
-          <TableRow>
-            <TableHead className="pl-4">Cliente</TableHead>
-            <TableHead className="hidden md:table-cell">Razón social</TableHead>
-            <TableHead className="hidden sm:table-cell">Última visita</TableHead>
-            <TableHead className="pr-4 text-right">Sin visita</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {customers.map((customer) => {
-            const days = daysSince(customer.last_visit_at)
-            return (
-              <TableRow key={customer.customer_id}>
-                <TableCell className="max-w-72 pl-4">
-                  <div className="truncate font-medium">{customer.trade_name ?? customer.name}</div>
-                  {customer.trade_name && (
-                    <div className="truncate text-xs text-muted-foreground md:hidden">{customer.name}</div>
-                  )}
-                </TableCell>
-                <TableCell className="hidden max-w-72 truncate text-muted-foreground md:table-cell">
-                  {customer.trade_name ? customer.name : '—'}
-                </TableCell>
-                <TableCell className="hidden text-muted-foreground sm:table-cell">
-                  {formatTimestamp(customer.last_visit_at)}
-                </TableCell>
-                <TableCell className="pr-4 text-right">
-                  <Badge variant={days === null ? 'destructive' : 'secondary'}>
-                    {days === null ? 'Nunca' : `${formatCount(days)} d`}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+      <SortableTable
+        rows={customers}
+        columns={columns}
+        rowKey={(customer) => customer.customer_id}
+        headerClassName="sticky top-0 z-10 bg-card"
+      />
     </div>
   )
 }

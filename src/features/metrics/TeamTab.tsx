@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '../../components/ui/empty'
 import { Progress } from '../../components/ui/progress'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { ComparisonLegend } from './charts/ComparisonLegend'
 import { SellersSalesChart } from './charts/SellersSalesChart'
 import type { MetricsRange, SellerPerformance } from './metrics.types'
@@ -17,6 +16,7 @@ import { formatCount, formatMoney, formatPercent, initials } from './metricsForm
 import { QueryAlerts } from './QueryAlerts'
 import { SellerDetailSheet } from './SellerDetailSheet'
 import { Refreshing, isRefreshing } from './slots'
+import { SortableTable, type SortableColumn } from './SortableTable'
 import { useMetricsQuery } from './useMetricsQuery'
 
 function ComplianceCell({ value }: { value: number | null }) {
@@ -36,61 +36,92 @@ interface SellersTableProps {
 
 /** "Desempeño por vendedor" de 1d. Ticket y Venta/ruta se ocultan en tablet (1v). */
 function SellersTable({ sellers, onSelect }: SellersTableProps) {
+  const columns: SortableColumn<SellerPerformance>[] = [
+    {
+      key: 'name',
+      label: 'Vendedor',
+      sort: { kind: 'text', value: (seller) => seller.name },
+      headClassName: 'pl-4',
+      cellClassName: 'pl-4',
+      cell: (seller) => (
+        <div className="flex items-center gap-3">
+          <Avatar size="sm">
+            <AvatarFallback>{initials(seller.name)}</AvatarFallback>
+          </Avatar>
+          <span className="truncate font-medium">{seller.name}</span>
+          {!seller.active && <Badge variant="outline">Deshabilitado</Badge>}
+        </div>
+      ),
+    },
+    {
+      key: 'stops_executed',
+      label: 'Paradas',
+      sort: { kind: 'number', value: (seller) => seller.stops_executed },
+      headClassName: 'text-right',
+      cellClassName: 'text-right tabular-nums',
+      cell: (seller) => formatCount(seller.stops_executed),
+    },
+    {
+      key: 'goal_compliance',
+      label: 'Cumplim.',
+      sort: { kind: 'number', value: (seller) => seller.goal_compliance },
+      headClassName: 'text-right',
+      cellClassName: 'text-right',
+      cell: (seller) => <ComplianceCell value={seller.goal_compliance} />,
+    },
+    {
+      key: 'average_ticket',
+      label: 'Ticket prom.',
+      sort: { kind: 'money', value: (seller) => seller.average_ticket },
+      headClassName: 'hidden text-right lg:table-cell',
+      cellClassName: 'hidden text-right tabular-nums lg:table-cell',
+      cell: (seller) => formatMoney(seller.average_ticket),
+    },
+    {
+      key: 'total_sales',
+      label: 'Venta',
+      sort: { kind: 'money', value: (seller) => seller.total_sales },
+      headClassName: 'text-right',
+      cellClassName: 'text-right font-medium tabular-nums',
+      cell: (seller) => formatMoney(seller.total_sales),
+    },
+    {
+      key: 'sales_per_route',
+      label: 'Venta / ruta',
+      sort: { kind: 'money', value: (seller) => seller.sales_per_route },
+      headClassName: 'hidden text-right lg:table-cell',
+      cellClassName: 'hidden text-right tabular-nums lg:table-cell',
+      cell: (seller) => formatMoney(seller.sales_per_route),
+    },
+    {
+      key: 'detail',
+      label: <span className="sr-only">Detalle</span>,
+      headClassName: 'w-12 pr-4',
+      cellClassName: 'pr-4 text-right',
+      cell: (seller) => (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Ver detalle de ${seller.name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelect(seller)
+          }}
+        >
+          <ChevronRight />
+        </Button>
+      ),
+    },
+  ]
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="pl-4">Vendedor</TableHead>
-          <TableHead className="text-right">Paradas</TableHead>
-          <TableHead className="text-right">Cumplim.</TableHead>
-          <TableHead className="hidden text-right lg:table-cell">Ticket prom.</TableHead>
-          <TableHead className="text-right">Venta</TableHead>
-          <TableHead className="hidden text-right lg:table-cell">Venta / ruta</TableHead>
-          <TableHead className="w-12 pr-4">
-            <span className="sr-only">Detalle</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sellers.map((seller) => (
-          <TableRow key={seller.user_id} className="cursor-pointer" onClick={() => onSelect(seller)}>
-            <TableCell className="pl-4">
-              <div className="flex items-center gap-3">
-                <Avatar size="sm">
-                  <AvatarFallback>{initials(seller.name)}</AvatarFallback>
-                </Avatar>
-                <span className="truncate font-medium">{seller.name}</span>
-                {!seller.active && <Badge variant="outline">Deshabilitado</Badge>}
-              </div>
-            </TableCell>
-            <TableCell className="text-right tabular-nums">{formatCount(seller.stops_executed)}</TableCell>
-            <TableCell className="text-right">
-              <ComplianceCell value={seller.goal_compliance} />
-            </TableCell>
-            <TableCell className="hidden text-right tabular-nums lg:table-cell">
-              {formatMoney(seller.average_ticket)}
-            </TableCell>
-            <TableCell className="text-right font-medium tabular-nums">{formatMoney(seller.total_sales)}</TableCell>
-            <TableCell className="hidden text-right tabular-nums lg:table-cell">
-              {formatMoney(seller.sales_per_route)}
-            </TableCell>
-            <TableCell className="pr-4 text-right">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Ver detalle de ${seller.name}`}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onSelect(seller)
-                }}
-              >
-                <ChevronRight />
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <SortableTable
+      rows={sellers}
+      columns={columns}
+      rowKey={(seller) => seller.user_id}
+      rowClassName="cursor-pointer"
+      onRowClick={onSelect}
+    />
   )
 }
 

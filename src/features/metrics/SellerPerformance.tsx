@@ -2,7 +2,6 @@ import { Info } from 'lucide-react'
 import { Badge } from '../../components/ui/badge'
 import { Separator } from '../../components/ui/separator'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { ComparisonLegend } from './charts/ComparisonLegend'
 import { PartToWholeBar } from './charts/PartToWholeBar'
 import { TrendChart } from './charts/TrendChart'
@@ -14,6 +13,7 @@ import { formatCount, formatMoney, formatPercent } from './metricsFormat'
 import { MetricStat } from './MetricStat'
 import { QueryAlerts } from './QueryAlerts'
 import { BlockHeading, ChartSlot } from './slots'
+import { SortableTable, type SortableColumn } from './SortableTable'
 import { type MetricsQueryState, useMetricsQuery } from './useMetricsQuery'
 
 /*
@@ -79,37 +79,45 @@ function InactiveCustomersTable({ customers }: { customers: InactiveCustomer[] }
     return <p className="text-sm text-muted-foreground">Todos los clientes de sus rutas tienen una visita reciente.</p>
   }
 
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Cliente</TableHead>
-          <TableHead>Última visita</TableHead>
-          <TableHead className="text-right">Sin visita</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {customers.map((customer) => (
-          <TableRow key={customer.customer_id}>
-            <TableCell className="max-w-56">
-              <div className="truncate font-medium">{customer.trade_name ?? customer.name}</div>
-              {(customer.trade_name || customer.zone) && (
-                <div className="truncate text-xs text-muted-foreground">
-                  {[customer.trade_name ? customer.name : null, customer.zone].filter(Boolean).join(' · ')}
-                </div>
-              )}
-            </TableCell>
-            <TableCell className="text-muted-foreground">{formatTimestamp(customer.last_visit_at)}</TableCell>
-            <TableCell className="text-right">
-              <Badge variant={customer.days_since_last_visit === null ? 'destructive' : 'secondary'}>
-                {customer.days_since_last_visit === null ? 'Nunca' : `${formatCount(customer.days_since_last_visit)} d`}
-              </Badge>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
+  const columns: SortableColumn<InactiveCustomer>[] = [
+    {
+      key: 'customer',
+      label: 'Cliente',
+      sort: { kind: 'text', value: (customer) => customer.trade_name ?? customer.name },
+      cellClassName: 'max-w-56',
+      cell: (customer) => (
+        <>
+          <div className="truncate font-medium">{customer.trade_name ?? customer.name}</div>
+          {(customer.trade_name || customer.zone) && (
+            <div className="truncate text-xs text-muted-foreground">
+              {[customer.trade_name ? customer.name : null, customer.zone].filter(Boolean).join(' · ')}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'last_visit_at',
+      label: 'Última visita',
+      sort: { kind: 'date', value: (customer) => customer.last_visit_at },
+      cellClassName: 'text-muted-foreground',
+      cell: (customer) => formatTimestamp(customer.last_visit_at),
+    },
+    {
+      key: 'days',
+      label: 'Sin visita',
+      sort: { kind: 'number', value: (customer) => customer.days_since_last_visit },
+      headClassName: 'text-right',
+      cellClassName: 'text-right',
+      cell: (customer) => (
+        <Badge variant={customer.days_since_last_visit === null ? 'destructive' : 'secondary'}>
+          {customer.days_since_last_visit === null ? 'Nunca' : `${formatCount(customer.days_since_last_visit)} d`}
+        </Badge>
+      ),
+    },
+  ]
+
+  return <SortableTable rows={customers} columns={columns} rowKey={(customer) => customer.customer_id} />
 }
 
 interface SellerPerformanceBodyProps extends SellerDetailQueries {
