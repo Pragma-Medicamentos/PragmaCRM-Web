@@ -205,3 +205,119 @@ export interface PurchaseFrequencyResponse extends MetricsContext {
   insufficient_data: number
   average_days: number | null
 }
+
+/*
+ * Métricas por ruta (PCRM-178). Mismas convenciones que el resto del panel:
+ * llaves en snake_case, dinero como string de dos decimales, porcentajes
+ * 0–100 con un decimal y `null` para "no se puede calcular en este periodo",
+ * nunca cero.
+ *
+ * Una ruta se identifica por `route_id`, el `route.id` que ya expone el API
+ * de rutas. La venta llega hasta ahí por
+ * `sale.visit_id -> visit.route_user_id -> route_user.route_id` (CLAUDE.md 5.4).
+ */
+
+/** Un vendedor que trabaja la ruta: asignado hoy, o ejecutando paradas en ella. */
+export interface RouteSeller {
+  user_id: string
+  name: string
+}
+
+/** Una fila del ranking de rutas, y el bloque resumen del detalle. */
+export interface RouteMetrics {
+  route_id: string
+  name: string
+  municipality: string | null
+  zone: string | null
+  active: boolean
+  /** Venta atribuida a la ruta en el periodo, con IVA incluido. */
+  amount: Money
+  /** Unidades vendidas en la unidad base de cada producto (`quantity × factor`). */
+  units: string
+  /** Posición 1-based por `amount` DESC entre todas las rutas; empates por nombre. */
+  amount_position: number
+  /** Posición 1-based por `units` DESC entre todas las rutas; empates por nombre. */
+  units_position: number
+  /** Pares (asignación, día local) distintos con al menos una visita. */
+  executed_route_days: number
+  /** `amount / executed_route_days`. Null cuando la ruta nunca se ejecutó. */
+  effectiveness: Money | null
+  visited_customers: number
+  /** Clientes en la agenda de la ruta en el periodo (sin paradas de prospecto). */
+  planned_customers: number
+  /** `visited_customers / planned_customers × 100`. Null sin agenda. */
+  visit_coverage_rate: number | null
+  stops_executed: number
+  stops_planned: number
+  sellers: RouteSeller[]
+}
+
+/** GET /metrics/routes — ranking de todas las rutas del periodo. */
+export interface MetricsRoutesResponse extends MetricsContext {
+  routes: RouteMetrics[]
+  /** Venta atribuida de todas las rutas del periodo, antes de cualquier filtro. */
+  total_amount: Money
+  total_units: string
+}
+
+/** Un cliente del top de la ruta, por monto atribuido. */
+export interface RouteCustomerSales {
+  position: number
+  customer_id: string
+  name: string
+  trade_name: string | null
+  amount: Money
+  orders_count: number
+}
+
+/** Un producto del top de la ruta, por monto atribuido. */
+export interface RouteProductSales {
+  position: number
+  product_id: number
+  code: string | null
+  name: string
+  amount: Money
+  units: string
+}
+
+/** Monto atribuido de un día local de la semana: 0 domingo … 6 sábado. */
+export interface RouteWeekdaySales {
+  weekday: number
+  amount: Money
+  orders_count: number
+}
+
+/** Lo que vendió un vendedor en esta ruta, acreditado por `sale.user_id`. */
+export interface RouteSellerPerformance extends RouteSeller {
+  amount: Money
+  units: string
+  orders_count: number
+}
+
+/** Clientes que componen la ruta hoy, y cuántos compraron. */
+export interface RoutePortfolioCoverage {
+  assigned_customers: number
+  purchasing_customers: number
+  /** `purchasing_customers / assigned_customers × 100`. Null sin cartera. */
+  rate: number | null
+}
+
+/** Monto atribuido contra el periodo anterior de igual longitud. */
+export interface RouteSalesTrend {
+  period: MetricsRange
+  amount: Money
+  /** Variación porcentual contra `amount`. Null cuando el periodo anterior no vendió nada. */
+  change_rate: number | null
+}
+
+/** GET /metrics/routes/:id — el detalle de una ruta del ranking. */
+export interface MetricsRouteDetailResponse extends MetricsContext {
+  route: RouteMetrics
+  previous: RouteSalesTrend
+  portfolio_coverage: RoutePortfolioCoverage
+  top_customers: RouteCustomerSales[]
+  top_products: RouteProductSales[]
+  /** Siete baldes, ceros incluidos, domingo primero. */
+  sales_by_weekday: RouteWeekdaySales[]
+  seller_performance: RouteSellerPerformance[]
+}
