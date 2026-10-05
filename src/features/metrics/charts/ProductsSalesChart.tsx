@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Bar, BarChart, LabelList, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '../../../components/ui/chart'
 import type { ProductRankingRow } from '../metrics.types'
@@ -10,12 +11,18 @@ const config = {
   sales: { label: 'Venta', color: 'var(--chart-1)' },
 } satisfies ChartConfig
 
+interface ProductsSalesChartProps {
+  products: ProductRankingRow[]
+  /** Con `hrefFor`, el nombre de cada producto lleva a su ficha de métricas (PCRM-177). */
+  hrefFor?: (product: ProductRankingRow) => string
+}
+
 /**
  * Ranking de productos por monto (PCRM-172), con el mismo lenguaje visual que
  * el de vendedores: barras horizontales en el orden del API y el valor en la
  * punta. Las unidades van en el tooltip, junto al nombre completo.
  */
-export function ProductsSalesChart({ products }: { products: ProductRankingRow[] }) {
+export function ProductsSalesChart({ products, hrefFor }: ProductsSalesChartProps) {
   const data = products.map((product) => {
     const sales = toAmount(product.amount) ?? 0
     return {
@@ -23,6 +30,7 @@ export function ProductsSalesChart({ products }: { products: ProductRankingRow[]
       sales,
       salesLabel: formatMoney(sales),
       units: toAmount(product.units),
+      href: hrefFor?.(product) ?? null,
     }
   })
 
@@ -37,12 +45,21 @@ export function ProductsSalesChart({ products }: { products: ProductRankingRow[]
           axisLine={false}
           width={224}
           // Tick propio: el de Recharts parte en dos líneas los nombres largos; el completo va en el tooltip.
-          tick={({ x, y, payload }) => {
+          tick={({ x, y, index, payload }) => {
             const name = String(payload.value)
-            return (
+            const label = (
               <text x={x} y={y} dy={4} textAnchor="end" fontSize={12} className="fill-muted-foreground">
                 {name.length > 30 ? `${name.slice(0, 29)}…` : name}
               </text>
+            )
+            // El `<a>` queda dentro del SVG; react-router lo navega en cliente igual.
+            const href = data[index]?.href
+            return href ? (
+              <Link to={href} className="cursor-pointer [&>text]:hover:fill-foreground [&>text]:hover:underline">
+                {label}
+              </Link>
+            ) : (
+              label
             )
           }}
         />

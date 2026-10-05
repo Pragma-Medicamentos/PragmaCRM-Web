@@ -4,7 +4,9 @@ import type {
   KpiName,
   KpiValuesResponse,
   MetricsRange,
+  ProductMetricsResponse,
   ProductRankingResponse,
+  ProductsNoMovementResponse,
   PurchaseFrequencyResponse,
   SellerDetailResponse,
   SellerPerformanceResponse,
@@ -62,6 +64,27 @@ export function getProductRanking(
   { signal }: RequestOptions = {}
 ): Promise<ProductRankingResponse> {
   return apiRequest<ProductRankingResponse>('/api/v1/metrics/products', { params: { ...range, limit }, signal })
+}
+
+/**
+ * Ficha de un producto en el periodo (PCRM-177). `productId` es el
+ * `erp_product_id`: un entero positivo, nunca un uuid. Un producto que existe
+ * pero no vendió responde 200 con ceros; solo uno inexistente o borrado da 404.
+ */
+export function getProductMetrics(
+  productId: number,
+  range: MetricsRange,
+  { signal }: RequestOptions = {}
+): Promise<ProductMetricsResponse> {
+  return apiRequest<ProductMetricsResponse>(`/api/v1/metrics/products/${productId}`, { params: range, signal })
+}
+
+/** Catálogo activo sin venta en el periodo; los conteos 30/60/90 cuelgan del fin del periodo. */
+export function getProductsNoMovement(
+  range: MetricsRange,
+  { signal }: RequestOptions = {}
+): Promise<ProductsNoMovementResponse> {
+  return apiRequest<ProductsNoMovementResponse>('/api/v1/metrics/products/no-movement', { params: range, signal })
 }
 
 export function getPurchaseFrequency(
