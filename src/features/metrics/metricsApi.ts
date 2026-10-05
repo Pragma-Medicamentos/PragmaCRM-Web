@@ -8,6 +8,7 @@ import type {
   MetricsRoutesResponse,
   ProductRankingResponse,
   PurchaseFrequencyResponse,
+  RouteTicket,
   SellerDetailResponse,
   SellerPerformanceResponse,
   TrendGranularity,
@@ -85,4 +86,13 @@ export function getRouteDetail(
   { signal }: RequestOptions = {}
 ): Promise<MetricsRouteDetailResponse> {
   return apiRequest<MetricsRouteDetailResponse>(`/api/v1/metrics/routes/${routeId}`, { params: range, signal })
+}
+
+/** Consulta aparte del detalle: `average_ticket` no viene en el ranking ni en /metrics/routes/:id. */
+export function getRouteTicket(
+  routeId: string,
+  range: MetricsRange,
+  { signal }: RequestOptions = {}
+): Promise<RouteTicket> {
+  return apiRequest<RouteTicket>(`/api/v1/metrics/routes/${routeId}/ticket`, { params: range, signal })
 }
