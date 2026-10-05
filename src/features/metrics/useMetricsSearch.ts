@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import type { MetricsRange, TrendGranularity } from './metrics.types'
 import { type ComparisonMode, MAX_RANGE_DAYS, defaultMetricsRange, isValidDay, rangeLength } from './metricsDates'
 
-export const METRICS_TABS = ['general', 'equipo', 'cobertura'] as const
+export const METRICS_TABS = ['general', 'equipo', 'rutas', 'cobertura'] as const
 export type MetricsTab = (typeof METRICS_TABS)[number]
 
 /** Por encima de ~3 meses, las barras por semana se vuelven ilegibles. */

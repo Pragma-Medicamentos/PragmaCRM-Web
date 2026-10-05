@@ -51,6 +51,14 @@ export function formatCount(value: number | null | undefined): string {
   return value === null || value === undefined ? EMPTY : countFormatter.format(value)
 }
 
+/** Unidades: string del API con hasta 4 decimales. No se redondea a 3 como un conteo. */
+const unitsFormatter = new Intl.NumberFormat('es-SV', { maximumFractionDigits: 4 })
+
+export function formatUnits(value: string | number | null | undefined): string {
+  const amount = toAmount(value)
+  return amount === null ? EMPTY : unitsFormatter.format(amount)
+}
+
 export function formatCountCompact(value: number): string {
   return compactCountFormatter.format(value)
 }

@@ -4,6 +4,8 @@ import type {
   KpiName,
   KpiValuesResponse,
   MetricsRange,
+  MetricsRouteDetailResponse,
+  MetricsRoutesResponse,
   ProductRankingResponse,
   PurchaseFrequencyResponse,
   SellerDetailResponse,
@@ -69,4 +71,18 @@ export function getPurchaseFrequency(
   { signal }: RequestOptions = {}
 ): Promise<PurchaseFrequencyResponse> {
   return apiRequest<PurchaseFrequencyResponse>('/api/v1/metrics/purchase-frequency', { params: range, signal })
+}
+
+/** Ranking de todas las rutas del periodo; no se acota con `limit`. */
+export function getRouteMetrics(range: MetricsRange, { signal }: RequestOptions = {}): Promise<MetricsRoutesResponse> {
+  return apiRequest<MetricsRoutesResponse>('/api/v1/metrics/routes', { params: range, signal })
+}
+
+/** `routeId` es el `route.id` del API de rutas. Los tops ya vienen recortados a 10. */
+export function getRouteDetail(
+  routeId: string,
+  range: MetricsRange,
+  { signal }: RequestOptions = {}
+): Promise<MetricsRouteDetailResponse> {
+  return apiRequest<MetricsRouteDetailResponse>(`/api/v1/metrics/routes/${routeId}`, { params: range, signal })
 }
