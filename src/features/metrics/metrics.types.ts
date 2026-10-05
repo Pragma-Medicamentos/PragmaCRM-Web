@@ -321,3 +321,19 @@ export interface MetricsRouteDetailResponse extends MetricsContext {
   sales_by_weekday: RouteWeekdaySales[]
   seller_performance: RouteSellerPerformance[]
 }
+
+/**
+ * GET /metrics/routes/:id/ticket — consulta aparte, con su propia llamada:
+ * ni el ranking ni el detalle traen `average_ticket`. Por eso no se mezcla
+ * con RouteMetrics ni con MetricsRouteDetailResponse.
+ */
+export interface RouteTicket {
+  route_id: string
+  period: MetricsRange
+  /** Venta atribuida con IVA del periodo; es el mismo monto que ya muestra el detalle. */
+  amount: Money
+  /** Facturas del periodo: el divisor de `average_ticket`. */
+  invoices: number
+  /** `amount / invoices` calculado por el backend. Null sin facturas; nunca se divide en el cliente. */
+  average_ticket: Money | null
+}

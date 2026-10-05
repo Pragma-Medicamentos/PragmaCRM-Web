@@ -13,11 +13,12 @@ import type {
   RouteProductSales,
   RouteSalesTrend,
   RouteSellerPerformance,
+  RouteTicket,
 } from './metrics.types'
-import { getRouteDetail } from './metricsApi'
+import { getRouteDetail, getRouteTicket } from './metricsApi'
 import { formatRange } from './metricsDates'
 import { formatCount, formatMoney, formatPercent, formatUnits, type MetricDelta } from './metricsFormat'
-import { DeltaBadge, MetricStat } from './MetricStat'
+import { DeltaBadge, MetricStat, MetricStatSkeleton } from './MetricStat'
 import { QueryAlerts } from './QueryAlerts'
 import { routePlace } from './routeMetricsDisplay'
 import { BlockHeading, ChartSlot } from './slots'
@@ -197,6 +198,25 @@ function SellerPerformanceTable({ sellers }: { sellers: RouteSellerPerformance[]
   )
 }
 
+/**
+ * Ticket promedio de la ruta. `average_ticket` lo divide el backend: con cero
+ * facturas manda null y aquí se dice por qué, nunca "$0.00" ni "—". El monto
+ * del periodo no se repite: ya está arriba, en RouteStats.
+ */
+function RouteTicketBlock({ ticket }: { ticket: RouteTicket }) {
+  if (ticket.average_ticket === null) {
+    return <p className="text-sm text-muted-foreground">La ruta no registró facturas en este periodo.</p>
+  }
+
+  return (
+    <MetricStat
+      label="Ticket promedio"
+      value={formatMoney(ticket.average_ticket)}
+      note={`${formatCount(ticket.invoices)} ${ticket.invoices === 1 ? 'factura' : 'facturas'} en el periodo`}
+    />
+  )
+}
+
 function TableSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="flex flex-col gap-2">
@@ -225,13 +245,20 @@ export function RouteDetailSheet({ route, range, onOpenChange }: RouteDetailShee
   const [shown, setShown] = useState(route)
   if (route && route !== shown) setShown(route)
 
-  const detail = useMetricsQuery(
-    shown ? `${shown.route_id}:${range.from}:${range.to}` : null,
-    (signal) => getRouteDetail(shown!.route_id, range, { signal }),
-    { keepPrevious: false }
-  )
+  // Misma llave para las dos consultas: cambian juntas al cambiar de ruta o de periodo.
+  const queryKey = shown ? `${shown.route_id}:${range.from}:${range.to}` : null
+
+  const detail = useMetricsQuery(queryKey, (signal) => getRouteDetail(shown!.route_id, range, { signal }), {
+    keepPrevious: false,
+  })
+
+  // El ticket promedio vive en su propio endpoint: carga y falla aparte del detalle.
+  const ticket = useMetricsQuery(queryKey, (signal) => getRouteTicket(shown!.route_id, range, { signal }), {
+    keepPrevious: false,
+  })
 
   const data = detail.state.status === 'ready' ? detail.state.data : null
+  const ticketData = ticket.state.status === 'ready' ? ticket.state.data : null
   const current = data?.route ?? shown
   const place = current && routePlace(current)
   const loading = detail.state.status === 'loading'
@@ -251,12 +278,29 @@ export function RouteDetailSheet({ route, range, onOpenChange }: RouteDetailShee
 
             <div className="flex flex-col gap-6 px-4 pb-6">
               <QueryAlerts
-                queries={[{ label: 'el detalle de la ruta', endpoint: 'GET /api/v1/metrics/routes/:id', ...detail }]}
+                queries={[
+                  { label: 'el detalle de la ruta', endpoint: 'GET /api/v1/metrics/routes/:id', ...detail },
+                  {
+                    label: 'el ticket promedio de la ruta',
+                    endpoint: 'GET /api/v1/metrics/routes/:id/ticket',
+                    ...ticket,
+                  },
+                ]}
               />
 
               <RouteStats route={current} />
 
               <Separator />
+
+              {(ticketData || ticket.state.status === 'loading') && (
+                <>
+                  <div className="flex flex-col gap-3">
+                    <BlockHeading title="Facturación" aside="Promedio por factura" />
+                    {ticketData ? <RouteTicketBlock ticket={ticketData} /> : <MetricStatSkeleton />}
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               <div className="flex flex-col gap-3">
                 <BlockHeading title="Vendedores de la ruta" />
