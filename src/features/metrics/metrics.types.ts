@@ -205,3 +205,91 @@ export interface PurchaseFrequencyResponse extends MetricsContext {
   insufficient_data: number
   average_days: number | null
 }
+
+/*
+ * Métricas de producto (PCRM-177). Contrato real: PragmaCRM-Api
+ * src/domain/types/productMetrics.types.ts, endpoints 8 y 9 de METRICS_API.md.
+ *
+ * Excepción deliberada a la convención del panel: un producto que no vendió en
+ * el periodo responde 200 con ceros, no con `null` — vendió exactamente cero.
+ * `null` queda para lo que de verdad no existe: `position` (no entró al
+ * ranking), `abc_class` (no hay monto que clasificar) y `trend.change_percent`
+ * (el periodo anterior vendió 0, no hay base para dividir).
+ */
+
+/** Clase de Pareto por monto del periodo; los cortes los decide el backend. */
+export type AbcClass = 'A' | 'B' | 'C'
+
+/** La fila del catálogo, repetida donde se nombra un producto. */
+export interface ProductIdentity {
+  /** erp_product_id, la llave natural del ERP. */
+  product_id: number
+  code: string | null
+  name: string
+  product_group: string | null
+}
+
+/** Un vendedor que movió el producto en el periodo. */
+export interface ProductSeller {
+  user_id: string
+  name: string
+  amount: Money
+  /** Unidades en la unidad base del producto; decimal con hasta 4 decimales. */
+  units: string
+}
+
+export interface ProductTrend {
+  previous_period: MetricsRange
+  previous_amount: Money
+  /** Variación % del monto; null si el periodo anterior no vendió. */
+  change_percent: number | null
+}
+
+/** GET /metrics/products/:id — ficha de un producto en el periodo. */
+export interface ProductMetricsResponse extends MetricsContext {
+  product: ProductIdentity
+  /** Monto vendido en el periodo, IVA incluido. "0.00" sin ventas. */
+  amount: Money
+  units: string
+  /** Puesto en el ranking del periodo; null si no vendió. */
+  position: number | null
+  /** `amount` sobre el total de productos del periodo, en %. 0 sin ventas. */
+  share_percent: number
+  /** Monto de todos los productos con venta: el total del ranking. */
+  period_total_amount: Money
+  /** Ventas confirmadas distintas que lo incluyen. Es su frecuencia. */
+  invoices: number
+  average_ticket: Money
+  customers: number
+  /** Clientes con al menos una venta confirmada en el periodo, a nivel empresa. */
+  portfolio_customers: number
+  penetration_percent: number
+  /** null si el producto no vendió en el periodo. */
+  abc_class: AbcClass | null
+  trend: ProductTrend
+  /** La suma de `sellers[].amount` puede ser menor que `amount`: las líneas sin vendedor no se atribuyen. */
+  sellers: ProductSeller[]
+}
+
+export interface ProductWithoutMovement extends ProductIdentity {
+  /** Última venta confirmada anterior al fin del periodo; null si nunca vendió. */
+  last_sold_at: string | null
+  /** Días entre esa venta y el fin del periodo; null si nunca vendió. */
+  days_since_last_sale: number | null
+}
+
+/** Productos activos sin venta confirmada en los últimos N días que terminan en `to`. */
+export interface ProductMovementCounts {
+  days_30: number
+  days_60: number
+  days_90: number
+}
+
+/** GET /metrics/products/no-movement — catálogo quieto en el periodo. */
+export interface ProductsNoMovementResponse extends MetricsContext {
+  /** Tamaño del catálogo activo contra el que se leen los conteos. */
+  active_products: number
+  products: ProductWithoutMovement[]
+  /** Las tres ventanas cuelgan del fin del periodo, no del largo del rango. */
+  without_movement: ProductMovementCounts
+}

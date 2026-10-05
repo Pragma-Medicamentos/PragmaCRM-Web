@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChartColumn, ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
@@ -23,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table'
+import { productMetricsPath } from '../metrics/productMetricsLinks'
 import { ProductDetailSheet } from './ProductDetailSheet'
 import { useProducts } from './useProducts'
 import type { Product } from './products.types'
@@ -73,7 +75,7 @@ function ProductsTableSkeleton() {
               </TableCell>
             ))}
             <TableCell className="text-right">
-              <Skeleton className="ml-auto h-7 w-16 rounded-lg" />
+              <Skeleton className="ml-auto h-7 w-36 rounded-lg" />
             </TableCell>
           </TableRow>
         ))}
@@ -101,17 +103,25 @@ function ProductsTable({ products, onView }: { products: Product[]; onView: (id:
             <TableCell className="hidden text-muted-foreground md:table-cell">{product.product_group ?? '—'}</TableCell>
             <TableCell className="hidden text-muted-foreground lg:table-cell">{formatDate(product.last_seen_at)}</TableCell>
             <TableCell className="text-right">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onView(product.erp_product_id)
-                }}
-              >
-                Ver
-              </Button>
+              <div className="flex items-center justify-end gap-2">
+                {/* El catálogo no tiene periodo: la ficha de métricas resuelve el suyo por defecto. */}
+                <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                  <Link to={productMetricsPath(product.erp_product_id)}>
+                    <ChartColumn data-icon="inline-start" /> Métricas
+                  </Link>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onView(product.erp_product_id)
+                  }}
+                >
+                  Ver
+                </Button>
+              </div>
             </TableCell>
           </TableRow>
         ))}

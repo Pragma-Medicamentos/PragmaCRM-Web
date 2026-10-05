@@ -1,3 +1,7 @@
+import { Link } from 'react-router-dom'
+import { ChartColumn } from 'lucide-react'
+import { Button } from '../../components/ui/button'
+import { productMetricsPath } from '../metrics/productMetricsLinks'
 import {
   Sheet,
   SheetContent,
@@ -73,6 +77,12 @@ export function ProductDetailSheet({ productId, onOpenChange }: ProductDetailShe
               <DetailRow label="Última vez visto" value={formatDateTime(state.product.last_seen_at)} />
               <DetailRow label="Creado" value={formatDateTime(state.product.created_at)} />
               <DetailRow label="Actualizado" value={formatDateTime(state.product.updated_at)} />
+              {/* Las cifras de venta viven aparte (PCRM-177): este detalle es solo catálogo. */}
+              <Button asChild variant="outline" className="mt-4">
+                <Link to={productMetricsPath(state.product.erp_product_id)}>
+                  <ChartColumn data-icon="inline-start" /> Ver métricas del producto
+                </Link>
+              </Button>
             </>
           )}
         </div>

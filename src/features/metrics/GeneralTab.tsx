@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { PackageX } from 'lucide-react'
+import { Button } from '../../components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Separator } from '../../components/ui/separator'
 import { Skeleton } from '../../components/ui/skeleton'
@@ -13,6 +16,7 @@ import type { KpiValuesResponse, MetricsRange, StopsByType, TrendGranularity, Tr
 import { getKpiValues, getProductRanking, getPurchaseFrequency, getTrends } from './metricsApi'
 import { type ComparisonTarget, formatRange } from './metricsDates'
 import { formatCount, formatDays, formatMoney, formatPercent, toAmount } from './metricsFormat'
+import { noMovementPath, productMetricsPath } from './productMetricsLinks'
 import { QueryAlerts } from './QueryAlerts'
 import { BlockHeading, ChartSlot, KpiSlot, Refreshing, isRefreshing } from './slots'
 import { useMetricsQuery, type MetricsQueryState } from './useMetricsQuery'
@@ -333,7 +337,13 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
                 ? `Productos con más monto vendido · ${formatMoney(productRanking.total_amount)} en el periodo`
                 : 'Productos con más monto vendido en el periodo'}
             </CardDescription>
-            <CardAction>
+            <CardAction className="flex flex-wrap items-center gap-2">
+              {/* Las métricas por producto (PCRM-177) cuelgan de aquí: el ranking no se duplica. */}
+              <Button asChild variant="outline" size="sm">
+                <Link to={noMovementPath(range)}>
+                  <PackageX data-icon="inline-start" /> Productos sin movimiento
+                </Link>
+              </Button>
               <ToggleGroup
                 type="single"
                 variant="outline"
@@ -354,7 +364,10 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
           <CardContent>
             {productRanking ? (
               productRanking.products.length > 0 ? (
-                <ProductsSalesChart products={productRanking.products} />
+                <ProductsSalesChart
+                  products={productRanking.products}
+                  hrefFor={(product) => productMetricsPath(product.product_id, range)}
+                />
               ) : (
                 <p className="py-6 text-sm text-muted-foreground">Ningún producto registró ventas en este periodo.</p>
               )
