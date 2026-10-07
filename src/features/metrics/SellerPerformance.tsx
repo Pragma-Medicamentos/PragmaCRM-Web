@@ -2,7 +2,8 @@ import { Info } from 'lucide-react'
 import { Badge } from '../../components/ui/badge'
 import { Separator } from '../../components/ui/separator'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
+import { type SortColumn, SortableTableHead, useTableSort } from '../../components/SortableTable'
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '../../components/ui/table'
 import { ComparisonLegend } from './charts/ComparisonLegend'
 import { PartToWholeBar } from './charts/PartToWholeBar'
 import { TrendChart } from './charts/TrendChart'
@@ -74,7 +75,16 @@ function SellerStats({ seller }: { seller: SellerPerformance }) {
   )
 }
 
+/** "Nunca" cuenta como la visita más antigua, no como dato faltante. */
+const INACTIVE_COLUMNS = {
+  customer: { value: (c) => c.trade_name ?? c.name },
+  lastVisit: { value: (c) => (c.last_visit_at ? Date.parse(c.last_visit_at) : -Infinity) },
+  daysWithout: { value: (c) => c.days_since_last_visit ?? Infinity, descFirst: true },
+} satisfies Record<string, SortColumn<InactiveCustomer>>
+
 function InactiveCustomersTable({ customers }: { customers: InactiveCustomer[] }) {
+  const { rows, ...sorting } = useTableSort(customers, INACTIVE_COLUMNS)
+
   if (customers.length === 0) {
     return <p className="text-sm text-muted-foreground">Todos los clientes de sus rutas tienen una visita reciente.</p>
   }
@@ -83,13 +93,19 @@ function InactiveCustomersTable({ customers }: { customers: InactiveCustomer[] }
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Cliente</TableHead>
-          <TableHead>Última visita</TableHead>
-          <TableHead className="text-right">Sin visita</TableHead>
+          <SortableTableHead column="customer" sorting={sorting}>
+            Cliente
+          </SortableTableHead>
+          <SortableTableHead column="lastVisit" sorting={sorting}>
+            Última visita
+          </SortableTableHead>
+          <SortableTableHead column="daysWithout" sorting={sorting} align="right">
+            Sin visita
+          </SortableTableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {customers.map((customer) => (
+        {rows.map((customer) => (
           <TableRow key={customer.customer_id}>
             <TableCell className="max-w-56">
               <div className="truncate font-medium">{customer.trade_name ?? customer.name}</div>
