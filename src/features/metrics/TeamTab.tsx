@@ -7,13 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '../../components/ui/empty'
 import { Progress } from '../../components/ui/progress'
 import { Skeleton } from '../../components/ui/skeleton'
+import { type SortColumn, SortableTableHead, useTableSort } from '../../components/SortableTable'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { ComparisonLegend } from './charts/ComparisonLegend'
 import { SellersSalesChart } from './charts/SellersSalesChart'
 import type { MetricsRange, SellerPerformance } from './metrics.types'
 import { getSellerPerformance } from './metricsApi'
 import { type ComparisonTarget, formatRange } from './metricsDates'
-import { formatCount, formatMoney, formatPercent, initials } from './metricsFormat'
+import { formatCount, formatMoney, formatPercent, initials, toAmount } from './metricsFormat'
 import { QueryAlerts } from './QueryAlerts'
 import { SellerDetailSheet } from './SellerDetailSheet'
 import { Refreshing, isRefreshing } from './slots'
@@ -34,25 +35,48 @@ interface SellersTableProps {
   onSelect: (seller: SellerPerformance) => void
 }
 
+const SELLER_COLUMNS = {
+  name: { value: (s) => s.name },
+  stops: { value: (s) => s.stops_executed, descFirst: true },
+  compliance: { value: (s) => s.goal_compliance, descFirst: true },
+  ticket: { value: (s) => toAmount(s.average_ticket), descFirst: true },
+  sales: { value: (s) => toAmount(s.total_sales), descFirst: true },
+  salesPerRoute: { value: (s) => toAmount(s.sales_per_route), descFirst: true },
+} satisfies Record<string, SortColumn<SellerPerformance>>
+
 /** "Desempeño por vendedor" de 1d. Ticket y Venta/ruta se ocultan en tablet (1v). */
 function SellersTable({ sellers, onSelect }: SellersTableProps) {
+  const { rows, ...sorting } = useTableSort(sellers, SELLER_COLUMNS)
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="pl-4">Vendedor</TableHead>
-          <TableHead className="text-right">Paradas</TableHead>
-          <TableHead className="text-right">Cumplim.</TableHead>
-          <TableHead className="hidden text-right lg:table-cell">Ticket prom.</TableHead>
-          <TableHead className="text-right">Venta</TableHead>
-          <TableHead className="hidden text-right lg:table-cell">Venta / ruta</TableHead>
+          <SortableTableHead column="name" sorting={sorting} className="pl-4">
+            Vendedor
+          </SortableTableHead>
+          <SortableTableHead column="stops" sorting={sorting} align="right">
+            Paradas
+          </SortableTableHead>
+          <SortableTableHead column="compliance" sorting={sorting} align="right">
+            Cumplim.
+          </SortableTableHead>
+          <SortableTableHead column="ticket" sorting={sorting} align="right" className="hidden lg:table-cell">
+            Ticket prom.
+          </SortableTableHead>
+          <SortableTableHead column="sales" sorting={sorting} align="right">
+            Venta
+          </SortableTableHead>
+          <SortableTableHead column="salesPerRoute" sorting={sorting} align="right" className="hidden lg:table-cell">
+            Venta / ruta
+          </SortableTableHead>
           <TableHead className="w-12 pr-4">
             <span className="sr-only">Detalle</span>
           </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sellers.map((seller) => (
+        {rows.map((seller) => (
           <TableRow key={seller.user_id} className="cursor-pointer" onClick={() => onSelect(seller)}>
             <TableCell className="pl-4">
               <div className="flex items-center gap-3">
