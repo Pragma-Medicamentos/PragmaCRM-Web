@@ -109,7 +109,7 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 
 `POST /api/v1/sellers` — mismo guard. Body: `{ "name": "...", "email": "..." }`. Responde 201 con el vendedor creado (mismo shape que un elemento del listado). Un correo duplicado responde con un error de envelope legible (409), no un 500.
 
-`PATCH /api/v1/sellers/:id` — body `{ name?, email? }`, al menos uno de los dos (`updateSellerSchema` lo exige con `.refine`). No acepta `active` ni contraseña. Responde 200 con el vendedor actualizado; 404 si el id no existe o ya está soft-deleted, 409 si el correo ya está en uso por otro vendedor.
+`PATCH /api/v1/sellers/:id` — body `{ name?, email? }`, al menos uno de los dos (`updateSellerSchema` lo exige con `.refine`). No acepta `active` ni contraseña. Responde 200 con el vendedor actualizado más `access_email: 'sent' | 'failed' | null`; 404 si el id no existe o ya está soft-deleted, 409 si el correo ya está en uso por otro vendedor. **PCRM-182:** si el vendedor venía del JSON sin correo, asignarle el primero lo habilita (quita el ban) y le envía el código de acceso; `access_email` informa el resultado (`null` en cualquier otra edición). Si el envío falla, el correo queda guardado igual y el listado muestra un aviso con "Reenviar código".
 
 `PATCH /api/v1/sellers/:id/active` — body `{ "active": boolean }`. Además de actualizar `app_user.active`, banea (o desbanea) al usuario en Supabase Auth para matar la sesión viva (`set-seller-status.use-case.ts`) — es la ruta que implementa CA2. El dashboard pide confirmación antes de deshabilitar (no antes de habilitar), porque deshabilitar corta el acceso del vendedor a la app móvil de inmediato.
 
