@@ -1,4 +1,4 @@
-import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line, LineChart, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { cn } from 'cn'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '../../../components/ui/chart'
 import type { TrendGranularity, TrendPoint } from '../metrics.types'
@@ -19,14 +19,14 @@ interface TrendChartProps {
   points: TrendPoint[]
   granularity: TrendGranularity
   metric: TrendMetric
-  kind: 'area' | 'line' | 'bar'
+  kind: 'line' | 'bar'
   /**
    * Énfasis (solo barras): el último balde en verde y con su valor escrito,
    * los anteriores en el gris de contexto. Para "¿cómo va esta semana?".
    */
   emphasizeLast?: boolean
   /**
-   * Otro periodo en gris: línea punteada detrás (área y línea) o barra al
+   * Otro periodo en gris: línea punteada detrás (línea) o barra al
    * lado (barras). Se alinea por posición: el primer balde contra el primero,
    * y así. El eje X sigue siendo el del periodo principal; el tooltip nombra
    * el balde del otro.
@@ -127,21 +127,7 @@ export function TrendChart({
 
   return (
     <ChartContainer config={config} className={cn('aspect-auto h-60 w-full', className)}>
-      {kind === 'area' ? (
-        <ComposedChart data={data} margin={MARGIN} accessibilityLayer>
-          {axes}
-          {comparisonSeries}
-          <Area
-            dataKey="value"
-            type="monotone"
-            stroke="var(--color-value)"
-            strokeWidth={2}
-            fill="var(--color-value)"
-            fillOpacity={0.1}
-            activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--background)' }}
-          />
-        </ComposedChart>
-      ) : kind === 'line' ? (
+      {kind === 'line' ? (
         <LineChart data={data} margin={MARGIN} accessibilityLayer>
           {axes}
           {comparisonSeries}
