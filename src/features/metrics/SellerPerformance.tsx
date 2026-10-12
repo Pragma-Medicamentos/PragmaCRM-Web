@@ -199,7 +199,7 @@ export function SellerPerformanceBody({ seller, range, comparison, detail, other
                 points={data.weekly_trend}
                 granularity="week"
                 metric="stops"
-                kind="bar"
+                kind="line"
                 comparison={
                   comparison && otherData ? { points: otherData.weekly_trend, label: comparison.label } : undefined
                 }

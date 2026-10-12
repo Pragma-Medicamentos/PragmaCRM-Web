@@ -153,7 +153,7 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
                       points={data.points}
                       granularity={data.granularity}
                       metric="total_sales"
-                      kind="area"
+                      kind="line"
                       comparison={trendComparison}
                       className="h-52"
                     />
@@ -245,7 +245,7 @@ export function GeneralTab({ range, granularity, comparison }: GeneralTabProps) 
                       points={data.points}
                       granularity={data.granularity}
                       metric="stops"
-                      kind="bar"
+                      kind="line"
                       comparison={trendComparison}
                       className="h-48"
                     />
