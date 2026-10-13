@@ -62,9 +62,11 @@ interface SalesFileDropzoneProps {
   state: SalesUploadState
   onSelectFile: (file: File) => void
   onClear: () => void
+  /** Import activo en el servidor: no abrir el selector ni aceptar un drop. */
+  locked?: boolean
 }
 
-export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDropzoneProps) {
+export function SalesFileDropzone({ state, onSelectFile, onClear, locked = false }: SalesFileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -72,6 +74,7 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
   const file = state.status === 'idle' ? null : state.file
 
   function handleFiles(files: FileList | null) {
+    if (locked) return
     // Se toma solo el primero: el endpoint rechaza más de un archivo y el
     // mensaje del backend sería menos claro que no ofrecerlo siquiera.
     const next = files?.[0]
@@ -79,6 +82,7 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
   }
 
   function openPicker() {
+    if (locked) return
     inputRef.current?.click()
   }
 
@@ -122,11 +126,16 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
       onDrop={(e) => {
         e.preventDefault()
         setDragging(false)
+        if (locked) return
         handleFiles(e.dataTransfer.files)
       }}
       className={cn(
         'rounded-xl border border-dashed text-center transition-colors',
-        dragging ? 'border-primary bg-primary/5' : 'border-border bg-card'
+        locked
+          ? 'border-border bg-card opacity-70'
+          : dragging
+            ? 'border-primary bg-primary/5'
+            : 'border-border bg-card'
       )}
     >
       <Empty className="py-16">
@@ -134,13 +143,17 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
           <EmptyMedia variant="icon">
             <CloudUpload />
           </EmptyMedia>
-          <EmptyTitle className="text-lg">Arrastra aquí el archivo de ventas</EmptyTitle>
+          <EmptyTitle className="text-lg">
+            {locked ? 'Hay una importación en curso' : 'Arrastra aquí el archivo de ventas'}
+          </EmptyTitle>
           <EmptyDescription>
-            Formato .json exportado de Efactsoft · máximo {MAX_UPLOAD_MB} MB
+            {locked
+              ? 'Espera a que termine antes de subir otro archivo. Cerrar esta pestaña no la cancela.'
+              : `Formato .json exportado de Efactsoft · máximo ${MAX_UPLOAD_MB} MB`}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button type="button" size="lg" onClick={openPicker}>
+          <Button type="button" size="lg" onClick={openPicker} disabled={locked}>
             Seleccionar archivo
           </Button>
         </EmptyContent>
@@ -151,6 +164,7 @@ export function SalesFileDropzone({ state, onSelectFile, onClear }: SalesFileDro
         type="file"
         accept=".json,application/json"
         className="sr-only"
+        disabled={locked}
         onChange={(e) => {
           handleFiles(e.target.files)
           // Permite volver a elegir el mismo archivo después de corregirlo.

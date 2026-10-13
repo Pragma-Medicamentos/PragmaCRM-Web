@@ -21,6 +21,7 @@ import { UploadSummaryCard } from './UploadSummaryCard'
 import { downloadRejectionsCsv } from './rejectionsCsv'
 import { useHasContentBelow } from './useHasContentBelow'
 import { useLastUpload } from './useLastUpload'
+import { useSalesImportInProgress } from './useSalesImportInProgress'
 import { useSalesUpload } from './useSalesUpload'
 
 /**
@@ -57,6 +58,8 @@ export function ImportPage() {
     reset,
   } = useSalesUpload()
 
+  const { inProgress, noteImportInProgress, refresh: refreshImport } = useSalesImportInProgress()
+
   const contentRef = useRef<HTMLDivElement>(null)
   const hasContentBelow = useHasContentBelow(contentRef)
 
@@ -68,6 +71,32 @@ export function ImportPage() {
     if (state.status === 'success') setLastUploadKey((k) => k + 1)
   }, [state.status])
 
+  const failureKind = state.status === 'error' ? state.failure.kind : undefined
+
+  // El 409 de import en curso bloquea el picker al instante. El deadlock y el
+  // éxito solo refrescan el GET: puede haber quedado otro import vivo, o el
+  // nuestro acaba de soltar el lock.
+  useEffect(() => {
+    if (state.status === 'success') {
+      refreshImport()
+      return
+    }
+    if (failureKind === 'import_in_progress') noteImportInProgress()
+    else if (failureKind === 'deadlock') refreshImport()
+  }, [state.status, failureKind, noteImportInProgress, refreshImport])
+
+  // El navegador pone el texto. Alcanza con pedir confirmación mientras el
+  // POST sigue en vuelo: cerrar la pestaña no aborta el import en el servidor.
+  useEffect(() => {
+    if (state.status !== 'uploading') return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [state.status])
+
   // El diálogo sigue montado durante su animación de salida, cuando el estado
   // ya dejó de ser 'confirming'. Si el texto se derivara del estado, se vaciaría
   // a la vista; conservarlo evita ese parpadeo.
@@ -75,10 +104,11 @@ export function ImportPage() {
 
   useEffect(() => {
     if (state.status !== 'confirming') return
+    const what = state.deep
+      ? `Se importarán ${numberFormatter.format(state.salesCount)} ${state.salesCount === 1 ? 'venta' : 'ventas'} del archivo ${state.file.name}. Las ventas que ya existan se actualizarán, no se duplican.`
+      : `Se enviará el archivo ${state.file.name} al servidor para su validación e importación. Las ventas que ya existan se actualizarán, no se duplican.`
     setConfirmMessage(
-      state.deep
-        ? `Se importarán ${numberFormatter.format(state.salesCount)} ${state.salesCount === 1 ? 'venta' : 'ventas'} del archivo ${state.file.name}. Las ventas que ya existan se actualizarán, no se duplican.`
-        : `Se enviará el archivo ${state.file.name} al servidor para su validación e importación. Las ventas que ya existan se actualizarán, no se duplican.`,
+      `${what} Una vez que empiece, cerrar la pestaña no cancela la importación en el servidor.`,
     )
   }, [state])
 
@@ -155,11 +185,25 @@ export function ImportPage() {
 
         <ImportStepper status={state.status} />
 
+        <Alert>
+          <Info />
+          <AlertTitle>Cerrar la pestaña no cancela la importación</AlertTitle>
+          <AlertDescription>
+            La importación corre en el servidor. Si sales de esta pestaña, sigue hasta
+            terminar. Subir otro archivo mientras corre hace que la API lo rechace.
+          </AlertDescription>
+        </Alert>
+
         {summary ? (
           <UploadSummaryCard summary={summary} />
         ) : (
           <>
-            <SalesFileDropzone state={state} onSelectFile={selectFile} onClear={reset} />
+            <SalesFileDropzone
+              state={state}
+              onSelectFile={selectFile}
+              onClear={reset}
+              locked={inProgress}
+            />
 
             {state.status === 'invalid' && (
               <Alert variant="destructive">
@@ -184,7 +228,30 @@ export function ImportPage() {
               </Alert>
             )}
 
-            {state.status === 'error' && (
+            {inProgress && state.status !== 'error' && (
+              <Alert>
+                <Info />
+                <AlertTitle>Hay una importación en curso</AlertTitle>
+                <AlertDescription>
+                  Espera a que termine antes de subir otro archivo. Cerrar esta pestaña no
+                  cancela esa importación.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {state.status === 'error' && state.failure.kind && (
+              <Alert>
+                {state.failure.kind === 'deadlock' ? <TriangleAlert /> : <Info />}
+                <AlertTitle>{state.failure.message}</AlertTitle>
+                {state.failure.detail && (
+                  <AlertDescription>
+                    <span className="font-mono text-xs break-words">{state.failure.detail}</span>
+                  </AlertDescription>
+                )}
+              </Alert>
+            )}
+
+            {state.status === 'error' && !state.failure.kind && (
               <Alert variant="destructive">
                 <TriangleAlert />
                 <AlertTitle>{state.failure.message}</AlertTitle>
@@ -199,12 +266,15 @@ export function ImportPage() {
             {state.status === 'uploading' && (
               <Alert>
                 <Spinner />
-                <AlertTitle>Subiendo y procesando el archivo…</AlertTitle>
+                <AlertTitle>Importando en el servidor…</AlertTitle>
                 <AlertDescription className="flex flex-col gap-2">
                   {/* Indeterminado a propósito: el backend no informa avance,
                       así que una barra con porcentaje sería inventada. */}
                   <Progress value={null} className="mt-1 h-2" />
-                  <span>Puede tardar varios minutos. No cierres esta pestaña.</span>
+                  <span>
+                    Puede tardar varios minutos. Cerrar o salir de esta pestaña no cancela la
+                    importación en el servidor.
+                  </span>
                 </AlertDescription>
               </Alert>
             )}
@@ -261,7 +331,7 @@ export function ImportPage() {
                 </Button>
               ))}
 
-            {(state.status === 'ready' || state.status === 'confirming') && (
+            {(state.status === 'ready' || state.status === 'confirming') && !inProgress && (
               <Button type="button" size="lg" onClick={requestConfirm}>
                 {state.deep
                   ? `Importar ${numberFormatter.format(state.salesCount)} ${state.salesCount === 1 ? 'venta' : 'ventas'} al CRM`

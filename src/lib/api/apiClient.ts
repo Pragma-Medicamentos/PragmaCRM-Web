@@ -6,14 +6,19 @@ export interface ApiEnvelope<T> {
   message: string
   data?: T
   errors?: unknown
+  code?: string
 }
 
 export class ApiError extends Error {
   status: number
+  errors?: unknown
+  code?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, errors?: unknown, code?: string) {
     super(message)
     this.status = status
+    this.errors = errors
+    this.code = code
   }
 }
 
@@ -139,9 +144,18 @@ api.interceptors.response.use(undefined, async (error: unknown) => {
 
   if (sessionRejected) await expireSession()
 
+  const errors =
+    data && typeof data === 'object' ? (data as ApiEnvelope<unknown>).errors : undefined
+  const code =
+    data && typeof data === 'object' && typeof (data as ApiEnvelope<unknown>).code === 'string'
+      ? (data as ApiEnvelope<unknown>).code
+      : undefined
+
   throw new ApiError(
     status,
-    message ?? (status ? `Error ${status} al contactar la API` : 'No se pudo contactar la API')
+    message ?? (status ? `Error ${status} al contactar la API` : 'No se pudo contactar la API'),
+    errors,
+    code
   )
 })
 

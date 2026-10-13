@@ -109,7 +109,7 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 
 `POST /api/v1/sellers` — mismo guard. Body: `{ "name": "...", "email": "..." }`. Responde 201 con el vendedor creado (mismo shape que un elemento del listado). Un correo duplicado responde con un error de envelope legible (409), no un 500.
 
-`PATCH /api/v1/sellers/:id` — body `{ name?, email? }`, al menos uno de los dos (`updateSellerSchema` lo exige con `.refine`). No acepta `active` ni contraseña. Responde 200 con el vendedor actualizado; 404 si el id no existe o ya está soft-deleted, 409 si el correo ya está en uso por otro vendedor.
+`PATCH /api/v1/sellers/:id` — body `{ name?, email? }`, al menos uno de los dos (`updateSellerSchema` lo exige con `.refine`). No acepta `active` ni contraseña. Responde 200 con el vendedor actualizado más `access_email: 'sent' | 'failed' | null`; 404 si el id no existe o ya está soft-deleted, 409 si el correo ya está en uso por otro vendedor. **PCRM-182:** si el vendedor venía del JSON sin correo, asignarle el primero lo habilita (quita el ban) y le envía el código de acceso; `access_email` informa el resultado (`null` en cualquier otra edición). Si el envío falla, el correo queda guardado igual y el listado muestra un aviso con "Reenviar código".
 
 `PATCH /api/v1/sellers/:id/active` — body `{ "active": boolean }`. Además de actualizar `app_user.active`, banea (o desbanea) al usuario en Supabase Auth para matar la sesión viva (`set-seller-status.use-case.ts`) — es la ruta que implementa CA2. El dashboard pide confirmación antes de deshabilitar (no antes de habilitar), porque deshabilitar corta el acceso del vendedor a la app móvil de inmediato.
 
@@ -135,6 +135,10 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/routes/`, `src/services/
 - `DELETE /api/v1/routes/:id/assignments/:day` — vacía el día (soft-delete, sin reemplazo). Devuelve el envelope sin `data` (solo `message`), como `POST /api/v1/auth/otp` — por eso `unassignRouteDay` en `routesApi.ts` usa `apiCall`, no `apiRequest`. **404** si no había nada activo ese día.
 
 No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se arma en el cliente (`useRoutePlanner.ts`) pidiendo todas las rutas activas y las asignaciones de cada una en paralelo.
+
+**Paradas extra (PCRM-158) en el planificador.** Cada día de la semana representa su próxima fecha (hoy incluido): muestra las paradas extra de esa fecha y "+ Parada extra" (solo días con ruta), que abre `AddExtraStopDialog` con esa fecha precargada; otra fecha se elige dentro del diálogo. El vendedor elegido vive en `?vendedor=`. Las extras salen de `GET /api/v1/sellers/:id/daily-route?date=` para cada día con ruta (`useWeekExtraStops.ts`); se quitan con `DELETE .../extra-stops/:stopId`. Ya no existe la pantalla `/vendedores/:id/ruta`.
+
+**Entrada a las paradas de una ruta.** Clic (o Enter) en la tarjeta de "Rutas guardadas", o en el chip de la ruta dentro de un día, abre `/rutas/:id/paradas`. Arrastrar (o Espacio con teclado) sigue asignando. El planificador pasa su URL en `location.state.from` y `RouteStopsPage` vuelve ahí, con el mismo vendedor.
 
 ## Cosas a tener presentes durante la integración
 

@@ -1,5 +1,5 @@
 import { apiRequest } from '../../lib/api/apiClient'
-import type { LastUpload, SalesUploadSummary } from './uploads.types'
+import type { LastUpload, SalesImportInProgress, SalesUploadSummary } from './uploads.types'
 
 /**
  * POST /api/v1/uploads/sales — requireAuth + requireRole(ADMIN).
@@ -29,4 +29,13 @@ export function uploadSalesFile(file: File, signal?: AbortSignal): Promise<Sales
  */
 export function fetchLastUpload(): Promise<LastUpload> {
   return apiRequest<LastUpload>('/api/v1/uploads/sales/last')
+}
+
+/**
+ * GET /api/v1/uploads/sales/in-progress — requireAuth + requireRole(ADMIN).
+ * Dice si el servidor todavía tiene un import activo (advisory lock o
+ * upload staged/processing), aunque esta pestaña se haya cerrado.
+ */
+export function fetchSalesImportInProgress(): Promise<SalesImportInProgress> {
+  return apiRequest<SalesImportInProgress>('/api/v1/uploads/sales/in-progress')
 }

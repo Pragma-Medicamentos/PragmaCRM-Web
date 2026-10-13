@@ -3,6 +3,17 @@ import { MAX_UPLOAD_MB } from './validateSalesFile'
 import type { UploadFailure } from './uploads.types'
 
 /**
+ * PCRM-169. El envelope de error es solo `{ success: false, message }` más el
+ * status: no hay `code`. Estas cadenas son el texto LITERAL de la API.
+ * `Duplicate record.` (P2002) sigue en BY_MESSAGE y no se mezcla con estas.
+ */
+const IMPORT_IN_PROGRESS_MESSAGE =
+  'An import is already in progress. Wait until it finishes before uploading again.'
+
+const IMPORT_DEADLOCK_MESSAGE =
+  'A database deadlock occurred during import. Wait until any running import finishes, then retry.'
+
+/**
  * Traducción de los errores de POST /api/v1/uploads/sales.
  *
  * El endpoint responde en inglés por convención del backend; los middlewares
@@ -50,9 +61,13 @@ const BY_MESSAGE: Record<string, string> = {
   'Duplicate record.':
     'Ya hay una carga de este archivo en proceso. Espera unos segundos y vuelve a intentarlo.',
 
-  // --- 500 ---
+  // --- 504: Prisma P2028 (transaction timeout) from Api handleError ---
+  'The import timed out while writing sales. Try a smaller file, or contact support if a single month fails.':
+    'La importación agotó el tiempo al guardar las ventas. Si un solo mes falla, avisá al equipo técnico; si el archivo es muy grande, probá un rango más chico.',
+
+  // --- 500: generic (no tip de meses: ese copy era engañoso ante timeouts P2028) ---
   'Internal server error':
-    'Error interno del servidor al procesar el archivo. Si el archivo cubre muchos meses, prueba a dividirlo por rangos de fecha; si no, avisa al equipo técnico.',
+    'Error interno del servidor al procesar el archivo. Avisa al equipo técnico.',
 
   // --- Mensajes que la API ya envía en español (requireAuth / requireRole).
   // Se listan como entradas identidad en vez de detectarlos por heurística:
@@ -98,6 +113,27 @@ export function toUploadFailure(err: unknown): UploadFailure {
       message: 'Ocurrió un error inesperado al importar el archivo.',
       detail: err instanceof Error ? err.message : undefined,
       retryable: true,
+    }
+  }
+
+  // Antes de BY_MESSAGE: un 409 genérico es reintentable, y estos dos no.
+  if (err.message === IMPORT_IN_PROGRESS_MESSAGE) {
+    return {
+      message:
+        'Ya hay una importación en curso en el servidor. Espera a que termine antes de subir otro archivo. Cerrar esta pestaña no cancela esa importación.',
+      detail: err.message,
+      retryable: false,
+      kind: 'import_in_progress',
+    }
+  }
+
+  if (err.message === IMPORT_DEADLOCK_MESSAGE) {
+    return {
+      message:
+        'Hubo un conflicto al guardar la importación. Espera a que termine cualquier importación en curso y después reintenta. No lo reintentes de inmediato.',
+      detail: err.message,
+      retryable: false,
+      kind: 'deadlock',
     }
   }
 

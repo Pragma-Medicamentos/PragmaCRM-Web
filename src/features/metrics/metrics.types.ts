@@ -174,6 +174,24 @@ export interface CoverageResponse extends MetricsContext {
   customers: CoverageCustomer[]
 }
 
+/** Una fila de GET /metrics/products; `position` es 1-based por monto desc. */
+export interface ProductRankingRow {
+  position: number
+  /** erp_product_id. */
+  product_id: number
+  code: string | null
+  name: string
+  amount: Money
+  /** Decimal con hasta 4 decimales ("120.0000"). */
+  units: string
+}
+
+/** GET /metrics/products — top N por monto; `total_amount` es del periodo completo. */
+export interface ProductRankingResponse extends MetricsContext {
+  products: ProductRankingRow[]
+  total_amount: Money
+}
+
 export interface PurchaseFrequencyBucket {
   label: string
   min_days: number

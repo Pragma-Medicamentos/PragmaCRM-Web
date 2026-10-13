@@ -38,14 +38,21 @@ function formatDate(value: string | null): string {
   return Number.isNaN(date.getTime()) ? '—' : dateFormatter.format(date)
 }
 
-const COLUMNS = ['Código', 'Nombre', 'Grupo', 'Última vez visto'] as const
+const COLUMNS = [
+  { label: 'Código', className: 'hidden sm:table-cell' },
+  { label: 'Nombre', className: '' },
+  { label: 'Grupo', className: 'hidden md:table-cell' },
+  { label: 'Última vez visto', className: 'hidden lg:table-cell' },
+] as const
 
 function ProductsTableHead() {
   return (
     <TableHeader className="bg-muted/40">
       <TableRow>
         {COLUMNS.map((column) => (
-          <TableHead key={column}>{column}</TableHead>
+          <TableHead key={column.label} className={column.className}>
+          {column.label}
+        </TableHead>
         ))}
         <TableHead className="text-right">Acciones</TableHead>
       </TableRow>
@@ -61,7 +68,7 @@ function ProductsTableSkeleton() {
         {Array.from({ length: 6 }, (_, row) => (
           <TableRow key={row}>
             {COLUMNS.map((column) => (
-              <TableCell key={column}>
+              <TableCell key={column.label} className={column.className}>
                 <Skeleton className="h-4 w-24" />
               </TableCell>
             ))}
@@ -86,10 +93,13 @@ function ProductsTable({ products, onView }: { products: Product[]; onView: (id:
             className="cursor-pointer"
             onClick={() => onView(product.erp_product_id)}
           >
-            <TableCell className="text-muted-foreground">{product.code ?? '—'}</TableCell>
-            <TableCell className="font-medium text-foreground">{product.name}</TableCell>
-            <TableCell className="text-muted-foreground">{product.product_group ?? '—'}</TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(product.last_seen_at)}</TableCell>
+            <TableCell className="hidden text-muted-foreground sm:table-cell">{product.code ?? '—'}</TableCell>
+            <TableCell className="max-w-56 sm:max-w-80">
+              <div className="truncate font-medium text-foreground">{product.name}</div>
+              {product.code && <div className="truncate text-xs text-muted-foreground sm:hidden">{product.code}</div>}
+            </TableCell>
+            <TableCell className="hidden text-muted-foreground md:table-cell">{product.product_group ?? '—'}</TableCell>
+            <TableCell className="hidden text-muted-foreground lg:table-cell">{formatDate(product.last_seen_at)}</TableCell>
             <TableCell className="text-right">
               <Button
                 type="button"
@@ -186,7 +196,7 @@ export function ProductsPage() {
           </CardContent>
 
           {state.status === 'ready' && state.total > 0 && (
-            <div className="flex items-center justify-between gap-4 border-t px-6 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-3 sm:px-6">
               <span className="text-sm text-muted-foreground">
                 Página {state.page} de {state.totalPages} · {state.total} productos
               </span>

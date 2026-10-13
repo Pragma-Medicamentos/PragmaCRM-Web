@@ -59,15 +59,18 @@ const CATEGORY_BADGE_VARIANT: Record<CustomerCategory, 'default' | 'secondary' |
   uncategorized: 'outline',
 }
 
+// Columnas prioritarias siempre visibles (Cliente, Categoría, Acciones); el
+// resto aparece al ganar ancho. Debajo de lg el sidebar es un Sheet, así que
+// los saltos no siguen 1:1 al viewport (≥lg el sidebar vuelve a ocupar ancho).
 const COLUMNS = [
-  'Cliente',
-  'Zona',
-  'Categoría',
-  'Compras (neto)',
-  'Conversión',
-  'Días prom. pago',
-  'Saldo',
-  'GPS',
+  { label: 'Cliente', className: '' },
+  { label: 'Zona', className: 'hidden md:table-cell' },
+  { label: 'Categoría', className: '' },
+  { label: 'Compras (neto)', className: 'hidden sm:table-cell' },
+  { label: 'Conversión', className: 'hidden xl:table-cell' },
+  { label: 'Días prom. pago', className: 'hidden 2xl:table-cell' },
+  { label: 'Saldo', className: 'hidden md:table-cell' },
+  { label: 'GPS', className: 'hidden md:table-cell' },
 ] as const
 
 function categoryLabel(category: CustomerCategory): string {
@@ -79,7 +82,9 @@ function CustomersTableHead() {
     <TableHeader className="bg-muted/40">
       <TableRow>
         {COLUMNS.map((column) => (
-          <TableHead key={column}>{column}</TableHead>
+          <TableHead key={column.label} className={column.className}>
+            {column.label}
+          </TableHead>
         ))}
         <TableHead className="text-right">Acciones</TableHead>
       </TableRow>
@@ -95,7 +100,7 @@ function CustomersTableSkeleton() {
         {Array.from({ length: 6 }, (_, row) => (
           <TableRow key={row}>
             {COLUMNS.map((column) => (
-              <TableCell key={column}>
+              <TableCell key={column.label} className={column.className}>
                 <Skeleton className="h-4 w-20" />
               </TableCell>
             ))}
@@ -116,26 +121,31 @@ function CustomersTable({ customers }: { customers: Customer[] }) {
       <TableBody>
         {customers.map((customer) => (
           <TableRow key={customer.id} className={cn(!customer.active && 'opacity-55')}>
-            <TableCell>
-              <div className="font-medium text-foreground">{customer.name}</div>
-              {customer.trade_name && <div className="text-xs text-muted-foreground">{customer.trade_name}</div>}
+            <TableCell className="max-w-48 sm:max-w-64">
+              <div className="truncate font-medium text-foreground">{customer.name}</div>
+              {customer.trade_name && <div className="truncate text-xs text-muted-foreground">{customer.trade_name}</div>}
+              {customer.zone && <div className="truncate text-xs text-muted-foreground md:hidden">{customer.zone}</div>}
             </TableCell>
-            <TableCell className="text-muted-foreground">{customer.zone ?? '—'}</TableCell>
+            <TableCell className="hidden text-muted-foreground md:table-cell">{customer.zone ?? '—'}</TableCell>
             <TableCell>
               <Badge variant={CATEGORY_BADGE_VARIANT[customer.category]}>{categoryLabel(customer.category)}</Badge>
             </TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(customer.net_purchases)}</TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">
+            <TableCell className="hidden tabular-nums text-muted-foreground sm:table-cell">
+              {formatCurrency(customer.net_purchases)}
+            </TableCell>
+            <TableCell className="hidden tabular-nums text-muted-foreground xl:table-cell">
               {Math.round(customer.conversion_rate * 100)}%
               <div className="text-xs">
                 {customer.orders_count}/{customer.visits_count}
               </div>
             </TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">
+            <TableCell className="hidden tabular-nums text-muted-foreground 2xl:table-cell">
               {customer.avg_payment_days != null ? `${customer.avg_payment_days} d` : '—'}
             </TableCell>
-            <TableCell className="tabular-nums text-muted-foreground">{formatCurrency(customer.pending_balance)}</TableCell>
-            <TableCell>
+            <TableCell className="hidden tabular-nums text-muted-foreground md:table-cell">
+              {formatCurrency(customer.pending_balance)}
+            </TableCell>
+            <TableCell className="hidden md:table-cell">
               {customer.has_gps ? (
                 <MapPin className="size-4 text-primary" aria-label="Con ubicación GPS" />
               ) : (

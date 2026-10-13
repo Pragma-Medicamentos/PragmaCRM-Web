@@ -5,7 +5,8 @@ import { Badge } from '../../components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../../components/ui/input-group'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
+import { type SortColumn, SortableTableHead, useTableSort } from '../../components/SortableTable'
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '../../components/ui/table'
 import { PartToWholeBar } from './charts/PartToWholeBar'
 import { CoverageMap } from './CoverageMap'
 import type { CoverageCustomer, CoverageResponse, MetricsRange } from './metrics.types'
@@ -88,6 +89,14 @@ function daysSince(iso: string | null): number | null {
   return Number.isNaN(date.getTime()) ? null : differenceInCalendarDays(parseDay(todayInSv()), date)
 }
 
+/** "Nunca" cuenta como la visita más antigua, no como dato faltante. */
+const PENDING_COLUMNS = {
+  customer: { value: (c) => c.trade_name ?? c.name },
+  legalName: { value: (c) => (c.trade_name ? c.name : null) },
+  lastVisit: { value: (c) => (c.last_visit_at ? Date.parse(c.last_visit_at) : -Infinity) },
+  daysWithout: { value: (c) => daysSince(c.last_visit_at) ?? Infinity, descFirst: true },
+} satisfies Record<string, SortColumn<CoverageCustomer>>
+
 /**
  * Listado completo con scroll propio y encabezado fijo: la Card no crece con
  * la cartera. El contenedor de la Table de shadcn trae `overflow-x-auto`, que
@@ -95,6 +104,8 @@ function daysSince(iso: string | null): number | null {
  * ambos ejes) lo lleva el contenedor externo.
  */
 function PendingCustomersTable({ customers }: { customers: CoverageCustomer[] }) {
+  const { rows, ...sorting } = useTableSort(customers, PENDING_COLUMNS)
+
   if (customers.length === 0) {
     return <p className="px-4 py-6 text-sm text-muted-foreground">Ningún cliente coincide con la búsqueda.</p>
   }
@@ -104,14 +115,22 @@ function PendingCustomersTable({ customers }: { customers: CoverageCustomer[] })
       <Table>
         <TableHeader className="sticky top-0 z-10 bg-card">
           <TableRow>
-            <TableHead className="pl-4">Cliente</TableHead>
-            <TableHead className="hidden md:table-cell">Razón social</TableHead>
-            <TableHead className="hidden sm:table-cell">Última visita</TableHead>
-            <TableHead className="pr-4 text-right">Sin visita</TableHead>
+            <SortableTableHead column="customer" sorting={sorting} className="pl-4">
+              Cliente
+            </SortableTableHead>
+            <SortableTableHead column="legalName" sorting={sorting} className="hidden md:table-cell">
+              Razón social
+            </SortableTableHead>
+            <SortableTableHead column="lastVisit" sorting={sorting} className="hidden sm:table-cell">
+              Última visita
+            </SortableTableHead>
+            <SortableTableHead column="daysWithout" sorting={sorting} align="right" className="pr-4">
+              Sin visita
+            </SortableTableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {customers.map((customer) => {
+          {rows.map((customer) => {
             const days = daysSince(customer.last_visit_at)
             return (
               <TableRow key={customer.customer_id}>
