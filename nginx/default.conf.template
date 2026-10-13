@@ -2,7 +2,7 @@
 # Solo se sustituyen las variables con prefijo CSP_ (NGINX_ENVSUBST_FILTER en
 # el Dockerfile); $uri y demas variables de nginx quedan intactas.
 #
-# TLS lo termina Traefik de Dokploy por delante: aca solo hay HTTP en el 80.
+# TLS lo termina el proxy de Fly.io por delante: aca solo hay HTTP en el 80.
 
 # Cache-Control resuelto por un map para poder declararlo junto al resto de
 # headers: un `add_header` dentro de un location descarta los heredados del
@@ -30,8 +30,9 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "geolocation=(), camera=(), microphone=()" always;
 
-    # HSTS no va aca: lo pone Traefik, que es quien ve el HTTPS.
-    #
+    # El proxy de Fly no agrega HSTS; force_https en fly.toml garantiza que el navegador llega por HTTPS.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
     # style-src necesita 'unsafe-inline' porque Radix, Leaflet y Sonner
     # escriben atributos style en el DOM. script-src no lo necesita para Vite
     # (no emite scripts inline), pero si para el loader de Google Maps JS +
