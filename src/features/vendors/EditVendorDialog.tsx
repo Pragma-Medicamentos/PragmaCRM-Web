@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ApiError } from '../../lib/api/apiClient'
 import { updateVendor } from './vendorsApi'
-import type { Vendor } from './vendors.types'
+import type { UpdatedVendor, Vendor } from './vendors.types'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Field, FieldError, FieldLabel } from '../../components/ui/field'
@@ -32,7 +32,7 @@ function validate(name: string, email: string): FormErrors {
 interface EditVendorDialogProps {
   vendor: Vendor
   onClose: () => void
-  onUpdated: (vendor: Vendor) => void
+  onUpdated: (vendor: UpdatedVendor) => void
 }
 
 /**
@@ -74,7 +74,11 @@ export function EditVendorDialog({ vendor, onClose, onUpdated }: EditVendorDialo
         <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
             <DialogTitle>Editar vendedor</DialogTitle>
-            <DialogDescription>Actualiza el nombre o el correo del vendedor.</DialogDescription>
+            <DialogDescription>
+              {vendor.email
+                ? 'Actualiza el nombre o el correo del vendedor.'
+                : 'Este vendedor se creó desde la importación y aún no tiene correo. Al guardarlo, quedará habilitado y recibirá un código para entrar a la app móvil.'}
+            </DialogDescription>
           </DialogHeader>
 
           {submitError && (

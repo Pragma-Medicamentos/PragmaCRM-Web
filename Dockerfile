@@ -1,5 +1,5 @@
 # Imagen del dashboard: node compila, nginx sirve el estatico.
-# Dokploy construye esto desde git. Ver README seccion "Despliegue".
+# Fly.io construye esto con `fly deploy`. Ver README seccion "Despliegue".
 
 FROM node:22-alpine AS build
 WORKDIR /app

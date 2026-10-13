@@ -46,7 +46,7 @@ import { useVendors } from './useVendors'
 import { CreateVendorDialog } from './CreateVendorDialog'
 import { EditVendorDialog } from './EditVendorDialog'
 import { resendVendorOtp, setVendorActive } from './vendorsApi'
-import type { Vendor } from './vendors.types'
+import type { UpdatedVendor, Vendor } from './vendors.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium' })
 
@@ -247,6 +247,20 @@ export function VendorsPage() {
     })
   }
 
+  // PCRM-182: el correo ya quedó guardado aunque el envío falle, así que el
+  // error no bloquea el modal; se avisa aquí con la opción de reenviar.
+  function notifyAccessEmail(updated: UpdatedVendor) {
+    if (updated.access_email === 'sent') {
+      toast.success(`${updated.name}: habilitado. Se envió el código de acceso a ${updated.email}.`)
+    } else if (updated.access_email === 'failed') {
+      toast.error(`No se pudo enviar el correo de acceso a ${updated.email ?? updated.name}.`, {
+        description: 'El correo quedó guardado. Puedes reenviar el código.',
+        duration: Infinity,
+        action: { label: 'Reenviar código', onClick: () => void handleResendOtp(updated) },
+      })
+    }
+  }
+
   return (
     <AppShell>
       <PageHeader
@@ -372,8 +386,9 @@ export function VendorsPage() {
         <EditVendorDialog
           vendor={editing}
           onClose={() => setEditing(null)}
-          onUpdated={() => {
+          onUpdated={(updated) => {
             setEditing(null)
+            notifyAccessEmail(updated)
             reload()
           }}
         />
