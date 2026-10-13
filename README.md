@@ -81,6 +81,8 @@ HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissio
 afinada a Supabase, la API, Google Fonts y los tiles de OpenStreetMap. Los dos orígenes variables de
 la CSP (`connect-src`) salen de `VITE_SUPABASE_URL` y `VITE_API_URL` vía `envsubst` al arrancar el
 contenedor.
+La CSP no permite scripts inline: el que aplica el tema oscuro antes del bundle vive en
+`public/theme-init.js` y se carga desde `index.html`.
 
 Probar la imagen en local antes de deployar:
 
