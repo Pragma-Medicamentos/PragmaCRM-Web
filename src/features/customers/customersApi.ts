@@ -9,7 +9,7 @@ import type {
 } from './customers.types'
 
 // GET /api/v1/customers — data: Paginated<Customer>. search: min 1, max 120 chars. limit: max 100.
-export function listCustomers(params?: { search?: string; limit?: number }): Promise<Paginated<Customer>> {
+export function listCustomers(params?: { search?: string; page?: number; limit?: number }): Promise<Paginated<Customer>> {
   return apiRequest<Paginated<Customer>>('/api/v1/customers', { params })
 }
 

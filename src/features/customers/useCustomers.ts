@@ -9,10 +9,28 @@ export type CustomersState =
   | { status: 'error'; message: string }
   | { status: 'ready'; customers: Customer[] }
 
+/** El máximo que acepta `limit` en GET /api/v1/customers. */
+const PAGE_SIZE = 100
+
 /**
- * Carga el listado de clientes (GET /api/v1/customers). Mientras el endpoint
- * no exista en PragmaCRM-Api, la llamada cae en el 404 genérico del backend
- * y el estado queda en 'pending-backend' (ver isRouteNotImplemented).
+ * Toda la cartera, página por página: el API pagina siempre (20 por defecto)
+ * y estas vistas filtran y buscan en el cliente. Son cientos de clientes
+ * (CLAUDE.md 7.9), así que son pocas peticiones.
+ */
+async function listAllCustomers(): Promise<Customer[]> {
+  const first = await listCustomers({ page: 1, limit: PAGE_SIZE })
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(first.total_pages - 1, 0) }, (_, i) =>
+      listCustomers({ page: i + 2, limit: PAGE_SIZE })
+    )
+  )
+  return [first, ...rest].flatMap((page) => page.items)
+}
+
+/**
+ * Carga el listado completo de clientes (GET /api/v1/customers). Mientras el
+ * endpoint no exista en PragmaCRM-Api, la llamada cae en el 404 genérico del
+ * backend y el estado queda en 'pending-backend' (ver isRouteNotImplemented).
  */
 export function useCustomers(): { state: CustomersState; reload: () => void } {
   const [state, setState] = useState<CustomersState>({ status: 'loading' })
@@ -22,9 +40,9 @@ export function useCustomers(): { state: CustomersState; reload: () => void } {
     let cancelled = false
     setState({ status: 'loading' })
 
-    listCustomers()
-      .then((page) => {
-        if (!cancelled) setState({ status: 'ready', customers: page.items })
+    listAllCustomers()
+      .then((customers) => {
+        if (!cancelled) setState({ status: 'ready', customers })
       })
       .catch((err: unknown) => {
         if (cancelled) return
