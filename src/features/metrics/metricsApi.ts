@@ -4,7 +4,12 @@ import type {
   KpiName,
   KpiValuesResponse,
   MetricsRange,
+  MetricsRouteDetailResponse,
+  MetricsRoutesResponse,
+  ProductCustomersResponse,
+  ProductMetricsResponse,
   ProductRankingResponse,
+  ProductsNoMovementResponse,
   PurchaseFrequencyResponse,
   SellerDetailResponse,
   SellerPerformanceResponse,
@@ -64,9 +69,58 @@ export function getProductRanking(
   return apiRequest<ProductRankingResponse>('/api/v1/metrics/products', { params: { ...range, limit }, signal })
 }
 
+/**
+ * Ficha de un producto en el periodo (PCRM-177). `productId` es el
+ * `erp_product_id`: un entero positivo, nunca un uuid. Un producto que existe
+ * pero no vendió responde 200 con ceros; solo uno inexistente o borrado da 404.
+ */
+export function getProductMetrics(
+  productId: number,
+  range: MetricsRange,
+  { signal }: RequestOptions = {}
+): Promise<ProductMetricsResponse> {
+  return apiRequest<ProductMetricsResponse>(`/api/v1/metrics/products/${productId}`, { params: range, signal })
+}
+
+/** Compradores del producto en el periodo, del que más compró al que menos. */
+export function getProductCustomers(
+  productId: number,
+  range: MetricsRange,
+  page: number,
+  limit: number,
+  { signal }: RequestOptions = {}
+): Promise<ProductCustomersResponse> {
+  return apiRequest<ProductCustomersResponse>(`/api/v1/metrics/products/${productId}/customers`, {
+    params: { ...range, page, limit },
+    signal,
+  })
+}
+
+/** Catálogo activo sin venta en el periodo; los conteos 30/60/90 cuelgan del fin del periodo. */
+export function getProductsNoMovement(
+  range: MetricsRange,
+  { signal }: RequestOptions = {}
+): Promise<ProductsNoMovementResponse> {
+  return apiRequest<ProductsNoMovementResponse>('/api/v1/metrics/products/no-movement', { params: range, signal })
+}
+
 export function getPurchaseFrequency(
   range: MetricsRange,
   { signal }: RequestOptions = {}
 ): Promise<PurchaseFrequencyResponse> {
   return apiRequest<PurchaseFrequencyResponse>('/api/v1/metrics/purchase-frequency', { params: range, signal })
+}
+
+/** Ranking de todas las rutas del periodo; no se acota con `limit`. */
+export function getRouteMetrics(range: MetricsRange, { signal }: RequestOptions = {}): Promise<MetricsRoutesResponse> {
+  return apiRequest<MetricsRoutesResponse>('/api/v1/metrics/routes', { params: range, signal })
+}
+
+/** `routeId` es el `route.id` del API de rutas. Los tops ya vienen recortados a 10. */
+export function getRouteDetail(
+  routeId: string,
+  range: MetricsRange,
+  { signal }: RequestOptions = {}
+): Promise<MetricsRouteDetailResponse> {
+  return apiRequest<MetricsRouteDetailResponse>(`/api/v1/metrics/routes/${routeId}`, { params: range, signal })
 }

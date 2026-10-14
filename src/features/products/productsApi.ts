@@ -6,7 +6,3 @@ export function listProducts(params: ListProductsParams = {}): Promise<Paginated
   return apiRequest<Paginated<Product>>('/api/v1/products', { params })
 }
 
-// GET /api/v1/products/:id — data: Product.
-export function getProduct(id: number): Promise<Product> {
-  return apiRequest<Product>(`/api/v1/products/${id}`)
-}
