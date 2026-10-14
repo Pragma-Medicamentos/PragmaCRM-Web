@@ -27,3 +27,13 @@ export interface UpdateVendorInput {
   name?: string
   email?: string
 }
+
+// Respuesta del PATCH (PCRM-182). Al asignar el primer correo a un vendedor
+// importado del JSON, la API lo habilita y le envía el código de acceso:
+// `access_email` dice si salió ('sent') o no ('failed'); null cuando la
+// edición no era ese caso. El correo queda guardado aunque el envío falle.
+export type AccessEmailStatus = 'sent' | 'failed' | null
+
+export interface UpdatedVendor extends Vendor {
+  access_email: AccessEmailStatus
+}

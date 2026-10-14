@@ -47,47 +47,42 @@ npm run dev
 2. El usuario de prueba de Supabase Auth enlazado a `app_user.auth_user_id`. Sin esto, la API responde 403 aunque el login sea correcto.
 3. El usuario de prueba con contraseña fijada en Supabase Auth (fijarla desde el dashboard de Supabase si hace falta).
 
-## Despliegue (Dokploy + nginx)
+## Despliegue (Fly.io + nginx)
 
-El repo trae `Dockerfile` y `nginx/default.conf.template`: build multi-stage donde Node compila y
-nginx sirve el estático. En Dokploy se crea una **Application** conectada a este repo con:
+El repo trae `Dockerfile`, `nginx/default.conf.template` y `fly.toml`: build multi-stage donde Node
+compila y nginx sirve el estático. La app de Fly es `pragmacrm-web` (región `ord`, una máquina de
+256 MB con auto-stop); TLS lo termina el proxy de Fly y nginx escucha HTTP en el `80`.
 
-| Ajuste | Valor |
-|---|---|
-| Build Type | `Dockerfile` |
-| Dockerfile Path | `Dockerfile` |
-| Port | `80` (TLS lo termina Traefik por delante) |
+Las `VITE_*` **se hornean en el bundle al compilar**, así que llegan como build args, no como
+secretos de Fly. Las no sensibles (`VITE_SUPABASE_URL`, `VITE_API_URL`,
+`VITE_UPLOAD_MAX_FILE_SIZE_MB`) están en `[build.args]` de `fly.toml`. Las otras tres se pasan al
+deployar, desde un checkout limpio de `prod`:
 
-**No usar Nixpacks.** Nixpacks arma su propia imagen a partir del repo: ignora el `Dockerfile` y
-`nginx/`, con lo que se pierden el fallback SPA, la CSP y los headers. El deploy sigue siendo desde
-git igual que con Nixpacks — lo único que cambia es el Build Type.
-
-Variables a cargar en el panel (las cuatro primeras son obligatorias):
-
-```
-VITE_SUPABASE_URL=https://<proyecto>.supabase.co
-VITE_SUPABASE_ANON_KEY=...
-VITE_API_URL=https://api.<dominio>
-VITE_API_KEY=...                     # igual al API_KEY del .env de PragmaCRM-Api
-VITE_UPLOAD_MAX_FILE_SIZE_MB=100     # opcional, default 100
-VITE_GOOGLE_MAPS_API_KEY=...         # opcional: sin ella, el mapa de ubicación de cliente no se muestra
+```bash
+~/.fly/bin/flyctl deploy --ha=false --remote-only \
+  --build-arg VITE_SUPABASE_ANON_KEY=... \
+  --build-arg VITE_API_KEY=... \
+  --build-arg VITE_GOOGLE_MAPS_API_KEY=...
 ```
 
-**Estas variables se hornean en el bundle al compilar**, así que Dokploy tiene que propagarlas como
-build args. Si la versión instalada no pasa las env vars al build, hay que repetirlas en la sección
-*Build Args* de la aplicación. El `Dockerfile` corta el build con un mensaje explícito si alguna
-falta — es a propósito: sin ese chequeo saldría una imagen apuntando a `localhost:3000` que solo se
-descubre abriendo el sitio. Cambiar cualquiera de estos valores exige redeploy, no basta reiniciar.
+- `VITE_SUPABASE_ANON_KEY`: la anon key del proyecto Supabase de Producción. Nunca la `service_role`.
+- `VITE_API_KEY`: igual al `API_KEY` de la app `pragmacrm-api` en Fly.
+- `VITE_GOOGLE_MAPS_API_KEY`: opcional; sin ella el mapa de ubicación de cliente no se muestra. La
+  key tiene que permitir el dominio del dashboard en sus restricciones de HTTP referrer.
+
+El `Dockerfile` corta el build con un mensaje explícito si falta alguna obligatoria — es a propósito:
+sin ese chequeo saldría una imagen apuntando a `localhost:3000` que solo se descubre abriendo el
+sitio. Cambiar cualquiera de estos valores exige redeploy, no basta reiniciar.
 
 Lo que hace la config de nginx: fallback SPA (`try_files … /index.html`, sin esto un refresh en
 `/vendedores` da 404 porque el router es `BrowserRouter`), gzip, cache de un año para `/assets/*`
 (los nombres ya vienen con hash) con `no-cache` para `index.html`, y headers de seguridad —
-`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y una CSP
+HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y una CSP
 afinada a Supabase, la API, Google Fonts y los tiles de OpenStreetMap. Los dos orígenes variables de
 la CSP (`connect-src`) salen de `VITE_SUPABASE_URL` y `VITE_API_URL` vía `envsubst` al arrancar el
-contenedor. HSTS no se define acá: lo pone Traefik, que es quien ve el HTTPS.
+contenedor.
 
-Probar la imagen en local antes de tocar el VPS:
+Probar la imagen en local antes de deployar:
 
 ```bash
 docker build \
