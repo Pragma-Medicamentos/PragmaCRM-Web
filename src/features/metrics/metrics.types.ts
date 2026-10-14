@@ -205,3 +205,86 @@ export interface PurchaseFrequencyResponse extends MetricsContext {
   insufficient_data: number
   average_days: number | null
 }
+
+/*
+ * Métricas de producto (PCRM-177). Contrato real: PragmaCRM-Api
+ * src/domain/types/productMetrics.types.ts, endpoints 8 a 10 de METRICS_API.md.
+ *
+ * Excepción deliberada a la convención del panel: un producto que no vendió en
+ * el periodo responde 200 con ceros, no con `null` — vendió exactamente cero.
+ */
+
+/** La fila del catálogo, repetida donde se nombra un producto. */
+export interface ProductIdentity {
+  /** erp_product_id, la llave natural del ERP. */
+  product_id: number
+  code: string | null
+  name: string
+  product_group: string | null
+}
+
+/** Un vendedor que movió el producto en el periodo. */
+export interface ProductSeller {
+  user_id: string
+  name: string
+  amount: Money
+  /** Unidades en la unidad base del producto; decimal con hasta 4 decimales. */
+  units: string
+}
+
+/** GET /metrics/products/:id — ficha de un producto en el periodo. */
+export interface ProductMetricsResponse extends MetricsContext {
+  product: ProductIdentity
+  /** Monto vendido en el periodo, IVA incluido. "0.00" sin ventas. */
+  amount: Money
+  units: string
+  /** Monto entre las facturas que lo incluyen. "0.00" sin ventas. */
+  average_ticket: Money
+  /** La suma de `sellers[].amount` puede ser menor que `amount`: las líneas sin vendedor no se atribuyen. */
+  sellers: ProductSeller[]
+}
+
+/** Un cliente que compró el producto en el periodo. */
+export interface ProductCustomer {
+  /** uuid de `customer`: el mismo de /clientes/:id. */
+  customer_id: string
+  name: string
+  trade_name: string | null
+  amount: Money
+  units: string
+  /** Facturas del periodo que incluyen el producto. */
+  invoices: number
+  last_purchase_at: string
+}
+
+/** GET /metrics/products/:id/customers — compradores por monto, paginados. */
+export interface ProductCustomersResponse extends MetricsContext {
+  items: ProductCustomer[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface ProductWithoutMovement extends ProductIdentity {
+  /** Última venta confirmada anterior al fin del periodo; null si nunca vendió. */
+  last_sold_at: string | null
+  /** Días entre esa venta y el fin del periodo; null si nunca vendió. */
+  days_since_last_sale: number | null
+}
+
+/** Productos activos sin venta confirmada en los últimos N días que terminan en `to`. */
+export interface ProductMovementCounts {
+  days_30: number
+  days_60: number
+  days_90: number
+}
+
+/** GET /metrics/products/no-movement — catálogo quieto en el periodo. */
+export interface ProductsNoMovementResponse extends MetricsContext {
+  /** Tamaño del catálogo activo contra el que se leen los conteos. */
+  active_products: number
+  products: ProductWithoutMovement[]
+  /** Las tres ventanas cuelgan del fin del periodo, no del largo del rango. */
+  without_movement: ProductMovementCounts
+}
