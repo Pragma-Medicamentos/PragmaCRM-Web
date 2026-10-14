@@ -247,9 +247,13 @@ function ProfileView({
 /** RF-02: perfil del cliente con rutas, créditos/actividad y notas recientes. */
 export function CustomerProfilePage() {
   const { id } = useParams<{ id: string }>()
-  // Desde la ficha de un producto se vuelve a ella, con su periodo.
+  // Desde la ficha de un producto o de una ruta se vuelve a ella, con su periodo.
   const back = (useLocation().state as { from?: string } | null)?.from
-  const backToProduct = !!back && back.startsWith('/productos/')
+  const backLabel = back?.startsWith('/productos/')
+    ? 'Volver al producto'
+    : back?.startsWith('/metricas/rutas/')
+      ? 'Volver a la ruta'
+      : null
   const { state } = useCustomerProfile(id ?? '')
   const [assigningLocation, setAssigningLocation] = useState(false)
   // Sobrescribe location/address tras un PATCH exitoso, sin esperar refetch.
@@ -269,8 +273,8 @@ export function CustomerProfilePage() {
     <AppShell>
       <div className="flex max-w-5xl flex-col gap-6">
         <Button asChild variant="ghost" size="sm" className="self-start">
-          <Link to={backToProduct ? back : '/clientes'}>
-            <ArrowLeft data-icon="inline-start" /> {backToProduct ? 'Volver al producto' : 'Volver a clientes'}
+          <Link to={backLabel && back ? back : '/clientes'}>
+            <ArrowLeft data-icon="inline-start" /> {backLabel ?? 'Volver a clientes'}
           </Link>
         </Button>
 

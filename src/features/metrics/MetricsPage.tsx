@@ -1,4 +1,4 @@
-import { ChartColumn, MapPinned, UsersRound } from 'lucide-react'
+import { ChartColumn, MapPinned, Route, UsersRound } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
@@ -9,14 +9,15 @@ import type { TrendGranularity } from './metrics.types'
 import { ComparisonPicker } from './ComparisonPicker'
 import { comparisonTarget, describeRange, formatRange, previousRange } from './metricsDates'
 import { PeriodPicker } from './PeriodPicker'
+import { RoutesTab } from './RoutesTab'
 import { TeamTab } from './TeamTab'
 import { type MetricsTab, useMetricsSearch } from './useMetricsSearch'
 
 /**
- * Panel de métricas (RF-09): reúne las tres variantes del wireframe en
- * pestañas que comparten un solo filtro de periodo — General (1d + 1e),
- * Equipo (1d tabla + 1f) y Cobertura (mapa de 1e). Todo el estado vive en la
- * URL (useMetricsSearch).
+ * Panel de métricas (RF-09): reúne las variantes del wireframe en pestañas
+ * que comparten un solo filtro de periodo — General (1d + 1e), Equipo (1d
+ * tabla + 1f), Rutas (PCRM-178) y Cobertura (mapa de 1e). Todo el estado
+ * vive en la URL (useMetricsSearch).
  */
 export function MetricsPage() {
   const { range, tab, granularity, comparison, setRange, setTab, setGranularity, setComparison } = useMetricsSearch()
@@ -39,13 +40,17 @@ export function MetricsPage() {
             <TabsTrigger value="equipo">
               <UsersRound data-icon="inline-start" /> Equipo
             </TabsTrigger>
+            <TabsTrigger value="rutas">
+              <Route data-icon="inline-start" /> Rutas
+            </TabsTrigger>
             <TabsTrigger value="cobertura">
               <MapPinned data-icon="inline-start" /> Cobertura
             </TabsTrigger>
           </TabsList>
 
           <div className="flex flex-wrap items-center gap-2">
-            <ComparisonPicker value={comparison} onChange={setComparison} />
+            {/* Rutas trae su propia comparación en la respuesta (`previous`): el picker no la afecta. */}
+            {tab !== 'rutas' && <ComparisonPicker value={comparison} onChange={setComparison} />}
             {tab === 'general' && (
               <ToggleGroup
                 type="single"
@@ -68,6 +73,9 @@ export function MetricsPage() {
         </TabsContent>
         <TabsContent value="equipo">
           <TeamTab range={range} comparison={target} />
+        </TabsContent>
+        <TabsContent value="rutas">
+          <RoutesTab range={range} />
         </TabsContent>
         <TabsContent value="cobertura">
           <CoverageTab range={range} comparison={target} />

@@ -288,3 +288,100 @@ export interface ProductsNoMovementResponse extends MetricsContext {
   /** Las tres ventanas cuelgan del fin del periodo, no del largo del rango. */
   without_movement: ProductMovementCounts
 }
+
+/*
+ * Métricas por ruta (PCRM-178). Contrato real: PragmaCRM-Api
+ * src/domain/types/routeMetrics.types.ts, endpoint 11 de METRICS_API.md.
+ * Mismas convenciones que el resto del panel: dinero como string de dos
+ * decimales, porcentajes 0–100 con un decimal y `null` para "no se puede
+ * calcular en este periodo", nunca cero.
+ *
+ * Una venta es de la ruta de la que salió la parada de su visita:
+ * `sale.visit_id -> visit.scheduled_visit_id -> scheduled_visit.route_user_id
+ * -> route_user.route_id`.
+ */
+
+/** Un vendedor que trabaja la ruta: asignado hoy, o ejecutando paradas en ella. */
+export interface RouteSeller {
+  user_id: string
+  name: string
+}
+
+/** Una card de ruta, y el resumen del detalle. */
+export interface RouteMetrics {
+  route_id: string
+  name: string
+  municipality: string | null
+  zone: string | null
+  active: boolean
+  /** Venta atribuida a la ruta en el periodo, con IVA incluido. */
+  amount: Money
+  /** Lo mismo en el periodo anterior de igual largo. */
+  previous_amount: Money
+  /** Variación % contra `previous_amount`. Null si el periodo anterior no vendió. */
+  change_rate: number | null
+  /** Clientes de la agenda con su parada ejecutada, sobre los agendados × 100. Null sin agenda. */
+  visit_coverage_rate: number | null
+  sellers: RouteSeller[]
+}
+
+/** GET /metrics/routes — todas las rutas, la de más venta primero. */
+export interface MetricsRoutesResponse extends MetricsContext {
+  previous_period: MetricsRange
+  routes: RouteMetrics[]
+  /** Venta atribuida de todas las rutas del periodo. */
+  total_amount: Money
+}
+
+/** Un cliente del top de la ruta, por monto atribuido. */
+export interface RouteCustomerSales {
+  position: number
+  customer_id: string
+  name: string
+  trade_name: string | null
+  amount: Money
+  orders_count: number
+}
+
+/** Un producto del top de la ruta, por monto atribuido. */
+export interface RouteProductSales {
+  position: number
+  product_id: number
+  code: string | null
+  name: string
+  amount: Money
+  units: string
+}
+
+/** Monto atribuido de un día local de la semana: 0 domingo … 6 sábado. */
+export interface RouteWeekdaySales {
+  weekday: number
+  amount: Money
+  orders_count: number
+}
+
+/** Lo que vendió un vendedor en esta ruta, acreditado por `sale.user_id`. */
+export interface RouteSellerPerformance extends RouteSeller {
+  amount: Money
+  orders_count: number
+}
+
+/** Clientes en la agenda de la ruta en el periodo, y cuántos compraron. */
+export interface RoutePortfolioCoverage {
+  scheduled_customers: number
+  purchasing_customers: number
+  /** `purchasing_customers / scheduled_customers × 100`. Null sin agenda. */
+  rate: number | null
+}
+
+/** GET /metrics/routes/:id — el detalle de una ruta. */
+export interface MetricsRouteDetailResponse extends MetricsContext {
+  previous_period: MetricsRange
+  route: RouteMetrics
+  portfolio_coverage: RoutePortfolioCoverage
+  top_customers: RouteCustomerSales[]
+  top_products: RouteProductSales[]
+  /** Siete baldes, ceros incluidos, domingo primero. */
+  sales_by_weekday: RouteWeekdaySales[]
+  seller_performance: RouteSellerPerformance[]
+}
