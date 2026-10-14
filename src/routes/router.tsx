@@ -3,6 +3,9 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { AdminRoute } from '../features/auth/AdminRoute'
 import { HomePage } from '../pages/HomePage'
 import { MetricsPage } from '../features/metrics/MetricsPage'
+import { ProductMetricsPage } from '../features/metrics/ProductMetricsPage'
+import { ProductsNoMovementPage } from '../features/metrics/ProductsNoMovementPage'
+import { RouteMetricsPage } from '../features/metrics/RouteMetricsPage'
 import { VendorsPage } from '../features/vendors/VendorsPage'
 import { VendorDetailPage } from '../features/vendors/VendorDetailPage'
 import { RoutePlannerPage } from '../features/routes/RoutePlannerPage'
@@ -31,6 +34,22 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <MetricsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/metricas/rutas/:id"
+          element={
+            <AdminRoute>
+              <RouteMetricsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/metricas/productos/sin-movimiento"
+          element={
+            <AdminRoute>
+              <ProductsNoMovementPage />
             </AdminRoute>
           }
         />
@@ -87,6 +106,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <ProductsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/productos/:id/metricas"
+          element={
+            <AdminRoute>
+              <ProductMetricsPage />
             </AdminRoute>
           }
         />

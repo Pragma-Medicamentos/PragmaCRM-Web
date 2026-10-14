@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
-import { getProduct, listProducts } from './productsApi'
+import { listProducts } from './productsApi'
 import type { Product } from './products.types'
 
 export type ProductsState =
@@ -59,38 +59,4 @@ export function useProducts({ page, limit, search }: UseProductsOptions): {
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
   return { state, reload }
-}
-
-export type ProductState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; product: Product }
-
-/** Carga el detalle de un producto (GET /api/v1/products/:id). */
-export function useProduct(id: number | null): ProductState {
-  const [state, setState] = useState<ProductState>({ status: 'loading' })
-
-  useEffect(() => {
-    if (id == null) return
-    let cancelled = false
-    setState({ status: 'loading' })
-
-    getProduct(id)
-      .then((product) => {
-        if (!cancelled) setState({ status: 'ready', product })
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        setState({
-          status: 'error',
-          message: err instanceof ApiError ? err.message : 'Error al cargar el producto',
-        })
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  return state
 }
