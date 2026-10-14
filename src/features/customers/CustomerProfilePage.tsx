@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, MapPin, MapPinOff, NotebookPen, Route } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
@@ -247,6 +247,9 @@ function ProfileView({
 /** RF-02: perfil del cliente con rutas, créditos/actividad y notas recientes. */
 export function CustomerProfilePage() {
   const { id } = useParams<{ id: string }>()
+  // Desde la ficha de un producto se vuelve a ella, con su periodo.
+  const back = (useLocation().state as { from?: string } | null)?.from
+  const backToProduct = !!back && back.startsWith('/productos/')
   const { state } = useCustomerProfile(id ?? '')
   const [assigningLocation, setAssigningLocation] = useState(false)
   // Sobrescribe location/address tras un PATCH exitoso, sin esperar refetch.
@@ -266,8 +269,8 @@ export function CustomerProfilePage() {
     <AppShell>
       <div className="flex max-w-5xl flex-col gap-6">
         <Button asChild variant="ghost" size="sm" className="self-start">
-          <Link to="/clientes">
-            <ArrowLeft data-icon="inline-start" /> Volver a clientes
+          <Link to={backToProduct ? back : '/clientes'}>
+            <ArrowLeft data-icon="inline-start" /> {backToProduct ? 'Volver al producto' : 'Volver a clientes'}
           </Link>
         </Button>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ChartColumn, ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ChartColumn, Check, ChevronLeft, ChevronRight, Copy, Package, Search } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
@@ -25,7 +25,6 @@ import {
   TableRow,
 } from '../../components/ui/table'
 import { productMetricsPath } from '../metrics/productMetricsLinks'
-import { ProductDetailSheet } from './ProductDetailSheet'
 import { useProducts } from './useProducts'
 import type { Product } from './products.types'
 
@@ -75,7 +74,7 @@ function ProductsTableSkeleton() {
               </TableCell>
             ))}
             <TableCell className="text-right">
-              <Skeleton className="ml-auto h-7 w-36 rounded-lg" />
+              <Skeleton className="ml-auto h-7 w-24 rounded-lg" />
             </TableCell>
           </TableRow>
         ))}
@@ -84,7 +83,44 @@ function ProductsTableSkeleton() {
   )
 }
 
-function ProductsTable({ products, onView }: { products: Product[]; onView: (id: number) => void }) {
+/** Los códigos del ERP llegan de hasta 23 dígitos: se cortan en la tabla y se copian completos. */
+function CopyableCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Sin portapapeles (contexto no seguro): el código sigue en el tooltip.
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="max-w-28 truncate tabular-nums" title={code}>
+        {code}
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label={copied ? 'Código copiado' : `Copiar código ${code}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          void copy()
+        }}
+      >
+        {copied ? <Check /> : <Copy />}
+      </Button>
+    </div>
+  )
+}
+
+function ProductsTable({ products }: { products: Product[] }) {
+  const navigate = useNavigate()
+
   return (
     <Table>
       <ProductsTableHead />
@@ -93,9 +129,11 @@ function ProductsTable({ products, onView }: { products: Product[]; onView: (id:
           <TableRow
             key={product.erp_product_id}
             className="cursor-pointer"
-            onClick={() => onView(product.erp_product_id)}
+            onClick={() => navigate(productMetricsPath(product.erp_product_id))}
           >
-            <TableCell className="hidden text-muted-foreground sm:table-cell">{product.code ?? '—'}</TableCell>
+            <TableCell className="hidden text-muted-foreground sm:table-cell">
+              {product.code ? <CopyableCode code={product.code} /> : '—'}
+            </TableCell>
             <TableCell className="max-w-56 sm:max-w-80">
               <div className="truncate font-medium text-foreground">{product.name}</div>
               {product.code && <div className="truncate text-xs text-muted-foreground sm:hidden">{product.code}</div>}
@@ -103,25 +141,12 @@ function ProductsTable({ products, onView }: { products: Product[]; onView: (id:
             <TableCell className="hidden text-muted-foreground md:table-cell">{product.product_group ?? '—'}</TableCell>
             <TableCell className="hidden text-muted-foreground lg:table-cell">{formatDate(product.last_seen_at)}</TableCell>
             <TableCell className="text-right">
-              <div className="flex items-center justify-end gap-2">
-                {/* El catálogo no tiene periodo: la ficha de métricas resuelve el suyo por defecto. */}
-                <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
-                  <Link to={productMetricsPath(product.erp_product_id)}>
-                    <ChartColumn data-icon="inline-start" /> Métricas
-                  </Link>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onView(product.erp_product_id)
-                  }}
-                >
-                  Ver
-                </Button>
-              </div>
+              {/* El catálogo no tiene periodo: la ficha de métricas resuelve el suyo por defecto. */}
+              <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                <Link to={productMetricsPath(product.erp_product_id)}>
+                  <ChartColumn data-icon="inline-start" /> Métricas
+                </Link>
+              </Button>
             </TableCell>
           </TableRow>
         ))}
@@ -135,7 +160,6 @@ export function ProductsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -185,7 +209,7 @@ export function ProductsPage() {
             {state.status === 'loading' && <ProductsTableSkeleton />}
 
             {state.status === 'ready' && state.products.length > 0 && (
-              <ProductsTable products={state.products} onView={setSelectedProductId} />
+              <ProductsTable products={state.products} />
             )}
 
             {state.status === 'ready' && state.products.length === 0 && (
@@ -235,12 +259,6 @@ export function ProductsPage() {
         </Card>
       )}
 
-      <ProductDetailSheet
-        productId={selectedProductId}
-        onOpenChange={(open) => {
-          if (!open) setSelectedProductId(null)
-        }}
-      />
     </AppShell>
   )
 }

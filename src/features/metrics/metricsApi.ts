@@ -4,6 +4,7 @@ import type {
   KpiName,
   KpiValuesResponse,
   MetricsRange,
+  ProductCustomersResponse,
   ProductMetricsResponse,
   ProductRankingResponse,
   ProductsNoMovementResponse,
@@ -77,6 +78,20 @@ export function getProductMetrics(
   { signal }: RequestOptions = {}
 ): Promise<ProductMetricsResponse> {
   return apiRequest<ProductMetricsResponse>(`/api/v1/metrics/products/${productId}`, { params: range, signal })
+}
+
+/** Compradores del producto en el periodo, del que más compró al que menos. */
+export function getProductCustomers(
+  productId: number,
+  range: MetricsRange,
+  page: number,
+  limit: number,
+  { signal }: RequestOptions = {}
+): Promise<ProductCustomersResponse> {
+  return apiRequest<ProductCustomersResponse>(`/api/v1/metrics/products/${productId}/customers`, {
+    params: { ...range, page, limit },
+    signal,
+  })
 }
 
 /** Catálogo activo sin venta en el periodo; los conteos 30/60/90 cuelgan del fin del periodo. */
