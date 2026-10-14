@@ -1,6 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Link, matchPath, useLocation } from 'react-router-dom'
-import { ChartColumn, ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Moon, Package, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
+import { ChartColumn, ChevronsUpDown, FileUp, LayoutDashboard, LogOut, MapPinCheck, Menu, Moon, Package, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { useTheme } from '../lib/theme'
@@ -59,6 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/', label: 'Resumen', icon: LayoutDashboard, end: true },
       { to: '/metricas', label: 'Panel de métricas', icon: ChartColumn },
       { to: '/rutas', label: 'Planificador de rutas', icon: Route },
+      { to: '/rutas/ejecutadas', label: 'Rutas ejecutadas', icon: MapPinCheck },
     ],
   },
   {
@@ -85,6 +86,11 @@ function initials(name: string): string {
 
 function AppSidebar({ name, email }: { name: string; email: string | null }) {
   const { pathname } = useLocation()
+  // Gana la entrada más específica: /rutas/ejecutadas no enciende también
+  // "Planificador de rutas", pero /rutas/:id/paradas sí.
+  const activeNavTo = NAV_GROUPS.flatMap((group) => group.items)
+    .filter((item) => matchPath({ path: item.to, end: item.end ?? false }, pathname) !== null)
+    .reduce<string | null>((best, item) => (best === null || item.to.length > best.length ? item.to : best), null)
   const { isMobile, setOpenMobile } = useSidebar()
   // En móvil el sidebar es un Sheet: se cierra al navegar.
   const closeOnMobile = () => isMobile && setOpenMobile(false)
@@ -109,7 +115,7 @@ function AppSidebar({ name, email }: { name: string; email: string | null }) {
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton
                       asChild
-                      isActive={matchPath({ path: item.to, end: item.end ?? false }, pathname) !== null}
+                      isActive={activeNavTo === item.to}
                     >
                       <Link to={item.to} onClick={closeOnMobile}>
                         <item.icon />

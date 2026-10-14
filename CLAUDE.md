@@ -140,6 +140,14 @@ No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se
 
 **Entrada a las paradas de una ruta.** Clic (o Enter) en la tarjeta de "Rutas guardadas", o en el chip de la ruta dentro de un día, abre `/rutas/:id/paradas`. Arrastrar (o Espacio con teclado) sigue asignando. El planificador pasa su URL en `location.state.from` y `RouteStopsPage` vuelve ahí, con el mismo vendedor.
 
+## Contrato de `/api/v1/executed-routes` (HU-08)
+
+**Implementado en este repo:** histórico de rutas ejecutadas (`src/features/executed-routes/`), ruta `/rutas/ejecutadas` (protegida por `AdminRoute`), entrada "Rutas ejecutadas" en el sidebar (grupo Operación). Filtros en la URL: `?desde=&hasta=&vendedor=`; por defecto la semana en curso y todos los vendedores.
+
+- `GET /api/v1/executed-routes?from=YYYY-MM-DD&to=YYYY-MM-DD&seller_id=uuid` — todos opcionales (`from`/`to` caen al mes en curso en la API; rango máximo 92 días → 400). `seller_id` inexistente → 404. Solo `Administrador`.
+- `data: { from, to, routes[] }`. Cada ruta es (vendedor, día local, asignación `route_user`): `{ key, date, seller, route | null, route_user_id, stops_planned, stops_executed, stops[] }`. `route: null` agrupa visitas sin asignación.
+- Cada parada es una fila de `visit`: `checkin_location {lat,lng} | null`, `distance_meters`, `within_radius` (radio de 80 m), `notes` (RF-07), `successful`, `no_order_reason`, `started_at`/`finished_at`, `stop_type`, `is_extra` y el cliente.
+
 ## Cosas a tener presentes durante la integración
 
 **a) CORS.** Si aparece un error de CORS en el navegador al llamar a `localhost:3000` desde `localhost:5173`, es configuración pendiente del lado de `PragmaCRM-Api`, no de este repo.

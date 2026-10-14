@@ -8,11 +8,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { Separator } from '../../components/ui/separator'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '../../components/ui/sheet'
 import type { MetricsRange } from './metrics.types'
-import { MAX_RANGE_DAYS, RANGE_PRESETS, formatRange, matchPreset, parseDay, toDay, todayInSv } from './metricsDates'
+import { MAX_RANGE_DAYS, RANGE_PRESETS, formatRange, matchPreset, parseDay, rangeLength, toDay, todayInSv } from './metricsDates'
 
 interface PeriodPickerProps {
   value: MetricsRange
   onChange: (range: MetricsRange) => void
+  /** Rango más largo que acepta el endpoint que consume el filtro; oculta los atajos que lo exceden. */
+  maxDays?: number
 }
 
 /** Por debajo de `sm` (640px) el Popover con dos meses no cabe. */
@@ -39,7 +41,7 @@ function toDateRange(range: MetricsRange): DateRange {
  * "Aplicar" para no disparar consultas con cada clic. El calendario no deja
  * elegir días futuros ni más de 366 días (límite del API).
  */
-export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
+export function PeriodPicker({ value, onChange, maxDays = MAX_RANGE_DAYS }: PeriodPickerProps) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<DateRange | undefined>(() => toDateRange(value))
   const activePreset = matchPreset(value)
@@ -69,7 +71,7 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
     </Button>
   )
 
-  const presets = RANGE_PRESETS.map((preset) => (
+  const presets = RANGE_PRESETS.filter((preset) => rangeLength(preset.resolve()) <= maxDays).map((preset) => (
     <Button
       key={preset.id}
       variant={activePreset === preset.id ? 'secondary' : isPhone ? 'outline' : 'ghost'}
@@ -91,7 +93,7 @@ export function PeriodPicker({ value, onChange }: PeriodPickerProps) {
       selected={draft}
       onSelect={setDraft}
       resetOnSelect
-      max={MAX_RANGE_DAYS - 1}
+      max={maxDays - 1}
       disabled={{ after: today }}
       className={isPhone ? 'mx-auto [--cell-size:--spacing(10)]' : undefined}
     />

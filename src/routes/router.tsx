@@ -10,6 +10,7 @@ import { VendorsPage } from '../features/vendors/VendorsPage'
 import { VendorDetailPage } from '../features/vendors/VendorDetailPage'
 import { RoutePlannerPage } from '../features/routes/RoutePlannerPage'
 import { RouteStopsPage } from '../features/routes/RouteStopsPage'
+import { ExecutedRoutesPage } from '../features/executed-routes/ExecutedRoutesPage'
 import { CustomersPage } from '../features/customers/CustomersPage'
 import { CustomerProfilePage } from '../features/customers/CustomerProfilePage'
 import { ProductsPage } from '../features/products/ProductsPage'
@@ -74,6 +75,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <RoutePlannerPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/rutas/ejecutadas"
+          element={
+            <AdminRoute>
+              <ExecutedRoutesPage />
             </AdminRoute>
           }
         />
