@@ -5,6 +5,7 @@ import { HomePage } from '../pages/HomePage'
 import { MetricsPage } from '../features/metrics/MetricsPage'
 import { ProductMetricsPage } from '../features/metrics/ProductMetricsPage'
 import { ProductsNoMovementPage } from '../features/metrics/ProductsNoMovementPage'
+import { RouteMetricsPage } from '../features/metrics/RouteMetricsPage'
 import { VendorsPage } from '../features/vendors/VendorsPage'
 import { VendorDetailPage } from '../features/vendors/VendorDetailPage'
 import { RoutePlannerPage } from '../features/routes/RoutePlannerPage'
@@ -33,6 +34,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <MetricsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/metricas/rutas/:id"
+          element={
+            <AdminRoute>
+              <RouteMetricsPage />
             </AdminRoute>
           }
         />

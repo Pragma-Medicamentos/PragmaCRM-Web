@@ -1,139 +1,111 @@
-import { useState } from 'react'
-import { ChevronRight, Route as RouteIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Route as RouteIcon } from 'lucide-react'
 import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '../../components/ui/empty'
+import { Progress } from '../../components/ui/progress'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import type { MetricsRange, RouteMetrics } from './metrics.types'
 import { getRouteMetrics } from './metricsApi'
-import { formatCount, formatMoney, formatPercent, formatUnits } from './metricsFormat'
+import { formatRange } from './metricsDates'
+import { computeDelta, formatMoney, formatPercent } from './metricsFormat'
+import { DeltaBadge } from './MetricStat'
 import { QueryAlerts } from './QueryAlerts'
-import { RouteDetailSheet } from './RouteDetailSheet'
-import { routePlace } from './routeMetricsDisplay'
+import { hasActivity, routeMetricsPath, routePlace } from './routeMetricsDisplay'
 import { Refreshing, isRefreshing } from './slots'
 import { useMetricsQuery } from './useMetricsQuery'
 
-/**
- * Venta por día-ruta ejecutado: es dinero, no un porcentaje. `null` cuando la
- * ruta no se ejecutó ni una vez en el periodo — ahí no hay un $0.00 que
- * mostrar, no hay divisor.
- */
-function EffectivenessCell({ route }: { route: RouteMetrics }) {
-  if (route.effectiveness === null) return <span className="text-muted-foreground">Sin ejecución</span>
-  return <span className="tabular-nums">{formatMoney(route.effectiveness)}</span>
-}
+function RouteCard({ route, range, comparison }: { route: RouteMetrics; range: MetricsRange; comparison: string }) {
+  const delta = computeDelta('money', route.amount, route.previous_amount, 'up')
+  const place = routePlace(route)
 
-function RoutesTable({ routes, onSelect }: { routes: RouteMetrics[]; onSelect: (route: RouteMetrics) => void }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-12 pl-4 text-right">#</TableHead>
-          <TableHead>Ruta</TableHead>
-          <TableHead className="hidden xl:table-cell">Vendedores</TableHead>
-          <TableHead className="text-right">Venta</TableHead>
-          <TableHead className="hidden text-right lg:table-cell">Unidades</TableHead>
-          <TableHead className="hidden w-16 text-right xl:table-cell">Pos. unid.</TableHead>
-          <TableHead className="text-right">Venta / día-ruta</TableHead>
-          <TableHead className="hidden text-right lg:table-cell">Clientes</TableHead>
-          <TableHead className="text-right">Cobertura</TableHead>
-          <TableHead className="hidden text-right xl:table-cell">Paradas</TableHead>
-          <TableHead className="w-12 pr-4">
-            <span className="sr-only">Detalle</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {routes.map((route) => {
-          const place = routePlace(route)
-          return (
-            <TableRow key={route.route_id} className="cursor-pointer" onClick={() => onSelect(route)}>
-              {/* Las posiciones son las del API: la tabla nunca las recalcula. */}
-              <TableCell className="pl-4 text-right text-muted-foreground tabular-nums">
-                {formatCount(route.amount_position)}
-              </TableCell>
-              <TableCell className="max-w-56">
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-medium">{route.name}</span>
-                  {!route.active && <Badge variant="outline">Inactiva</Badge>}
-                </div>
-                {place && <div className="truncate text-xs text-muted-foreground">{place}</div>}
-              </TableCell>
-              <TableCell className="hidden max-w-48 xl:table-cell">
-                {route.sellers.length > 0 ? (
-                  <span className="block truncate text-sm text-muted-foreground">
-                    {route.sellers.map((seller) => seller.name).join(', ')}
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">Sin vendedor</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right font-medium tabular-nums">{formatMoney(route.amount)}</TableCell>
-              <TableCell className="hidden text-right tabular-nums lg:table-cell">{formatUnits(route.units)}</TableCell>
-              <TableCell className="hidden text-right text-muted-foreground tabular-nums xl:table-cell">
-                {formatCount(route.units_position)}
-              </TableCell>
-              <TableCell className="text-right">
-                <EffectivenessCell route={route} />
-              </TableCell>
-              <TableCell className="hidden text-right tabular-nums lg:table-cell">
-                {formatCount(route.visited_customers)} / {formatCount(route.planned_customers)}
-              </TableCell>
-              {/* Sin agenda el API manda null y formatPercent escribe "—": un 0% diría que no se visitó a nadie. */}
-              <TableCell className="text-right tabular-nums">{formatPercent(route.visit_coverage_rate)}</TableCell>
-              <TableCell className="hidden text-right tabular-nums xl:table-cell">
-                {formatCount(route.stops_executed)} / {formatCount(route.stops_planned)}
-              </TableCell>
-              <TableCell className="pr-4 text-right">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Ver detalle de ${route.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onSelect(route)
-                  }}
-                >
-                  <ChevronRight />
-                </Button>
-              </TableCell>
-            </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
+    <Link
+      to={routeMetricsPath(route.route_id, range)}
+      className="group rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      <Card className="h-full transition-shadow group-hover:shadow-md">
+        <CardHeader>
+          <CardTitle className="truncate">{route.name}</CardTitle>
+          {place && <CardDescription className="truncate">{place}</CardDescription>}
+          {!route.active && (
+            <CardAction>
+              <Badge variant="outline">Inactiva</Badge>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-3xl leading-none font-semibold tracking-tight tabular-nums">
+              {formatMoney(route.amount)}
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              {delta ? <DeltaBadge delta={delta} /> : <span>Sin venta en</span>}
+              <span>{comparison}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="text-muted-foreground">Cobertura de visitas</span>
+              <span className="font-medium tabular-nums">
+                {route.visit_coverage_rate === null ? 'Sin agenda' : formatPercent(route.visit_coverage_rate)}
+              </span>
+            </div>
+            <Progress
+              value={route.visit_coverage_rate ?? 0}
+              className="h-1.5"
+              aria-label={`Cobertura de visitas de ${route.name}`}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {route.sellers.length > 0 ? (
+              route.sellers.map((seller) => (
+                <Badge key={seller.user_id} variant="secondary">
+                  {seller.name}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">Sin vendedor asignado</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
 
-function RoutesSkeleton() {
+function RouteCardsSkeleton() {
   return (
-    <div className="flex flex-col gap-3 px-4 py-2">
-      {Array.from({ length: 5 }, (_, i) => (
-        <Skeleton key={i} className="h-10 w-full" />
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }, (_, i) => (
+        <Skeleton key={i} className="h-56 rounded-xl" />
       ))}
     </div>
   )
 }
 
 /**
- * Pestaña Rutas (PCRM-178): el ranking de todas las rutas del periodo, con
- * el detalle de una en un panel lateral. Las cifras —posiciones,
- * efectividad, coberturas— son las que calcula el API; aquí solo se
- * formatean.
+ * Pestaña Rutas del panel (PCRM-178): una card por ruta con su venta, la
+ * variación contra el periodo anterior, la cobertura de visitas y quién la
+ * trabaja. Cada card abre la página de la ruta con el mismo periodo.
  */
 export function RoutesTab({ range }: { range: MetricsRange }) {
   const routes = useMetricsQuery(`${range.from}:${range.to}`, (signal) => getRouteMetrics(range, { signal }))
-  const [selected, setSelected] = useState<RouteMetrics | null>(null)
 
   const data = routes.state.status === 'ready' ? routes.state.data : null
+  const active = data?.routes.filter(hasActivity) ?? []
+  const idle = data?.routes.filter((route) => !hasActivity(route)) ?? []
+  const comparison = data ? `vs ${formatRange(data.previous_period)}` : ''
 
   return (
     <div className="flex flex-col gap-6">
       <QueryAlerts queries={[{ label: 'las rutas', endpoint: 'GET /api/v1/metrics/routes', ...routes }]} />
 
-      {data && data.routes.length === 0 ? (
+      {!data && routes.state.status === 'loading' && <RouteCardsSkeleton />}
+
+      {data && active.length === 0 && (
         <Card>
           <Empty className="py-14">
             <EmptyHeader>
@@ -141,35 +113,41 @@ export function RoutesTab({ range }: { range: MetricsRange }) {
                 <RouteIcon />
               </EmptyMedia>
               <EmptyTitle>Sin actividad en las rutas</EmptyTitle>
-              <EmptyDescription>
-                Ninguna ruta registró ventas ni paradas en este periodo. Prueba con otro rango.
-              </EmptyDescription>
+              <EmptyDescription>Ninguna ruta tuvo paradas ni ventas en este periodo. Prueba con otro rango.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         </Card>
-      ) : (
-        <Refreshing active={isRefreshing(routes.state)}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Ranking de rutas</CardTitle>
-              <CardDescription>
-                {data
-                  ? `${formatMoney(data.total_amount)} y ${formatUnits(data.total_units)} unidades atribuidos a las rutas · selecciona una para ver su detalle`
-                  : 'Selecciona una ruta para ver su detalle'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="border-t px-0">
-              {data ? (
-                <RoutesTable routes={data.routes} onSelect={setSelected} />
-              ) : (
-                routes.state.status === 'loading' && <RoutesSkeleton />
-              )}
-            </CardContent>
-          </Card>
+      )}
+
+      {data && active.length > 0 && (
+        <Refreshing active={isRefreshing(routes.state)} className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{formatMoney(data.total_amount)}</span> vendidos en las
+            paradas de las rutas. No incluye las ventas sin visita.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {active.map((route) => (
+              <RouteCard key={route.route_id} route={route} range={range} comparison={comparison} />
+            ))}
+          </div>
         </Refreshing>
       )}
 
-      <RouteDetailSheet route={selected} range={range} onOpenChange={(open) => !open && setSelected(null)} />
+      {idle.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sin actividad en el periodo</CardTitle>
+            <CardDescription>Rutas sin paradas agendadas ni ventas en estas fechas ni en las anteriores</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {idle.map((route) => (
+              <Badge key={route.route_id} variant="outline" asChild>
+                <Link to={routeMetricsPath(route.route_id, range)}>{route.name}</Link>
+              </Badge>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

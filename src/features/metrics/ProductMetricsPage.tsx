@@ -345,7 +345,11 @@ export function ProductMetricsPage() {
   const target = comparisonTarget(comparisonMode, range)
   const { state: locationState } = useLocation()
   const back = (locationState as BackState | null)?.from
-  const backToPanel = !!back && back.startsWith('/metricas')
+  const backLabel = back?.startsWith('/metricas/rutas/')
+    ? 'Volver a la ruta'
+    : back?.startsWith('/metricas')
+      ? 'Volver al panel de métricas'
+      : 'Volver a productos'
   const productId = parseProductId(id)
   const [page, setPage] = useState(1)
 
@@ -384,7 +388,7 @@ export function ProductMetricsPage() {
         <Button asChild variant="ghost" size="sm" className="self-start">
           <Link to={back ?? '/productos'}>
             <ArrowLeft data-icon="inline-start" />
-            {backToPanel ? 'Volver al panel de métricas' : 'Volver a productos'}
+            {backLabel}
           </Link>
         </Button>
 
