@@ -16,6 +16,7 @@ import { QueryAlerts } from '../metrics/QueryAlerts'
 import { SellerPerformanceBody, useSellerDetail } from '../metrics/SellerPerformance'
 import { useMetricsSearch } from '../metrics/useMetricsSearch'
 import { useVendors } from './useVendors'
+import { VendorGoalCard } from './VendorGoalCard'
 
 function PerformanceSkeleton() {
   return (
@@ -73,6 +74,17 @@ export function VendorDetailPage() {
               <PeriodPicker value={range} onChange={setRange} />
             </>
           }
+        />
+
+        {/* PCRM-173: cambiar la meta cambia el cumplimiento del periodo. */}
+        <VendorGoalCard
+          vendorId={id}
+          vendorName={name ?? 'el vendedor'}
+          onChanged={() => {
+            detail.reload()
+            queries.otherDetail.reload()
+            vendors.reload()
+          }}
         />
 
         <Card>

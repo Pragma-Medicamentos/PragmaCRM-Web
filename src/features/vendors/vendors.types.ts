@@ -10,6 +10,10 @@ export interface Vendor {
   auth_user_id: string | null
   created_at: string
   updated_at: string
+  // PCRM-173: meta mensual vigente este mes, como string decimal ("7500.00");
+  // null si no tiene. Solo la traen GET /sellers y GET /sellers/:id: las
+  // respuestas de alta y edición no la incluyen.
+  current_goal?: string | null
 }
 
 // POST /api/v1/sellers solo acepta name y email — la cuenta nace sin
@@ -36,4 +40,29 @@ export type AccessEmailStatus = 'sent' | 'failed' | null
 
 export interface UpdatedVendor extends Vendor {
   access_email: AccessEmailStatus
+}
+
+// PCRM-173: una meta vale desde su mes en adelante, hasta que otra posterior
+// la reemplace. Cambiarla no altera los meses anteriores. 0 = sin meta.
+// Contrato: GET/PUT /api/v1/sellers/:id/goals (goal.service.ts en la API).
+export interface VendorGoal {
+  id: string
+  year: number
+  month: number
+  goal_amount: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VendorGoals {
+  /** Meta vigente este mes; null si no hay o es 0. */
+  current: VendorGoal | null
+  /** Todos los cambios, del mes más reciente al más antiguo. */
+  history: VendorGoal[]
+}
+
+export interface SetVendorGoalInput {
+  year: number
+  month: number
+  goal_amount: number
 }

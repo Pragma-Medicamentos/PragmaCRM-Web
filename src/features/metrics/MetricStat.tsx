@@ -106,7 +106,7 @@ export function MetricStatSkeleton({ size = 'default' }: { size?: 'default' | 'h
 }
 
 const NULL_NOTE: Partial<Record<KpiName, string>> = {
-  goal_compliance: 'Sin metas cargadas',
+  goal_compliance: 'Sin metas vigentes',
   average_ticket: 'Sin pedidos en el periodo',
   route_effectiveness: 'Sin rutas ejecutadas',
   effective_visits_rate: 'Sin paradas en el periodo',

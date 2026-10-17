@@ -69,7 +69,7 @@ function SellerStats({ seller }: { seller: SellerPerformance }) {
         label="Cumplimiento"
         value={formatPercent(seller.goal_compliance)}
         meter={seller.goal_compliance}
-        note={seller.goal_amount === null ? 'Sin meta cargada' : `Meta: ${formatMoney(seller.goal_amount)}`}
+        note={seller.goal_amount === null ? 'Sin meta vigente' : `Meta del periodo: ${formatMoney(seller.goal_amount)}`}
       />
     </div>
   )

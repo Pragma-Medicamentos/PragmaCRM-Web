@@ -42,6 +42,7 @@ import {
 } from '../../components/ui/dropdown-menu'
 import { cn } from '../../lib/utils'
 import { ApiError } from '../../lib/api/apiClient'
+import { formatMoney } from '../metrics/metricsFormat'
 import { useVendors } from './useVendors'
 import { CreateVendorDialog } from './CreateVendorDialog'
 import { EditVendorDialog } from './EditVendorDialog'
@@ -62,6 +63,7 @@ const COLUMNS = [
   { label: 'Nombre', className: '' },
   { label: 'Correo', className: 'hidden sm:table-cell' },
   { label: 'Estado', className: '' },
+  { label: 'Meta mensual', className: 'hidden lg:table-cell text-right' },
   { label: 'Fecha de alta', className: 'hidden md:table-cell' },
 ] as const
 
@@ -136,6 +138,9 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
                 <Badge variant={vendor.active ? 'default' : 'outline'}>
                   {vendor.active ? 'Activo' : 'Deshabilitado'}
                 </Badge>
+              </TableCell>
+              <TableCell className="hidden text-right tabular-nums lg:table-cell">
+                {vendor.current_goal ? formatMoney(vendor.current_goal) : <span className="text-muted-foreground">Sin meta</span>}
               </TableCell>
               <TableCell className="hidden text-muted-foreground md:table-cell">{dateFormatter.format(new Date(vendor.created_at))}</TableCell>
               <TableCell className="text-right">
