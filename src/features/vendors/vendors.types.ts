@@ -63,7 +63,9 @@ export interface UpdatedVendor extends Vendor {
 }
 
 // PCRM-173: una meta vale desde su mes en adelante, hasta que otra posterior
-// la reemplace. Cambiarla no altera los meses anteriores. 0 = sin meta.
+// la reemplace. Solo se fija para el mes en curso (cambiarla dos veces en el
+// mismo mes sobrescribe ese mes) y no se elimina, así que los meses cerrados
+// conservan la suya. 0 = sin meta.
 // Contrato: GET/PUT /api/v1/sellers/:id/goals (goal.service.ts en la API).
 export interface VendorGoal {
   id: string
@@ -74,15 +76,36 @@ export interface VendorGoal {
   updated_at: string
 }
 
+export interface YearMonth {
+  year: number
+  month: number
+}
+
+/** Entrada del historial: hasta qué mes aplicó; null mientras está vigente. */
+export interface VendorGoalPeriod extends VendorGoal {
+  until: YearMonth | null
+}
+
 export interface VendorGoals {
   /** Meta vigente este mes; null si no hay o es 0. No depende de la página. */
   current: VendorGoal | null
   /** Cambios paginados, del mes más reciente al más antiguo. */
-  history: Paginated<VendorGoal>
+  history: Paginated<VendorGoalPeriod>
 }
 
-export interface SetVendorGoalInput {
+// GET /api/v1/sellers/:id/goals/history (PCRM-198): un elemento por mes, del
+// más antiguo al mes en curso. Montos como string decimal, como en métricas.
+export interface VendorGoalHistoryMonth {
   year: number
   month: number
+  /** Meta vigente ese mes; null si no había (o era 0). */
+  goal_amount: string | null
+  total_sales: string
+  /** Porcentaje con un decimal; null si el mes no tenía meta. */
+  goal_compliance: number | null
+}
+
+// El mes lo pone la API: siempre el mes en curso.
+export interface SetVendorGoalInput {
   goal_amount: number
 }

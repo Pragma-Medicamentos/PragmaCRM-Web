@@ -1,4 +1,4 @@
-import { apiCall, apiRequest } from '../../lib/api/apiClient'
+import { apiRequest } from '../../lib/api/apiClient'
 import type {
   CreateVendorInput,
   ListVendorsParams,
@@ -8,6 +8,7 @@ import type {
   UpdateVendorInput,
   Vendor,
   VendorGoal,
+  VendorGoalHistoryMonth,
   VendorGoals,
   VendorsPage,
 } from './vendors.types'
@@ -51,10 +52,15 @@ export function getVendorGoals(id: string, params: PageParams = {}): Promise<Ven
   return apiRequest<VendorGoals>(`/api/v1/sellers/${id}/goals`, { params })
 }
 
+export function getVendorGoalHistory(
+  id: string,
+  months: number,
+  { signal }: { signal?: AbortSignal } = {}
+): Promise<VendorGoalHistoryMonth[]> {
+  return apiRequest<VendorGoalHistoryMonth[]>(`/api/v1/sellers/${id}/goals/history`, { params: { months }, signal })
+}
+
 export function setVendorGoal(id: string, input: SetVendorGoalInput): Promise<VendorGoal> {
   return apiRequest<VendorGoal>(`/api/v1/sellers/${id}/goals`, { method: 'PUT', data: input })
 }
 
-export function deleteVendorGoal(id: string, goalId: string): Promise<void> {
-  return apiCall(`/api/v1/sellers/${id}/goals/${goalId}`, { method: 'DELETE' }).then(() => undefined)
-}

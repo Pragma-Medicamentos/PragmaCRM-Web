@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ChartNoAxesColumn } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
@@ -18,6 +19,7 @@ import { useMetricsQuery } from '../metrics/useMetricsQuery'
 import { useMetricsSearch } from '../metrics/useMetricsSearch'
 import { getVendor } from './vendorsApi'
 import { VendorGoalCard } from './VendorGoalCard'
+import { VendorGoalHistoryCard } from './VendorGoalHistoryCard'
 
 function PerformanceSkeleton() {
   return (
@@ -38,6 +40,7 @@ export function VendorDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const { range, comparison: comparisonMode, setRange, setComparison } = useMetricsSearch()
   const comparison = comparisonTarget(comparisonMode, range)
+  const [goalsVersion, setGoalsVersion] = useState(0)
   const vendorQuery = useMetricsQuery(`vendor:${id}`, () => getVendor(id), { keepPrevious: false })
   const queries = useSellerDetail(id, range, comparison)
   const { detail } = queries
@@ -85,8 +88,12 @@ export function VendorDetailPage() {
             detail.reload()
             queries.otherDetail.reload()
             vendorQuery.reload()
+            setGoalsVersion((v) => v + 1)
           }}
         />
+
+        {/* PCRM-198: cumplimiento mes a mes, independiente del periodo elegido. */}
+        <VendorGoalHistoryCard vendorId={id} version={goalsVersion} />
 
         <Card>
           <CardHeader>

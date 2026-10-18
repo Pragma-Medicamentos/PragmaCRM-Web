@@ -112,7 +112,7 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 }
 ```
 
-`/vendedores` pagina con `useVendorsPage`. Los selectores de vendedor (planificador, nuevo prospecto) usan `useVendors` → `listAllVendors()`, que pide una sola página de 100. `GET /api/v1/sellers/:id/goals` también pagina su `history` (`current` se calcula sobre todas las filas).
+`/vendedores` pagina con `useVendorsPage`. Los selectores de vendedor (planificador, nuevo prospecto) usan `useVendors` → `listAllVendors()`, que pide una sola página de 100. `GET /api/v1/sellers/:id/goals` también pagina su `history` (`current` se calcula sobre todas las filas; cada entrada trae `until`, el último mes en que aplicó, `null` la vigente). `PUT` recibe solo `{ goal_amount }` y aplica al mes en curso: cambiarla otra vez el mismo mes la sobrescribe; los meses cerrados no se tocan. No hay DELETE: para quitar la meta se guarda 0. `VendorGoalHistoryCard` (PCRM-198) grafica los últimos 12 meses con `GET /sellers/:id/goals/history`: bullet chart: una barra de venta por mes, verde si cumplió, roja si no y gris sin meta (el mes en curso, según cómo va), con la meta como una raya encima (`ComposedChart` con `Bar` + `Scatter`). `VendorGoalCard` muestra el historial como línea de tiempo (armada con `Item`; shadcn no tiene un timeline oficial).
 
 `POST /api/v1/sellers` — mismo guard. Body: `{ "name": "...", "email": "..." }`. Responde 201 con el vendedor creado (mismo shape que un elemento del listado). Un correo duplicado responde con un error de envelope legible (409), no un 500.
 

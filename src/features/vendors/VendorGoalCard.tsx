@@ -1,30 +1,31 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Target, Trash2 } from 'lucide-react'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { ChevronLeft, ChevronRight, Target } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
+import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { Item, ItemActions, ItemContent, ItemTitle } from '../../components/ui/item'
 import { Skeleton } from '../../components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
-import { ApiError } from '../../lib/api/apiClient'
+import { cn } from '../../lib/utils'
 import { formatMoney } from '../metrics/metricsFormat'
+import { capitalizeFirst, formatMonth, formatShortMonth } from './goalFormat'
 import { SetGoalDialog } from './SetGoalDialog'
 import { useVendorGoals } from './useVendorGoals'
-import { deleteVendorGoal } from './vendorsApi'
-import type { VendorGoal } from './vendors.types'
+import type { VendorGoalPeriod } from './vendors.types'
 
 const HISTORY_PAGE_SIZE = 6
 
-const monthFormatter =new Intl.DateTimeFormat('es-SV', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-
-/** "octubre de 2026". UTC para que el día 1 no se corra al mes anterior. */
-function formatMonth(goal: Pick<VendorGoal, 'year' | 'month'>): string {
-  return monthFormatter.format(new Date(Date.UTC(goal.year, goal.month - 1, 1)))
-}
-
 function goalLabel(amount: string): string {
   return Number(amount) > 0 ? formatMoney(amount) : 'Sin meta'
+}
+
+/** "Oct 2025 – jun 2026", "Jul 2026 – hoy" o un solo mes. */
+function periodLabel(goal: VendorGoalPeriod): string {
+  const from = capitalizeFirst(formatShortMonth(goal))
+  if (!goal.until) return `${from} – hoy`
+  if (goal.until.year === goal.year && goal.until.month === goal.month) return from
+  return `${from} – ${formatShortMonth(goal.until)}`
 }
 
 interface VendorGoalCardProps {
@@ -35,40 +36,22 @@ interface VendorGoalCardProps {
 }
 
 /**
- * Meta mensual del vendedor (PCRM-173): la vigente este mes y el historial de
- * cambios. Cada cambio aplica desde su mes en adelante; quitar uno deja
- * vigente el anterior desde ese mes.
+ * Meta mensual del vendedor (PCRM-173): la vigente y, en orden cronológico,
+ * los periodos en que aplicó cada meta. La meta solo se cambia para el mes en
+ * curso y no se elimina, así que los periodos cerrados no cambian.
  */
 export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCardProps) {
   const [page, setPage] = useState(1)
   const { state, reload: reloadPage } = useVendorGoals(vendorId, page, HISTORY_PAGE_SIZE)
   const [editing, setEditing] = useState(false)
-  const [removing, setRemoving] = useState<VendorGoal | null>(null)
-  const [submitting, setSubmitting] = useState(false)
 
   const current = state.status === 'ready' ? state.goals.current : null
   const history = state.status === 'ready' ? state.goals.history : null
 
-  // Tras guardar o quitar, el cambio puede caer en cualquier página: se
-  // vuelve a la primera, que tiene los meses más recientes.
+  // El cambio siempre cae en el mes en curso, que está en la primera página.
   function reload() {
     if (page === 1) reloadPage()
     else setPage(1)
-  }
-
-  async function handleRemove(goal: VendorGoal) {
-    setSubmitting(true)
-    try {
-      await deleteVendorGoal(vendorId, goal.id)
-      toast.success(`Se quitó el cambio de ${formatMonth(goal)}.`)
-      reload()
-      onChanged?.()
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'No se pudo quitar el cambio de meta.')
-    } finally {
-      setSubmitting(false)
-      setRemoving(null)
-    }
   }
 
   return (
@@ -101,55 +84,57 @@ export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCa
             <AlertTitle>No se pudo cargar la meta</AlertTitle>
             <AlertDescription className="flex flex-wrap items-center gap-2">
               {state.message}
-              <Button size="sm" variant="outline" onClick={reload}>
+              <Button size="sm" variant="outline" onClick={reloadPage}>
                 Reintentar
               </Button>
             </AlertDescription>
           </Alert>
         )}
 
-        {state.status === 'ready' && (
+        {state.status === 'ready' && history && (
           <>
             <p className="text-2xl font-semibold tabular-nums">
               {current ? formatMoney(current.goal_amount) : <span className="text-muted-foreground">Sin meta</span>}
             </p>
 
-            {history && history.items.length > 0 && (
-              <Table>
-                <TableHeader className="bg-muted/40">
-                  <TableRow>
-                    <TableHead>Desde</TableHead>
-                    <TableHead className="text-right">Meta</TableHead>
-                    <TableHead className="w-12">
-                      <span className="sr-only">Acciones</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.items.map((goal) => (
-                    <TableRow key={goal.id}>
-                      <TableCell className="capitalize">
-                        {formatMonth(goal)}
-                        {current?.id === goal.id && <span className="ml-2 text-xs text-muted-foreground">(vigente)</span>}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{goalLabel(goal.goal_amount)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Quitar el cambio de ${formatMonth(goal)}`}
-                          onClick={() => setRemoving(goal)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            {history.items.length > 0 && (
+              <ol aria-label="Historial de metas" className="flex flex-col">
+                {history.items.map((goal, i) => {
+                  const inForce = goal.until === null
+                  // La línea sigue hacia la entrada siguiente, aunque esté en otra página.
+                  const continues = i < history.items.length - 1 || history.page < history.total_pages
+                  return (
+                    <li key={goal.id} className="relative flex gap-3">
+                      {continues && (
+                        <span aria-hidden className="absolute top-5 bottom-0 left-[5px] w-px bg-border" />
+                      )}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'relative mt-4 size-[11px] shrink-0 rounded-full border-2',
+                          inForce ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-background'
+                        )}
+                      />
+                      <Item size="sm" className="flex-1 px-0">
+                        <ItemContent>
+                          <ItemTitle className={cn(!inForce && 'font-normal text-muted-foreground')}>
+                            {periodLabel(goal)}
+                          </ItemTitle>
+                        </ItemContent>
+                        <ItemActions>
+                          {inForce && <Badge variant="secondary">Vigente</Badge>}
+                          <span className={cn('tabular-nums', !inForce && 'text-muted-foreground')}>
+                            {goalLabel(goal.goal_amount)}
+                          </span>
+                        </ItemActions>
+                      </Item>
+                    </li>
+                  )
+                })}
+              </ol>
             )}
 
-            {history && history.total_pages > 1 && (
+            {history.total_pages > 1 && (
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span className="text-sm text-muted-foreground">
                   Página {history.page} de {history.total_pages} · {history.total} cambios
@@ -162,7 +147,7 @@ export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCa
                     disabled={history.page <= 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                   >
-                    <ChevronLeft data-icon="inline-start" /> Anterior
+                    <ChevronLeft data-icon="inline-start" /> Recientes
                   </Button>
                   <Button
                     type="button"
@@ -171,7 +156,7 @@ export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCa
                     disabled={history.page >= history.total_pages}
                     onClick={() => setPage((p) => p + 1)}
                   >
-                    Siguiente <ChevronRight data-icon="inline-end" />
+                    Anteriores <ChevronRight data-icon="inline-end" />
                   </Button>
                 </div>
               </div>
@@ -191,17 +176,6 @@ export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCa
             reload()
             onChanged?.()
           }}
-        />
-      )}
-
-      {removing && (
-        <ConfirmDialog
-          title="Quitar cambio de meta"
-          message={`Desde ${formatMonth(removing)} volverá a aplicar la meta anterior (o ninguna, si no había). El cumplimiento de esos meses se recalcula.`}
-          confirmLabel="Quitar"
-          submitting={submitting}
-          onCancel={() => setRemoving(null)}
-          onConfirm={() => handleRemove(removing)}
         />
       )}
     </Card>
