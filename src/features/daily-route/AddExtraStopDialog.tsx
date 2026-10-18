@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarIcon, Check, MapPinOff, Search } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
@@ -17,9 +17,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Skeleton } from '../../components/ui/skeleton'
 import { cn } from '../../lib/utils'
-import { ApiError } from '../../lib/api/apiClient'
 import { todayInSv, parseDay, toDay } from '../metrics/metricsDates'
-import { listCustomers } from '../customers/customersApi'
+import { useCustomers } from '../customers/useCustomers'
 import type { Customer } from '../customers/customers.types'
 import { STOP_TYPE_LABELS, type StopType } from '../routes/routes.types'
 import { addExtraStop } from './dailyRouteApi'
@@ -35,11 +34,6 @@ interface AddExtraStopDialogProps {
   onCreated: () => void
 }
 
-type CustomersState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; customers: Customer[] }
-
 /** PCRM-158: alta de una parada extra en la ruta del día de un vendedor, solo hoy o fechas futuras. */
 export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }: AddExtraStopDialogProps) {
   const today = parseDay(todayInSv())
@@ -47,7 +41,6 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
   const [date, setDate] = useState(defaultDate)
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [customersState, setCustomersState] = useState<CustomersState>({ status: 'loading' })
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [stopType, setStopType] = useState<StopType>('visit')
   const [reasonText, setReasonText] = useState('')
@@ -72,32 +65,21 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dailyRouteState, date])
 
-  const requestId = useRef(0)
+  // Toda la cartera (useCustomers pagina hasta el final): pedir una sola página de 100
+  // dejaba fuera al resto de los ~350 clientes. Se busca en el cliente, como en RouteStopsPage.
+  const { state: customersState } = useCustomers()
 
-  useEffect(() => {
-    const id = ++requestId.current
-    setCustomersState({ status: 'loading' })
-
-    const query = search.trim()
-    const timer = setTimeout(() => {
-      listCustomers(query ? { search: query, limit: 100 } : { limit: 100 })
-        .then((page) => {
-          if (id !== requestId.current) return
-          setCustomersState({ status: 'ready', customers: page.items })
-        })
-        .catch((err: unknown) => {
-          if (id !== requestId.current) return
-          setCustomersState({
-            status: 'error',
-            message: err instanceof ApiError ? err.message : 'Error al cargar los clientes',
-          })
-        })
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [search])
-
-  const filteredCustomers = customersState.status === 'ready' ? customersState.customers.filter((c) => c.has_gps) : []
+  const filteredCustomers = useMemo(() => {
+    if (customersState.status !== 'ready') return []
+    const query = search.trim().toLowerCase()
+    return customersState.customers.filter((customer) => {
+      if (!customer.has_gps) return false
+      if (!query) return true
+      return [customer.name, customer.zone, customer.municipality].some((field) =>
+        (field ?? '').toLowerCase().includes(query)
+      )
+    })
+  }, [customersState, search])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -258,6 +240,10 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
                   <p role="alert" className="p-3 text-sm text-destructive">
                     {customersState.message}
                   </p>
+                )}
+
+                {customersState.status === 'pending-backend' && (
+                  <p className="p-3 text-sm text-muted-foreground">La API todavía no expone el listado de clientes.</p>
                 )}
 
                 {customersState.status === 'ready' && filteredCustomers.length === 0 && (
