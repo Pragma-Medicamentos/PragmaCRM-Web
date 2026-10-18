@@ -1,7 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
-import { ChartNoAxesColumn, KeyRound, MoreHorizontal, Pencil, Plus, Power, Search, UserCog } from 'lucide-react'
+import {
+  ChartNoAxesColumn,
+  ChevronLeft,
+  ChevronRight,
+  KeyRound,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Power,
+  Search,
+  UserCog,
+} from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -43,13 +54,16 @@ import {
 import { cn } from '../../lib/utils'
 import { ApiError } from '../../lib/api/apiClient'
 import { formatMoney } from '../metrics/metricsFormat'
-import { useVendors } from './useVendors'
+import { useVendorsPage } from './useVendorsPage'
 import { CreateVendorDialog } from './CreateVendorDialog'
 import { EditVendorDialog } from './EditVendorDialog'
 import { resendVendorOtp, setVendorActive } from './vendorsApi'
 import type { UpdatedVendor, Vendor } from './vendors.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium' })
+
+const PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 300
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
@@ -180,31 +194,45 @@ function VendorsTable({ vendors, busyIds, onEdit, onToggleActive, onResendOtp }:
 
 /** RF-01 / HU-01: listado, alta, edición y habilitar/deshabilitar vendedores (wireframe 1k). */
 export function VendorsPage() {
-  const { state, reload } = useVendors()
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<Vendor | null>(null)
   const [confirmingDisable, setConfirmingDisable] = useState<Vendor | null>(null)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [page, setPage] = useState(1)
 
-  const vendors = state.status === 'ready' ? state.vendors : []
-  const activeCount = vendors.filter((v) => v.active).length
-  const inactiveCount = vendors.length - activeCount
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPage(1)
+    }, SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(handle)
+  }, [searchInput])
 
-  const filteredVendors = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return vendors.filter((vendor) => {
-      if (statusFilter === 'active' && !vendor.active) return false
-      if (statusFilter === 'inactive' && vendor.active) return false
-      if (!query) return true
-      return (
-        vendor.name.toLowerCase().includes(query) || (vendor.email ?? '').toLowerCase().includes(query)
-      )
-    })
-  }, [vendors, search, statusFilter])
+  const { state, reload } = useVendorsPage({
+    page,
+    limit: PAGE_SIZE,
+    active: statusFilter === 'all' ? undefined : statusFilter === 'active',
+    search,
+  })
 
-  const isFiltered = search.trim() !== '' || statusFilter !== 'all'
+  const vendors = state.status === 'ready' ? state.page.items : []
+  const isFiltered = search !== '' || statusFilter !== 'all'
+
+  // Deshabilitar al último de la página con el filtro "Activos" la deja vacía.
+  const lastPage = state.status === 'ready' ? state.page.total_pages : 0
+  useEffect(() => {
+    if (lastPage > 0 && page > lastPage) setPage(lastPage)
+  }, [page, lastPage])
+
+  function clearFilters() {
+    setSearchInput('')
+    setSearch('')
+    setStatusFilter('all')
+    setPage(1)
+  }
 
   async function withBusy(id: string, task: () => Promise<void>) {
     setBusyIds((prev) => new Set(prev).add(id))
@@ -271,7 +299,9 @@ export function VendorsPage() {
       <PageHeader
         title="Vendedores"
         subtitle={
-          state.status === 'ready' ? `${activeCount} activos · ${inactiveCount} deshabilitados` : undefined
+          state.status === 'ready'
+            ? `${state.page.totals.active} activos · ${state.page.totals.inactive} deshabilitados`
+            : undefined
         }
         actions={
           <Button type="button" onClick={() => setCreateOpen(true)}>
@@ -297,9 +327,8 @@ export function VendorsPage() {
                   <InputGroupInput
                     type="search"
                     placeholder="Buscar por nombre o correo"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    disabled={state.status !== 'ready'}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                   />
                 </InputGroup>
                 <ToggleGroup
@@ -308,8 +337,11 @@ export function VendorsPage() {
                   size="sm"
                   spacing={0}
                   value={statusFilter}
-                  onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
-                  disabled={state.status !== 'ready'}
+                  onValueChange={(value) => {
+                    if (!value) return
+                    setStatusFilter(value as StatusFilter)
+                    setPage(1)
+                  }}
                 >
                   {STATUS_FILTERS.map((filter) => (
                     <ToggleGroupItem key={filter.value} value={filter.value}>
@@ -323,9 +355,9 @@ export function VendorsPage() {
             <CardContent className="border-t px-0">
               {state.status === 'loading' && <VendorsTableSkeleton />}
 
-              {state.status === 'ready' && filteredVendors.length > 0 && (
+              {state.status === 'ready' && vendors.length > 0 && (
                 <VendorsTable
-                  vendors={filteredVendors}
+                  vendors={vendors}
                   busyIds={busyIds}
                   onEdit={setEditing}
                   onToggleActive={handleToggleActive}
@@ -333,7 +365,7 @@ export function VendorsPage() {
                 />
               )}
 
-              {state.status === 'ready' && filteredVendors.length === 0 && (
+              {state.status === 'ready' && vendors.length === 0 && (
                 <Empty className="py-14">
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -353,10 +385,7 @@ export function VendorsPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
-                          setSearch('')
-                          setStatusFilter('all')
-                        }}
+                        onClick={clearFilters}
                       >
                         Limpiar filtros
                       </Button>
@@ -369,6 +398,35 @@ export function VendorsPage() {
                 </Empty>
               )}
             </CardContent>
+
+            {state.status === 'ready' && state.page.total > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-3 sm:px-6">
+                <span className="text-sm text-muted-foreground">
+                  Página {state.page.page} de {state.page.total_pages} · {state.page.total}{' '}
+                  {state.page.total === 1 ? 'vendedor' : 'vendedores'}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={state.page.page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft data-icon="inline-start" /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={state.page.page >= state.page.total_pages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Siguiente <ChevronRight data-icon="inline-end" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
 
           <p className="text-sm text-muted-foreground">

@@ -1,3 +1,5 @@
+import type { Paginated } from '../customers/customers.types'
+
 // Ancla: app_user con role = 'Vendedor' (RF-01, HU-01). Contrato real:
 // PragmaCRM-Api src/services/seller.service.ts (SellerRecord), expuesto en
 // GET/POST /api/v1/sellers. El envelope no transforma las llaves: llegan
@@ -14,6 +16,24 @@ export interface Vendor {
   // null si no tiene. Solo la traen GET /sellers y GET /sellers/:id: las
   // respuestas de alta y edición no la incluyen.
   current_goal?: string | null
+}
+
+// GET /api/v1/sellers — data: Paginated<Vendor> + totals. Los totales cuentan
+// a todos los vendedores por estado, sin los filtros, para el encabezado.
+export interface VendorsPage extends Paginated<Vendor> {
+  totals: { active: number; inactive: number }
+}
+
+export interface ListVendorsParams {
+  page?: number
+  limit?: number
+  active?: boolean
+  search?: string
+}
+
+export interface PageParams {
+  page?: number
+  limit?: number
 }
 
 // POST /api/v1/sellers solo acepta name y email — la cuenta nace sin
@@ -55,10 +75,10 @@ export interface VendorGoal {
 }
 
 export interface VendorGoals {
-  /** Meta vigente este mes; null si no hay o es 0. */
+  /** Meta vigente este mes; null si no hay o es 0. No depende de la página. */
   current: VendorGoal | null
-  /** Todos los cambios, del mes más reciente al más antiguo. */
-  history: VendorGoal[]
+  /** Cambios paginados, del mes más reciente al más antiguo. */
+  history: Paginated<VendorGoal>
 }
 
 export interface SetVendorGoalInput {

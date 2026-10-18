@@ -9,11 +9,15 @@ export type VendorGoalsState =
   | { status: 'ready'; goals: VendorGoals }
 
 /**
- * Meta vigente e historial de cambios de un vendedor
+ * Meta vigente y una página del historial de cambios de un vendedor
  * (GET /api/v1/sellers/:id/goals, PCRM-173). `reload` la vuelve a pedir
  * después de cambiar o quitar una meta.
  */
-export function useVendorGoals(id: string): { state: VendorGoalsState; reload: () => void } {
+export function useVendorGoals(
+  id: string,
+  page: number,
+  limit: number
+): { state: VendorGoalsState; reload: () => void } {
   const [state, setState] = useState<VendorGoalsState>({ status: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -21,7 +25,7 @@ export function useVendorGoals(id: string): { state: VendorGoalsState; reload: (
     let cancelled = false
     setState({ status: 'loading' })
 
-    getVendorGoals(id)
+    getVendorGoals(id, { page, limit })
       .then((goals) => {
         if (!cancelled) setState({ status: 'ready', goals })
       })
@@ -36,7 +40,7 @@ export function useVendorGoals(id: string): { state: VendorGoalsState; reload: (
     return () => {
       cancelled = true
     }
-  }, [id, reloadKey])
+  }, [id, page, limit, reloadKey])
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 

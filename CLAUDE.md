@@ -87,25 +87,32 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 - **La cuenta nace sin contraseña.** El admin solo da de alta `name` + `email`; la API crea el usuario en Supabase Auth (`email_confirm: true`, sin password) y envía un código OTP de 6 dígitos al correo del vendedor. El vendedor lo verifica y fija su contraseña desde la app (`supabase.auth.verifyOtp` + `updateUser({ password })`) — este dashboard no participa en ese paso ni muestra ninguna contraseña.
 - El admin **no** elige ni genera una contraseña inicial. Esa decisión (registrada en una versión anterior de este documento) quedó reemplazada por el flujo de OTP al pasar la autenticación a Supabase.
 
-`GET /api/v1/sellers` — requiere `requireAuth` + `requireRole(ADMIN)`. Devuelve todos los `app_user` con `role = 'Vendedor'`, sin transformar las llaves (snake_case tal cual la base):
+`GET /api/v1/sellers?page=&limit=&active=&search=` — requiere `requireAuth` + `requireRole(ADMIN)`. Devuelve los `app_user` con `role = 'Vendedor'` **paginados** (por defecto 20, tope 100), sin transformar las llaves (snake_case tal cual la base). `search` busca en nombre y correo; `totals` cuenta a todos por estado, sin los filtros:
 
 ```json
 {
   "success": true,
   "message": "Vendedores obtenidos correctamente",
-  "data": [
-    {
-      "id": "uuid",
-      "name": "...",
-      "email": "...",
-      "active": true,
-      "auth_user_id": "uuid",
-      "created_at": "2026-09-01T00:00:00.000Z",
-      "updated_at": "2026-09-01T00:00:00.000Z"
-    }
-  ]
+  "data": {
+    "items": [
+      {
+        "id": "uuid",
+        "name": "...",
+        "email": "...",
+        "active": true,
+        "auth_user_id": "uuid",
+        "created_at": "2026-09-01T00:00:00.000Z",
+        "updated_at": "2026-09-01T00:00:00.000Z",
+        "current_goal": "3100.00"
+      }
+    ],
+    "page": 1, "page_size": 20, "total": 5, "total_pages": 1,
+    "totals": { "active": 5, "inactive": 0 }
+  }
 }
 ```
+
+`/vendedores` pagina con `useVendorsPage`. Los selectores de vendedor (planificador, nuevo prospecto) usan `useVendors` → `listAllVendors()`, que pide una sola página de 100. `GET /api/v1/sellers/:id/goals` también pagina su `history` (`current` se calcula sobre todas las filas).
 
 `POST /api/v1/sellers` — mismo guard. Body: `{ "name": "...", "email": "..." }`. Responde 201 con el vendedor creado (mismo shape que un elemento del listado). Un correo duplicado responde con un error de envelope legible (409), no un 500.
 

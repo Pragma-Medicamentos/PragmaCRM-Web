@@ -14,8 +14,9 @@ import { MetricStatSkeleton } from '../metrics/MetricStat'
 import { PeriodPicker } from '../metrics/PeriodPicker'
 import { QueryAlerts } from '../metrics/QueryAlerts'
 import { SellerPerformanceBody, useSellerDetail } from '../metrics/SellerPerformance'
+import { useMetricsQuery } from '../metrics/useMetricsQuery'
 import { useMetricsSearch } from '../metrics/useMetricsSearch'
-import { useVendors } from './useVendors'
+import { getVendor } from './vendorsApi'
 import { VendorGoalCard } from './VendorGoalCard'
 
 function PerformanceSkeleton() {
@@ -37,11 +38,11 @@ export function VendorDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const { range, comparison: comparisonMode, setRange, setComparison } = useMetricsSearch()
   const comparison = comparisonTarget(comparisonMode, range)
-  const vendors = useVendors()
+  const vendorQuery = useMetricsQuery(`vendor:${id}`, () => getVendor(id), { keepPrevious: false })
   const queries = useSellerDetail(id, range, comparison)
   const { detail } = queries
 
-  const vendor = vendors.state.status === 'ready' ? vendors.state.vendors.find((v) => v.id === id) : undefined
+  const vendor = vendorQuery.state.status === 'ready' ? vendorQuery.state.data : undefined
   const seller = detail.state.status === 'ready' ? detail.state.data.seller : null
   // Un vendedor deshabilitado sin actividad en el periodo no sale en /metrics/sellers/:id.
   const noActivity = detail.state.status === 'error' && /not found/i.test(detail.state.message)
@@ -83,7 +84,7 @@ export function VendorDetailPage() {
           onChanged={() => {
             detail.reload()
             queries.otherDetail.reload()
-            vendors.reload()
+            vendorQuery.reload()
           }}
         />
 

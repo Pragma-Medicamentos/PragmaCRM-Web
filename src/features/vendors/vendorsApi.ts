@@ -1,16 +1,34 @@
 import { apiCall, apiRequest } from '../../lib/api/apiClient'
 import type {
   CreateVendorInput,
+  ListVendorsParams,
+  PageParams,
   SetVendorGoalInput,
   UpdatedVendor,
   UpdateVendorInput,
   Vendor,
   VendorGoal,
   VendorGoals,
+  VendorsPage,
 } from './vendors.types'
 
-export function listVendors(): Promise<Vendor[]> {
-  return apiRequest<Vendor[]>('/api/v1/sellers')
+// Tope de `limit` en la API (MAX_PAGE_SIZE de pagination.schema.ts).
+const MAX_PAGE_SIZE = 100
+
+export function listVendors(params: ListVendorsParams = {}): Promise<VendorsPage> {
+  return apiRequest<VendorsPage>('/api/v1/sellers', { params })
+}
+
+/**
+ * Todos los vendedores en una sola página, para selectores. Son decenas
+ * (CLAUDE.md 7.9), muy por debajo del tope de la API.
+ */
+export function listAllVendors(): Promise<Vendor[]> {
+  return listVendors({ limit: MAX_PAGE_SIZE }).then((page) => page.items)
+}
+
+export function getVendor(id: string): Promise<Vendor> {
+  return apiRequest<Vendor>(`/api/v1/sellers/${id}`)
 }
 
 export function createVendor(input: CreateVendorInput): Promise<Vendor> {
@@ -29,8 +47,8 @@ export function resendVendorOtp(id: string): Promise<Vendor> {
   return apiRequest<Vendor>(`/api/v1/sellers/${id}/resend-otp`, { method: 'POST' })
 }
 
-export function getVendorGoals(id: string): Promise<VendorGoals> {
-  return apiRequest<VendorGoals>(`/api/v1/sellers/${id}/goals`)
+export function getVendorGoals(id: string, params: PageParams = {}): Promise<VendorGoals> {
+  return apiRequest<VendorGoals>(`/api/v1/sellers/${id}/goals`, { params })
 }
 
 export function setVendorGoal(id: string, input: SetVendorGoalInput): Promise<VendorGoal> {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Target, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Target, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
@@ -14,7 +14,9 @@ import { useVendorGoals } from './useVendorGoals'
 import { deleteVendorGoal } from './vendorsApi'
 import type { VendorGoal } from './vendors.types'
 
-const monthFormatter = new Intl.DateTimeFormat('es-SV', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+const HISTORY_PAGE_SIZE = 6
+
+const monthFormatter =new Intl.DateTimeFormat('es-SV', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 /** "octubre de 2026". UTC para que el día 1 no se corra al mes anterior. */
 function formatMonth(goal: Pick<VendorGoal, 'year' | 'month'>): string {
@@ -38,12 +40,21 @@ interface VendorGoalCardProps {
  * vigente el anterior desde ese mes.
  */
 export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCardProps) {
-  const { state, reload } = useVendorGoals(vendorId)
+  const [page, setPage] = useState(1)
+  const { state, reload: reloadPage } = useVendorGoals(vendorId, page, HISTORY_PAGE_SIZE)
   const [editing, setEditing] = useState(false)
   const [removing, setRemoving] = useState<VendorGoal | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const current = state.status === 'ready' ? state.goals.current : null
+  const history = state.status === 'ready' ? state.goals.history : null
+
+  // Tras guardar o quitar, el cambio puede caer en cualquier página: se
+  // vuelve a la primera, que tiene los meses más recientes.
+  function reload() {
+    if (page === 1) reloadPage()
+    else setPage(1)
+  }
 
   async function handleRemove(goal: VendorGoal) {
     setSubmitting(true)
@@ -103,7 +114,7 @@ export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCa
               {current ? formatMoney(current.goal_amount) : <span className="text-muted-foreground">Sin meta</span>}
             </p>
 
-            {state.goals.history.length > 0 && (
+            {history && history.items.length > 0 && (
               <Table>
                 <TableHeader className="bg-muted/40">
                   <TableRow>
@@ -115,7 +126,7 @@ export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCa
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {state.goals.history.map((goal) => (
+                  {history.items.map((goal) => (
                     <TableRow key={goal.id}>
                       <TableCell className="capitalize">
                         {formatMonth(goal)}
@@ -136,6 +147,34 @@ export function VendorGoalCard({ vendorId, vendorName, onChanged }: VendorGoalCa
                   ))}
                 </TableBody>
               </Table>
+            )}
+
+            {history && history.total_pages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <span className="text-sm text-muted-foreground">
+                  Página {history.page} de {history.total_pages} · {history.total} cambios
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={history.page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft data-icon="inline-start" /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={history.page >= history.total_pages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Siguiente <ChevronRight data-icon="inline-end" />
+                  </Button>
+                </div>
+              </div>
             )}
           </>
         )}
