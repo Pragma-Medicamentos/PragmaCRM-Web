@@ -220,9 +220,10 @@ function ProfileView({
           </div>
           <Stat label="Límite de crédito" value={formatCurrency(profile.credit_limit)} />
           <Stat
-            label="Saldo pendiente"
-            value={formatCurrency(profile.pending_balance)}
-            tone={Number(profile.pending_balance) > 0 ? 'danger' : undefined}
+            label="Tiempo promedio de pago"
+            value={
+              profile.summary.avg_payment_days === null ? '—' : `${Math.round(profile.summary.avg_payment_days)} d`
+            }
           />
           <Stat label="Compras netas" value={formatCurrency(profile.summary.net_purchases)} />
           <Stat label="Pedidos" value={String(profile.summary.orders_count)} />

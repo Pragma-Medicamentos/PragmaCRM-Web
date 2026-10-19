@@ -95,7 +95,6 @@ export function CustomerStatsCard({ profile }: { profile: CustomerProfile }) {
                   value={formatMoney(totals.overdue_amount)}
                   note={`${formatCount(totals.overdue_count)} ${totals.overdue_count === 1 ? 'factura' : 'facturas'} con más de 60 d`}
                 />
-                <MetricStat label="Saldo pendiente" value={formatMoney(totals.pending_balance)} />
                 <MetricStat
                   label="Crédito disponible"
                   value={formatMoney(totals.credit_available)}
@@ -103,7 +102,7 @@ export function CustomerStatsCard({ profile }: { profile: CustomerProfile }) {
                 />
               </>
             ) : credits.state.status === 'loading' || credits.state.status === 'idle' ? (
-              Array.from({ length: 3 }, (_, i) => <MetricStatSkeleton key={i} />)
+              Array.from({ length: 2 }, (_, i) => <MetricStatSkeleton key={i} />)
             ) : null}
           </div>
         </div>
