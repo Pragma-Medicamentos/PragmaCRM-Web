@@ -385,3 +385,47 @@ export interface MetricsRouteDetailResponse extends MetricsContext {
   sales_by_weekday: RouteWeekdaySales[]
   seller_performance: RouteSellerPerformance[]
 }
+
+/**
+ * Una jornada de la ruta (PCRM-188): su agenda de un día local y lo que salió
+ * de ella. La venta se acredita a la jornada de la parada cuya visita la generó.
+ */
+export interface RouteWorkday {
+  /** Día de la agenda, YYYY-MM-DD. */
+  date: string
+  /** Vendedores cuya asignación generó las paradas del día. */
+  sellers: RouteSeller[]
+  amount: Money
+  orders_count: number
+  planned_stops: number
+  executed_stops: number
+  /** Paradas ejecutadas con al menos una venta atribuida. */
+  stops_with_order: number
+  /** Clientes agendados con parada ejecutada / agendados × 100. Null sin agenda. */
+  visit_coverage_rate: number | null
+  /** Efectividad: `stops_with_order / executed_stops × 100`. Null sin paradas ejecutadas. */
+  order_rate: number | null
+}
+
+/** Promedio de las jornadas anteriores a la última. */
+export interface RouteWorkdayBaseline {
+  workdays: number
+  amount: Money
+  orders_count: number
+  visit_coverage_rate: number | null
+  order_rate: number | null
+}
+
+/** GET /metrics/routes/:id/workdays — la ruta contra sí misma el mismo día de la semana. */
+export interface MetricsRouteWorkdaysResponse {
+  route: Pick<RouteMetrics, 'route_id' | 'name' | 'active'>
+  /** Día ISO comparado: 1 lunes … 7 domingo, como `route_user.day`. */
+  day: number
+  limit: number
+  /** La más reciente primero: es la que se compara. */
+  workdays: RouteWorkday[]
+  /** Null con menos de dos jornadas. */
+  baseline: RouteWorkdayBaseline | null
+  /** Variación % de la venta de la última jornada contra `baseline.amount`. */
+  change_rate: number | null
+}
