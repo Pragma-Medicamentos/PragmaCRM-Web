@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../../lib/api/apiClient'
-import { listVendors } from './vendorsApi'
+import { listAllVendors } from './vendorsApi'
 import type { Vendor } from './vendors.types'
 
 export type VendorsState =
@@ -9,9 +9,9 @@ export type VendorsState =
   | { status: 'ready'; vendors: Vendor[] }
 
 /**
- * Carga el listado de vendedores (GET /api/v1/sellers) con el access token
- * de la sesión de Supabase vigente. `reload` vuelve a pedirlo, para
- * refrescar la lista después de un alta exitosa.
+ * Todos los vendedores (GET /api/v1/sellers en una sola página), para los
+ * selectores de vendedor. El listado de /vendedores pagina con
+ * useVendorsPage. `reload` vuelve a pedirlo.
  */
 export function useVendors(): { state: VendorsState; reload: () => void } {
   const [state, setState] = useState<VendorsState>({ status: 'loading' })
@@ -21,7 +21,7 @@ export function useVendors(): { state: VendorsState; reload: () => void } {
     let cancelled = false
     setState({ status: 'loading' })
 
-    listVendors()
+    listAllVendors()
       .then((vendors) => {
         if (!cancelled) setState({ status: 'ready', vendors })
       })

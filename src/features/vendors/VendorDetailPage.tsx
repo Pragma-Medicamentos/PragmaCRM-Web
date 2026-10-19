@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ChartNoAxesColumn } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
@@ -14,8 +15,11 @@ import { MetricStatSkeleton } from '../metrics/MetricStat'
 import { PeriodPicker } from '../metrics/PeriodPicker'
 import { QueryAlerts } from '../metrics/QueryAlerts'
 import { SellerPerformanceBody, useSellerDetail } from '../metrics/SellerPerformance'
+import { useMetricsQuery } from '../metrics/useMetricsQuery'
 import { useMetricsSearch } from '../metrics/useMetricsSearch'
-import { useVendors } from './useVendors'
+import { getVendor } from './vendorsApi'
+import { VendorGoalCard } from './VendorGoalCard'
+import { VendorGoalHistoryCard } from './VendorGoalHistoryCard'
 
 function PerformanceSkeleton() {
   return (
@@ -36,11 +40,12 @@ export function VendorDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const { range, comparison: comparisonMode, setRange, setComparison } = useMetricsSearch()
   const comparison = comparisonTarget(comparisonMode, range)
-  const vendors = useVendors()
+  const [goalsVersion, setGoalsVersion] = useState(0)
+  const vendorQuery = useMetricsQuery(`vendor:${id}`, () => getVendor(id), { keepPrevious: false })
   const queries = useSellerDetail(id, range, comparison)
   const { detail } = queries
 
-  const vendor = vendors.state.status === 'ready' ? vendors.state.vendors.find((v) => v.id === id) : undefined
+  const vendor = vendorQuery.state.status === 'ready' ? vendorQuery.state.data : undefined
   const seller = detail.state.status === 'ready' ? detail.state.data.seller : null
   // Un vendedor deshabilitado sin actividad en el periodo no sale en /metrics/sellers/:id.
   const noActivity = detail.state.status === 'error' && /not found/i.test(detail.state.message)
@@ -74,6 +79,21 @@ export function VendorDetailPage() {
             </>
           }
         />
+
+        {/* PCRM-173: cambiar la meta cambia el cumplimiento del periodo. */}
+        <VendorGoalCard
+          vendorId={id}
+          vendorName={name ?? 'el vendedor'}
+          onChanged={() => {
+            detail.reload()
+            queries.otherDetail.reload()
+            vendorQuery.reload()
+            setGoalsVersion((v) => v + 1)
+          }}
+        />
+
+        {/* PCRM-198: cumplimiento mes a mes, independiente del periodo elegido. */}
+        <VendorGoalHistoryCard vendorId={id} version={goalsVersion} />
 
         <Card>
           <CardHeader>
