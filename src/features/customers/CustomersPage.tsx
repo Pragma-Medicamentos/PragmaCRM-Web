@@ -68,8 +68,7 @@ const COLUMNS = [
   { label: 'Categoría', className: '' },
   { label: 'Compras (neto)', className: 'hidden sm:table-cell' },
   { label: 'Conversión', className: 'hidden xl:table-cell' },
-  { label: 'Días prom. pago', className: 'hidden 2xl:table-cell' },
-  { label: 'Saldo', className: 'hidden md:table-cell' },
+  { label: 'Días prom. pago', className: 'hidden md:table-cell' },
   { label: 'GPS', className: 'hidden md:table-cell' },
 ] as const
 
@@ -139,11 +138,8 @@ function CustomersTable({ customers }: { customers: Customer[] }) {
                 {customer.orders_count}/{customer.visits_count}
               </div>
             </TableCell>
-            <TableCell className="hidden tabular-nums text-muted-foreground 2xl:table-cell">
-              {customer.avg_payment_days != null ? `${customer.avg_payment_days} d` : '—'}
-            </TableCell>
             <TableCell className="hidden tabular-nums text-muted-foreground md:table-cell">
-              {formatCurrency(customer.pending_balance)}
+              {customer.avg_payment_days != null ? `${customer.avg_payment_days} d` : '—'}
             </TableCell>
             <TableCell className="hidden md:table-cell">
               {customer.has_gps ? (
