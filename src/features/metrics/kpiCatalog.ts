@@ -75,7 +75,7 @@ export const KPI_META: Record<Exclude<KpiName, 'stops_by_type'>, KpiMeta> = {
     label: 'Cumplimiento de meta',
     unit: 'percent',
     polarity: 'up',
-    hint: () => 'Venta de los vendedores con meta entre la suma de sus metas.',
+    hint: () => 'Venta de los vendedores en los meses con meta, entre esas metas prorrateadas al periodo.',
   },
   customers_without_visit: {
     label: 'Clientes sin visita',

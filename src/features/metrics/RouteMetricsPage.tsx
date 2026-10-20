@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Progress } from '../../components/ui/progress'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
+import { ComparisonLegend } from './charts/ComparisonLegend'
 import { RouteWeekdaySalesChart } from './charts/RouteWeekdaySalesChart'
 import type {
   MetricsRange,
@@ -16,13 +17,14 @@ import type {
   RouteProductSales,
 } from './metrics.types'
 import { getRouteDetail } from './metricsApi'
-import { describeRange, formatRange } from './metricsDates'
+import { describeRange, formatRange, previousRange } from './metricsDates'
 import { computeDelta, formatCount, formatMoney, formatPercent, formatUnits, toAmount } from './metricsFormat'
 import { MetricStat, MetricStatSkeleton } from './MetricStat'
 import { PeriodPicker } from './PeriodPicker'
 import { productMetricsPath } from './productMetricsLinks'
 import { QueryAlerts } from './QueryAlerts'
 import { routePlace } from './routeMetricsDisplay'
+import { RouteWorkdaysCard } from './RouteWorkdaysCard'
 import { Refreshing, isRefreshing } from './slots'
 import { useMetricsQuery } from './useMetricsQuery'
 import { useMetricsSearch } from './useMetricsSearch'
@@ -241,12 +243,19 @@ export function RouteMetricsPage() {
   const location = useLocation()
   const backTo = location.pathname + location.search
 
+  const previous = previousRange(range)
   const detail = useMetricsQuery(
     id ? `${id}:${range.from}:${range.to}` : null,
     (signal) => getRouteDetail(id!, range, { signal }),
     { keepPrevious: false }
   )
+  const comparisonDetail = useMetricsQuery(
+    id ? `${id}:${previous.from}:${previous.to}:compare` : null,
+    (signal) => getRouteDetail(id!, previous, { signal }),
+    { keepPrevious: false }
+  )
   const data = detail.state.status === 'ready' ? detail.state.data : null
+  const comparisonData = comparisonDetail.state.status === 'ready' ? comparisonDetail.state.data : null
   const route = data?.route
   const place = route ? routePlace(route) : null
 
@@ -272,7 +281,14 @@ export function RouteMetricsPage() {
         />
 
         <QueryAlerts
-          queries={[{ label: 'las métricas de la ruta', endpoint: 'GET /api/v1/metrics/routes/:id', ...detail }]}
+          queries={[
+            { label: 'las métricas de la ruta', endpoint: 'GET /api/v1/metrics/routes/:id', ...detail },
+            {
+              label: 'el periodo anterior de la ruta',
+              endpoint: 'GET /api/v1/metrics/routes/:id (comparación)',
+              ...comparisonDetail,
+            },
+          ]}
         />
 
         {detail.state.status !== 'error' && detail.state.status !== 'pending-backend' && (
@@ -285,16 +301,39 @@ export function RouteMetricsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Venta por día de la semana</CardTitle>
-                <CardDescription>Qué días rinde la ruta, por la fecha de cada venta</CardDescription>
+                <CardDescription>Qué días rinde la ruta, contra los mismos días del periodo anterior</CardDescription>
               </CardHeader>
               <CardContent>
                 {data ? (
-                  <RouteWeekdaySalesChart weekdays={data.sales_by_weekday} />
+                  <div className="flex flex-col gap-3">
+                    <RouteWeekdaySalesChart
+                      weekdays={data.sales_by_weekday}
+                      comparison={
+                        comparisonData
+                          ? { weekdays: comparisonData.sales_by_weekday, label: formatRange(previous) }
+                          : undefined
+                      }
+                    />
+                    {comparisonData && (
+                      <ComparisonLegend
+                        items={[
+                          { label: formatRange(range), value: formatMoney(data.route.amount) },
+                          {
+                            label: formatRange(previous),
+                            value: formatMoney(data.route.previous_amount),
+                            compare: true,
+                          },
+                        ]}
+                      />
+                    )}
+                  </div>
                 ) : (
                   <Skeleton className="h-44 w-full" />
                 )}
               </CardContent>
             </Card>
+
+            {id && <RouteWorkdaysCard routeId={id} />}
 
             <div className="grid gap-6 xl:grid-cols-2">
               <Card>
