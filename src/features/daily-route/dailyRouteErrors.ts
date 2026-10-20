@@ -10,10 +10,12 @@ const BY_CODE: Record<string, string> = {
   SELLER_INACTIVE: 'El vendedor está inactivo.',
   CUSTOMER_NOT_FOUND: 'Cliente no encontrado.',
   CUSTOMER_NO_GPS: 'El cliente no tiene ubicación GPS registrada.',
+  PROSPECT_NOT_FOUND: 'Prospecto no encontrado.',
+  PROSPECT_NO_GPS: 'El prospecto no tiene ubicación GPS registrada.',
   SELLER_NO_ROUTE_ON_DATE: 'El vendedor no tiene ruta ese día.',
   ROUTE_ID_REQUIRED: 'El vendedor tiene varias rutas ese día; elegí la ruta.',
   ROUTE_NOT_ASSIGNED: 'La ruta indicada no está asignada a este vendedor ese día.',
-  EXTRA_STOP_DUPLICATE: 'El cliente ya tiene una parada de ese tipo ese día.',
+  EXTRA_STOP_DUPLICATE: 'Ya tiene una parada de ese tipo ese día.',
   EXTRA_STOP_NOT_FOUND: 'Parada extra no encontrada.',
   EXTRA_STOP_HAS_CHECKIN: 'La parada extra ya tiene check-in y no se puede eliminar.',
   EXTRA_STOP_DELETE_PAST: 'No se pueden eliminar paradas extra de días pasados.',
@@ -22,10 +24,11 @@ const BY_CODE: Record<string, string> = {
 const BY_FIELD: Record<string, string> = {
   sellerId: 'Id de vendedor inválido.',
   stopId: 'Id de parada inválido.',
-  customer_id: 'Id de cliente inválido.',
+  customer_id: 'Elegí un cliente o un prospecto.',
+  prospect_id: 'Id de prospecto inválido.',
   route_id: 'Id de ruta inválido.',
   date: 'Fecha inválida, formato YYYY-MM-DD.',
-  stop_type: 'Tipo de parada inválido: Visita, Despacho o Cobro.',
+  stop_type: 'Tipo de parada inválido: Visita, Despacho o Cobro (un prospecto solo admite Visita).',
   reason: 'El motivo debe tener entre 1 y 500 caracteres.',
 }
 

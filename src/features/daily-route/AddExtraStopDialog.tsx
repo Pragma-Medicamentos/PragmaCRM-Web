@@ -16,10 +16,13 @@ import { Input } from '../../components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Skeleton } from '../../components/ui/skeleton'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { cn } from '../../lib/utils'
 import { todayInSv, parseDay, toDay } from '../metrics/metricsDates'
 import { useCustomers } from '../customers/useCustomers'
 import type { Customer } from '../customers/customers.types'
+import { useProspects } from '../prospects/useProspects'
+import type { Prospect } from '../prospects/prospects.types'
 import { STOP_TYPE_LABELS, type StopType } from '../routes/routes.types'
 import { addExtraStop } from './dailyRouteApi'
 import { dailyRouteErrorMessage } from './dailyRouteErrors'
@@ -34,14 +37,28 @@ interface AddExtraStopDialogProps {
   onCreated: () => void
 }
 
-/** PCRM-158: alta de una parada extra en la ruta del día de un vendedor, solo hoy o fechas futuras. */
+type TargetKind = 'customer' | 'prospect'
+
+interface TargetOption {
+  id: string
+  name: string
+  detail: string
+}
+
+/**
+ * PCRM-158: alta de una parada extra en la ruta del día de un vendedor, solo hoy o fechas futuras.
+ * La parada es sobre un cliente o sobre un prospecto ("Asignar visitas únicas (clientes /
+ * prospectos)"); la de un prospecto solo puede ser Visita: no tiene pedidos ni créditos.
+ */
 export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }: AddExtraStopDialogProps) {
   const today = parseDay(todayInSv())
 
   const [date, setDate] = useState(defaultDate)
   const [datePopoverOpen, setDatePopoverOpen] = useState(false)
+  const [targetKind, setTargetKind] = useState<TargetKind>('customer')
   const [search, setSearch] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null)
   const [stopType, setStopType] = useState<StopType>('visit')
   const [reasonText, setReasonText] = useState('')
   const [routeId, setRouteId] = useState<string | null>(null)
@@ -68,6 +85,7 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
   // Toda la cartera (useCustomers pagina hasta el final): pedir una sola página de 100
   // dejaba fuera al resto de los ~350 clientes. Se busca en el cliente, como en RouteStopsPage.
   const { state: customersState } = useCustomers()
+  const { state: prospectsState } = useProspects()
 
   const filteredCustomers = useMemo(() => {
     if (customersState.status !== 'ready') return []
@@ -81,6 +99,47 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
     })
   }, [customersState, search])
 
+  // Solo prospectos con pin: la parada se dibuja en el mapa del vendedor y la API exige GPS.
+  const filteredProspects = useMemo(() => {
+    if (prospectsState.status !== 'ready') return []
+    const query = search.trim().toLowerCase()
+    return prospectsState.prospects.filter((prospect) => {
+      if (!prospect.location) return false
+      if (!query) return true
+      return [prospect.name, prospect.seller_name].some((field) => (field ?? '').toLowerCase().includes(query))
+    })
+  }, [prospectsState, search])
+
+  const isProspect = targetKind === 'prospect'
+  const listState = isProspect ? prospectsState : customersState
+  const options: TargetOption[] = isProspect
+    ? filteredProspects.map((p) => ({
+        id: p.id,
+        name: p.name,
+        detail: p.seller_name ? `Registrado por ${p.seller_name}` : 'Sin vendedor',
+      }))
+    : filteredCustomers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        detail: [c.zone, c.municipality].filter(Boolean).join(' · ') || 'Sin zona',
+      }))
+  const selectedId = isProspect ? selectedProspect?.id : selectedCustomer?.id
+
+  function handleTargetKindChange(value: string) {
+    if (!value) return
+    setTargetKind(value as TargetKind)
+    setSearch('')
+    if (value === 'prospect') setStopType('visit')
+  }
+
+  function handleSelect(id: string) {
+    if (isProspect) {
+      setSelectedProspect(filteredProspects.find((p) => p.id === id) ?? null)
+    } else {
+      setSelectedCustomer(filteredCustomers.find((c) => c.id === id) ?? null)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -89,8 +148,11 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
       setError('Solo se pueden agregar paradas para hoy o fechas futuras.')
       return
     }
-    if (!selectedCustomer) {
-      setError('Elegí un cliente.')
+    const target = isProspect
+      ? selectedProspect && { prospect_id: selectedProspect.id }
+      : selectedCustomer && { customer_id: selectedCustomer.id }
+    if (!target) {
+      setError(isProspect ? 'Elegí un prospecto.' : 'Elegí un cliente.')
       return
     }
     if (noRouteThatDay) {
@@ -108,8 +170,8 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
     try {
       await addExtraStop(sellerId, {
         date,
-        customer_id: selectedCustomer.id,
-        stop_type: stopType,
+        ...target,
+        stop_type: isProspect ? 'visit' : stopType,
         ...(routeId ? { route_id: routeId } : {}),
         ...(reason ? { reason } : {}),
       })
@@ -193,8 +255,23 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
             )}
 
             <Field>
+              <FieldLabel>Parada sobre</FieldLabel>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                spacing={0}
+                value={targetKind}
+                onValueChange={handleTargetKindChange}
+              >
+                <ToggleGroupItem value="customer">Cliente</ToggleGroupItem>
+                <ToggleGroupItem value="prospect">Prospecto</ToggleGroupItem>
+              </ToggleGroup>
+            </Field>
+
+            <Field>
               <FieldLabel>Tipo de parada</FieldLabel>
-              <Select value={stopType} onValueChange={(v) => setStopType(v as StopType)}>
+              <Select value={stopType} onValueChange={(v) => setStopType(v as StopType)} disabled={isProspect}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -219,58 +296,62 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
             </Field>
 
             <Field>
-              <FieldLabel>Cliente</FieldLabel>
+              <FieldLabel>{isProspect ? 'Prospecto' : 'Cliente'}</FieldLabel>
               <InputGroup>
                 <InputGroupAddon>
                   <Search />
                 </InputGroupAddon>
                 <InputGroupInput
                   type="search"
-                  placeholder="Nombre, zona o municipio"
+                  placeholder={isProspect ? 'Nombre o vendedor que lo registró' : 'Nombre, zona o municipio'}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </InputGroup>
 
               <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border">
-                {customersState.status === 'loading' &&
+                {listState.status === 'loading' &&
                   Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="m-1.5 h-10 rounded-md" />)}
 
-                {customersState.status === 'error' && (
+                {listState.status === 'error' && (
                   <p role="alert" className="p-3 text-sm text-destructive">
-                    {customersState.message}
+                    {listState.message}
                   </p>
                 )}
 
-                {customersState.status === 'pending-backend' && (
-                  <p className="p-3 text-sm text-muted-foreground">La API todavía no expone el listado de clientes.</p>
+                {listState.status === 'pending-backend' && (
+                  <p className="p-3 text-sm text-muted-foreground">
+                    {isProspect
+                      ? 'La API todavía no expone el listado de prospectos.'
+                      : 'La API todavía no expone el listado de clientes.'}
+                  </p>
                 )}
 
-                {customersState.status === 'ready' && filteredCustomers.length === 0 && (
+                {listState.status === 'ready' && options.length === 0 && (
                   <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
                     <MapPinOff className="size-4 shrink-0" />
-                    Ningún cliente con ubicación GPS coincide con la búsqueda.
+                    {isProspect
+                      ? 'Ningún prospecto con ubicación GPS coincide con la búsqueda.'
+                      : 'Ningún cliente con ubicación GPS coincide con la búsqueda.'}
                   </div>
                 )}
 
-                {customersState.status === 'ready' &&
-                  filteredCustomers.map((customer) => {
-                    const selected = customer.id === selectedCustomer?.id
+                {listState.status === 'ready' &&
+                  options.map((option) => {
+                    const selected = option.id === selectedId
                     return (
                       <button
-                        key={customer.id}
+                        key={option.id}
                         type="button"
-                        onClick={() => setSelectedCustomer(customer)}
+                        onClick={() => handleSelect(option.id)}
                         className={cn(
                           'flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-foreground/[0.04]',
                           selected && 'bg-primary/10 hover:bg-primary/10'
                         )}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium text-foreground">{customer.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {[customer.zone, customer.municipality].filter(Boolean).join(' · ') || 'Sin zona'}
-                          </p>
+                          <p className="truncate font-medium text-foreground">{option.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">{option.detail}</p>
                         </div>
                         {selected && <Check className="size-4 shrink-0 text-primary" />}
                       </button>
@@ -288,7 +369,7 @@ export function AddExtraStopDialog({ sellerId, defaultDate, onClose, onCreated }
               type="submit"
               disabled={
                 submitting ||
-                !selectedCustomer ||
+                !selectedId ||
                 routesLoading ||
                 noRouteThatDay ||
                 !!routesErrorMessage ||
