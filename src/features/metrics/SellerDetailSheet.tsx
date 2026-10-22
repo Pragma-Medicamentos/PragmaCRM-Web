@@ -5,6 +5,8 @@ import type { MetricsRange, SellerPerformance } from './metrics.types'
 import { type ComparisonTarget, formatRange } from './metricsDates'
 import { formatCount } from './metricsFormat'
 import { SellerPerformanceBody, useSellerDetail } from './SellerPerformance'
+import { ReportDownloadMenu } from '../reports/ReportDownloadMenu'
+import { downloadReport, sellerDetailReport } from '../reports/reportsApi'
 
 interface SellerDetailSheetProps {
   /** Fila del listado: pinta el encabezado y las cifras mientras llega el detalle. */
@@ -41,6 +43,14 @@ export function SellerDetailSheet({ seller, range, comparison, onOpenChange }: S
               <SheetDescription>
                 {formatCount(current.portfolio_customers)} clientes en cartera · {formatRange(range)}
               </SheetDescription>
+              <div>
+                <ReportDownloadMenu
+                  title={`Reporte de ${current.name}`}
+                  download={(format, { signal }) =>
+                    downloadReport(sellerDetailReport(current.user_id), { range, format }, { signal })
+                  }
+                />
+              </div>
             </SheetHeader>
 
             <div className="px-4 pb-6">

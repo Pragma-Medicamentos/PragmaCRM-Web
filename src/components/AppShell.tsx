@@ -1,6 +1,6 @@
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Link, matchPath, useLocation } from 'react-router-dom'
-import { ChartColumn, ChevronsUpDown, FileUp, LayoutDashboard, LogOut, Menu, Moon, Package, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
+import { ChartColumn, ChevronsUpDown, FileSpreadsheet, FileUp, LayoutDashboard, LogOut, Menu, Moon, Package, Route, Sun, UserCog, Users, UserSearch } from 'lucide-react'
 import { supabase } from '../lib/supabase/client'
 import { useCurrentAppUser } from '../features/auth/useCurrentAppUser'
 import { useTheme } from '../lib/theme'
@@ -58,6 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/', label: 'Resumen', icon: LayoutDashboard, end: true },
       { to: '/metricas', label: 'Panel de métricas', icon: ChartColumn },
+      { to: '/reportes', label: 'Reportes', icon: FileSpreadsheet },
       { to: '/rutas', label: 'Planificador de rutas', icon: Route },
     ],
   },
