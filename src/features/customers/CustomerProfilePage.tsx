@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { ArrowLeft, MapPin, MapPinOff, NotebookPen, Route } from 'lucide-react'
+import { toast } from 'sonner'
+import { ArrowLeft, MapPin, MapPinOff, NotebookPen, Pencil, Route } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
@@ -8,6 +9,7 @@ import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import {
   Card,
+  CardAction,
   CardContent,
   CardHeader,
   CardTitle,
@@ -22,8 +24,17 @@ import {
 import { Skeleton } from '../../components/ui/skeleton'
 import { AssignLocationDialog } from './AssignLocationDialog'
 import { CustomerStatsCard } from './CustomerStatsCard'
+import { EditCustomerDialog } from './EditCustomerDialog'
 import { useCustomerProfile } from './useCustomerProfile'
-import type { CustomerProfile, CustomerRouteRef, CustomerVisitNote } from './customers.types'
+import { PERSONALITY_LABELS, POTENTIAL_LABELS } from './customers.types'
+import type {
+  CustomerCore,
+  CustomerPersonality,
+  CustomerPotential,
+  CustomerProfile,
+  CustomerRouteRef,
+  CustomerVisitNote,
+} from './customers.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium' })
 const currencyFormatter = new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' })
@@ -146,9 +157,11 @@ function ProfileSkeleton() {
 function ProfileView({
   profile,
   onAssignLocation,
+  onEdit,
 }: {
   profile: CustomerProfile
   onAssignLocation: () => void
+  onEdit: () => void
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -165,6 +178,11 @@ function ProfileView({
       <Card>
         <CardHeader>
           <CardTitle>Datos generales</CardTitle>
+          <CardAction>
+            <Button type="button" size="sm" variant="outline" onClick={onEdit}>
+              <Pencil data-icon="inline-start" /> Editar
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2">
@@ -175,6 +193,16 @@ function ProfileView({
             <DataItem label="Teléfono">{profile.phone ?? '—'}</DataItem>
             <DataItem label="Celular">{profile.mobile ?? '—'}</DataItem>
             <DataItem label="Responsable de compra">{profile.attends ?? '—'}</DataItem>
+            <DataItem label="Personalidad">
+              {profile.personality ? PERSONALITY_LABELS[profile.personality as CustomerPersonality] ?? profile.personality : 'Sin clasificar'}
+            </DataItem>
+            <DataItem label="Potencial de compra">
+              {profile.potential ? POTENTIAL_LABELS[profile.potential as CustomerPotential] ?? profile.potential : 'Sin clasificar'}
+            </DataItem>
+            <DataItem label="Registro sanitario">{profile.sanitary_registration ?? '—'}</DataItem>
+            <DataItem label="NRC">{profile.nrc ?? '—'}</DataItem>
+            <DataItem label="NIT">{profile.nit ?? '—'}</DataItem>
+            <DataItem label="Correo">{profile.email ?? '—'}</DataItem>
             <DataItem label="Ubicación GPS">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 tabular-nums">
@@ -257,11 +285,9 @@ export function CustomerProfilePage() {
       : null
   const { state } = useCustomerProfile(id ?? '')
   const [assigningLocation, setAssigningLocation] = useState(false)
-  // Sobrescribe location/address tras un PATCH exitoso, sin esperar refetch.
-  const [coreOverride, setCoreOverride] = useState<Pick<
-    CustomerProfile,
-    'location' | 'address' | 'place_id'
-  > | null>(null)
+  const [editing, setEditing] = useState(false)
+  // Sobrescribe los datos del cliente tras un PATCH exitoso, sin esperar refetch.
+  const [coreOverride, setCoreOverride] = useState<Partial<CustomerCore> | null>(null)
 
   const profile =
     state.status === 'ready'
@@ -290,7 +316,11 @@ export function CustomerProfilePage() {
           </Alert>
         )}
         {profile && (
-          <ProfileView profile={profile} onAssignLocation={() => setAssigningLocation(true)} />
+          <ProfileView
+            profile={profile}
+            onAssignLocation={() => setAssigningLocation(true)}
+            onEdit={() => setEditing(true)}
+          />
         )}
       </div>
 
@@ -301,12 +331,25 @@ export function CustomerProfilePage() {
           initialLocation={profile.location}
           onClose={() => setAssigningLocation(false)}
           onUpdated={(result) => {
-            setCoreOverride({
+            setCoreOverride((prev) => ({
+              ...prev,
               location: result.location,
               address: result.address,
               place_id: result.place_id,
-            })
+            }))
             setAssigningLocation(false)
+          }}
+        />
+      )}
+
+      {editing && profile && (
+        <EditCustomerDialog
+          customer={profile}
+          onClose={() => setEditing(false)}
+          onUpdated={(result) => {
+            setCoreOverride((prev) => ({ ...prev, ...result }))
+            setEditing(false)
+            toast.success('Cliente actualizado.')
           }}
         />
       )}

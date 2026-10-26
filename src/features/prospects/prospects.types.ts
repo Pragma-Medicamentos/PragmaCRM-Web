@@ -18,6 +18,22 @@ export interface Prospect {
   location: { lat: number; lng: number } | null
   created_at: string
   status: string | null
+  // PCRM-185: datos fiscales opcionales, captura manual.
+  sanitary_registration: string | null
+  nrc: string | null
+  nit: string | null
+  email: string | null
+}
+
+// PATCH /api/v1/prospects/:id (ADMIN) — parcial: omitir = no tocar; "" en un
+// campo fiscal lo limpia. Nombre y teléfono no se pueden vaciar.
+export interface UpdateProspectInput {
+  name?: string
+  phone?: string
+  sanitary_registration?: string
+  nrc?: string
+  nit?: string
+  email?: string
 }
 
 // POST /api/v1/prospects/admin (PCRM-64) — el admin registra un prospecto a

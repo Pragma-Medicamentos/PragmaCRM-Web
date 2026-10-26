@@ -59,6 +59,50 @@ export interface CustomerCore {
   origin: string | null
   active: boolean
   location: GeoPoint | null
+  // PCRM-185: captura manual, el importador no los toca.
+  sanitary_registration: string | null
+  nrc: string | null
+  nit: string | null
+  email: string | null
+}
+
+// RF-12: mismos literales que los CHECK de la base.
+export const CUSTOMER_PERSONALITIES = ['rojo', 'azul', 'amarillo', 'verde'] as const
+export type CustomerPersonality = (typeof CUSTOMER_PERSONALITIES)[number]
+export const CUSTOMER_POTENTIALS = ['alto', 'medio', 'bajo'] as const
+export type CustomerPotential = (typeof CUSTOMER_POTENTIALS)[number]
+
+export const PERSONALITY_LABELS: Record<CustomerPersonality, string> = {
+  rojo: 'Rojo',
+  azul: 'Azul',
+  amarillo: 'Amarillo',
+  verde: 'Verde',
+}
+
+export const POTENTIAL_LABELS: Record<CustomerPotential, string> = {
+  alto: 'Alto',
+  medio: 'Medio',
+  bajo: 'Bajo',
+}
+
+// PATCH /api/v1/customers/:id/contact — null limpia el campo.
+export interface UpdateCustomerContactInput {
+  phone?: string | null
+  trade_name?: string | null
+}
+
+// PATCH /api/v1/customers/:id/commercial-profile — null = "sin clasificar".
+export interface UpdateCustomerCommercialProfileInput {
+  personality?: CustomerPersonality | null
+  potential?: CustomerPotential | null
+}
+
+// PATCH /api/v1/customers/:id/fiscal-data — "" limpia el campo.
+export interface UpdateCustomerFiscalDataInput {
+  sanitary_registration?: string
+  nrc?: string
+  nit?: string
+  email?: string
 }
 
 export interface CustomerRouteRef {

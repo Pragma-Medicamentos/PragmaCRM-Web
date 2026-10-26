@@ -7,6 +7,7 @@ import type {
   Route,
   RouteAssignment,
   RouteStop,
+  UpdateRouteInput,
 } from './routes.types'
 
 export function listRoutes(filters: { active?: boolean } = {}): Promise<Route[]> {
@@ -15,6 +16,10 @@ export function listRoutes(filters: { active?: boolean } = {}): Promise<Route[]>
 
 export function createRoute(input: CreateRouteInput): Promise<Route> {
   return apiRequest<Route>('/api/v1/routes', { method: 'POST', data: input })
+}
+
+export function updateRoute(routeId: string, input: UpdateRouteInput): Promise<Route> {
+  return apiRequest<Route>(`/api/v1/routes/${routeId}`, { method: 'PATCH', data: input })
 }
 
 export function listRouteAssignments(routeId: string): Promise<RouteAssignment[]> {
