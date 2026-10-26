@@ -15,23 +15,32 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu'
 import { Skeleton } from '../../components/ui/skeleton'
 import { ApiError, isRouteNotImplemented } from '../../lib/api/apiClient'
 import { useCustomers } from '../customers/useCustomers'
 import { useRouteStops } from './useRouteStops'
-import { replaceRouteStops } from './routesApi'
+import { replaceRouteStops, updateRoute } from './routesApi'
+import { EditRouteDialog } from './EditRouteDialog'
 import { SequenceMap } from './SequenceMap'
 import { CustomerDragPreview, StopCustomerRail, customerMeta } from './StopCustomerRail'
 import { StopDragPreview, StopItinerary } from './StopItinerary'
 import type { DraftStop, DropIndicator } from './StopItinerary'
-import type { RouteStop, StopType } from './routes.types'
+import type { Route, RouteStop, StopType } from './routes.types'
 
 type ActiveDrag = { kind: 'customer'; customerId: string } | { kind: 'stop'; customerId: string; index: number }
 type OverSlot = number | 'end' | null
@@ -102,6 +111,11 @@ export function RouteStopsPage() {
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null)
   const [overSlot, setOverSlot] = useState<OverSlot>(null)
   const [confirmLeave, setConfirmLeave] = useState(false)
+  const [editingRoute, setEditingRoute] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  // Datos de la ruta tras editarla; recargar useRouteStops pisaría el itinerario sin guardar.
+  const [routeOverride, setRouteOverride] = useState<Route | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -239,6 +253,20 @@ export function RouteStopsPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!routeId) return
+    setDeleting(true)
+    try {
+      await updateRoute(routeId, { active: false })
+      toast.success('Ruta eliminada.')
+      navigate(backTo)
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'No se pudo eliminar la ruta.')
+      setDeleting(false)
+      setConfirmDelete(false)
+    }
+  }
+
   function goBack() {
     if (dirty) setConfirmLeave(true)
     else navigate(backTo)
@@ -277,7 +305,7 @@ export function RouteStopsPage() {
     )
   }
 
-  const route = stopsState.status === 'ready' ? stopsState.route : null
+  const route = stopsState.status === 'ready' ? (routeOverride ?? stopsState.route) : null
   const routeMeta = route ? [route.zone, route.municipality].filter(Boolean).join(' · ') : ''
   const withoutGps = stops.filter((s) => !s.has_gps).length
 
@@ -306,6 +334,32 @@ export function RouteStopsPage() {
             <Button type="button" onClick={handleSave} disabled={saving || !dirty || !route}>
               {saving ? 'Guardando…' : 'Guardar paradas'}
             </Button>
+            {route && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" size="icon" aria-label="Más acciones de la ruta">
+                    <MoreHorizontal />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onSelect={() => setEditingRoute(true)}>
+                      <Pencil /> Editar ruta
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  {route.active && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
+                          <Trash2 /> Eliminar ruta
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </>
         }
       />
@@ -408,6 +462,30 @@ export function RouteStopsPage() {
           confirmLabel="Salir sin guardar"
           onCancel={() => setConfirmLeave(false)}
           onConfirm={() => navigate(backTo)}
+        />
+      )}
+
+      {editingRoute && route && (
+        <EditRouteDialog
+          route={route}
+          onClose={() => setEditingRoute(false)}
+          onUpdated={(updated) => {
+            setRouteOverride(updated)
+            setEditingRoute(false)
+            toast.success('Ruta actualizada.')
+          }}
+        />
+      )}
+
+      {confirmDelete && route && (
+        <ConfirmDialog
+          title={`Eliminar ${route.name}`}
+          message="La ruta sale del planificador y deja de generar paradas para los vendedores que la tienen asignada. Las visitas ya registradas y los reportes conservan su historial."
+          confirmLabel="Eliminar ruta"
+          destructive
+          submitting={deleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={handleDelete}
         />
       )}
     </AppShell>
