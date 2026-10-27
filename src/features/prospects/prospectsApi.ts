@@ -3,6 +3,7 @@ import type {
   CreateProspectInput,
   Paginated,
   Prospect,
+  UpdateProspectInput,
   UpdateProspectLocationInput,
 } from './prospects.types'
 
@@ -31,4 +32,15 @@ export function createProspect(input: CreateProspectInput): Promise<Prospect> {
 // PATCH /api/v1/prospects/:id/location (ADMIN) — fija o corrige el GPS.
 export function updateProspectLocation(id: string, input: UpdateProspectLocationInput): Promise<Prospect> {
   return apiRequest<Prospect>(`/api/v1/prospects/${id}/location`, { method: 'PATCH', data: input })
+}
+
+// PATCH /api/v1/prospects/:id (ADMIN) — edita nombre, teléfono y datos fiscales.
+export function updateProspect(id: string, input: UpdateProspectInput): Promise<Prospect> {
+  return apiRequest<Prospect>(`/api/v1/prospects/${id}`, { method: 'PATCH', data: input })
+}
+
+// DELETE /api/v1/prospects/:id (ADMIN) — soft delete. También quita sus
+// paradas pendientes (de hoy en adelante, sin visita); el historial se queda.
+export function deleteProspect(id: string): Promise<{ id: string; deleted: true; removed_stops: number }> {
+  return apiRequest(`/api/v1/prospects/${id}`, { method: 'DELETE' })
 }

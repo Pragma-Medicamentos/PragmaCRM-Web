@@ -31,9 +31,10 @@ export function HomePage() {
   const trends = useMetricsQuery(`${trendRange.from}:${trendRange.to}`, (signal) =>
     getTrends(trendRange, 'week', { signal })
   )
-  const vendors = useMetricsQuery('vendors', () => listVendors())
+  // Solo hace falta el conteo: una página de 1 trae los totales por estado.
+  const vendors = useMetricsQuery('vendors', () => listVendors({ limit: 1 }))
 
-  const activeVendors = vendors.state.status === 'ready' ? vendors.state.data.filter((v) => v.active).length : null
+  const activeVendors = vendors.state.status === 'ready' ? vendors.state.data.totals.active : null
 
   return (
     <AppShell>

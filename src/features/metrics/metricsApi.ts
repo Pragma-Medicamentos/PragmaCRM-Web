@@ -6,6 +6,7 @@ import type {
   MetricsRange,
   MetricsRouteDetailResponse,
   MetricsRoutesResponse,
+  MetricsRouteWorkdaysResponse,
   ProductCustomersResponse,
   ProductMetricsResponse,
   ProductRankingResponse,
@@ -123,4 +124,20 @@ export function getRouteDetail(
   { signal }: RequestOptions = {}
 ): Promise<MetricsRouteDetailResponse> {
   return apiRequest<MetricsRouteDetailResponse>(`/api/v1/metrics/routes/${routeId}`, { params: range, signal })
+}
+
+/**
+ * La ruta contra sus jornadas anteriores del mismo día (PCRM-188). `day` es
+ * 1 lunes … 7 domingo; sin él, el backend toma el día de la última jornada.
+ * No depende del periodo del panel.
+ */
+export function getRouteWorkdays(
+  routeId: string,
+  { day, limit }: { day?: number; limit?: number },
+  { signal }: RequestOptions = {}
+): Promise<MetricsRouteWorkdaysResponse> {
+  return apiRequest<MetricsRouteWorkdaysResponse>(`/api/v1/metrics/routes/${routeId}/workdays`, {
+    params: { ...(day ? { day } : {}), ...(limit ? { limit } : {}) },
+    signal,
+  })
 }

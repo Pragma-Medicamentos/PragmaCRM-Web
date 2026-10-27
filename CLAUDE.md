@@ -87,25 +87,32 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/sellers/`, `src/services
 - **La cuenta nace sin contraseña.** El admin solo da de alta `name` + `email`; la API crea el usuario en Supabase Auth (`email_confirm: true`, sin password) y envía un código OTP de 6 dígitos al correo del vendedor. El vendedor lo verifica y fija su contraseña desde la app (`supabase.auth.verifyOtp` + `updateUser({ password })`) — este dashboard no participa en ese paso ni muestra ninguna contraseña.
 - El admin **no** elige ni genera una contraseña inicial. Esa decisión (registrada en una versión anterior de este documento) quedó reemplazada por el flujo de OTP al pasar la autenticación a Supabase.
 
-`GET /api/v1/sellers` — requiere `requireAuth` + `requireRole(ADMIN)`. Devuelve todos los `app_user` con `role = 'Vendedor'`, sin transformar las llaves (snake_case tal cual la base):
+`GET /api/v1/sellers?page=&limit=&active=&search=` — requiere `requireAuth` + `requireRole(ADMIN)`. Devuelve los `app_user` con `role = 'Vendedor'` **paginados** (por defecto 20, tope 100), sin transformar las llaves (snake_case tal cual la base). `search` busca en nombre y correo; `totals` cuenta a todos por estado, sin los filtros:
 
 ```json
 {
   "success": true,
   "message": "Vendedores obtenidos correctamente",
-  "data": [
-    {
-      "id": "uuid",
-      "name": "...",
-      "email": "...",
-      "active": true,
-      "auth_user_id": "uuid",
-      "created_at": "2026-09-01T00:00:00.000Z",
-      "updated_at": "2026-09-01T00:00:00.000Z"
-    }
-  ]
+  "data": {
+    "items": [
+      {
+        "id": "uuid",
+        "name": "...",
+        "email": "...",
+        "active": true,
+        "auth_user_id": "uuid",
+        "created_at": "2026-09-01T00:00:00.000Z",
+        "updated_at": "2026-09-01T00:00:00.000Z",
+        "current_goal": "3100.00"
+      }
+    ],
+    "page": 1, "page_size": 20, "total": 5, "total_pages": 1,
+    "totals": { "active": 5, "inactive": 0 }
+  }
 }
 ```
+
+`/vendedores` pagina con `useVendorsPage`. Los selectores de vendedor (planificador, nuevo prospecto) usan `useVendors` → `listAllVendors()`, que pide una sola página de 100. `GET /api/v1/sellers/:id/goals` también pagina su `history` (`current` se calcula sobre todas las filas; cada entrada trae `until`, el último mes en que aplicó, `null` la vigente). `PUT` recibe solo `{ goal_amount }` y aplica al mes en curso: cambiarla otra vez el mismo mes la sobrescribe; los meses cerrados no se tocan. No hay DELETE: para quitar la meta se guarda 0. `VendorGoalHistoryCard` (PCRM-198) grafica los últimos 12 meses con `GET /sellers/:id/goals/history`: bullet chart: una barra de venta por mes, verde si cumplió, roja si no y gris sin meta (el mes en curso, según cómo va), con la meta como una raya encima (`ComposedChart` con `Bar` + `Scatter`). `VendorGoalCard` muestra el historial como línea de tiempo (armada con `Item`; shadcn no tiene un timeline oficial).
 
 `POST /api/v1/sellers` — mismo guard. Body: `{ "name": "...", "email": "..." }`. Responde 201 con el vendedor creado (mismo shape que un elemento del listado). Un correo duplicado responde con un error de envelope legible (409), no un 500.
 
@@ -136,9 +143,23 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/routes/`, `src/services/
 
 No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se arma en el cliente (`useRoutePlanner.ts`) pidiendo todas las rutas activas y las asignaciones de cada una en paralelo.
 
-**Paradas extra (PCRM-158) en el planificador.** Cada día de la semana representa su próxima fecha (hoy incluido): muestra las paradas extra de esa fecha y "+ Parada extra" (solo días con ruta), que abre `AddExtraStopDialog` con esa fecha precargada; otra fecha se elige dentro del diálogo. El vendedor elegido vive en `?vendedor=`. Las extras salen de `GET /api/v1/sellers/:id/daily-route?date=` para cada día con ruta (`useWeekExtraStops.ts`); se quitan con `DELETE .../extra-stops/:stopId`. Ya no existe la pantalla `/vendedores/:id/ruta`.
+**Paradas extra (PCRM-158) en el planificador.** Cada día de la semana representa su próxima fecha (hoy incluido): muestra las paradas extra de esa fecha y "+ Parada extra" (solo días con ruta), que abre `AddExtraStopDialog` con esa fecha precargada; otra fecha se elige dentro del diálogo. El vendedor elegido vive en `?vendedor=`. Las extras salen de `GET /api/v1/sellers/:id/daily-route?date=` para cada día con ruta (`useWeekExtraStops.ts`); se quitan con `DELETE .../extra-stops/:stopId`. Ya no existe la pantalla `/vendedores/:id/ruta`. El diálogo permite elegir **Cliente o Prospecto** (body con `customer_id` o `prospect_id`, nunca ambos); sobre un prospecto el tipo queda fijo en Visita y solo se listan prospectos con GPS. El vendedor la ve en la app, pero todavía no puede confirmarla: `visit` no admite prospectos (decisión abierta B-8 en `PragmaCRM-Api`).
 
 **Entrada a las paradas de una ruta.** Clic (o Enter) en la tarjeta de "Rutas guardadas", o en el chip de la ruta dentro de un día, abre `/rutas/:id/paradas`. Arrastrar (o Espacio con teclado) sigue asignando. El planificador pasa su URL en `location.state.from` y `RouteStopsPage` vuelve ahí, con el mismo vendedor.
+
+## Contrato de `/api/v1/reports` (RF-09 · PCRM-159)
+
+**Implementado en este repo:** pantalla `/reportes` (`src/features/reports/`, protegida por `AdminRoute`, entrada "Reportes" en el sidebar, grupo Operación), botón "Descargar PDF" en `/metricas` (exporta la pestaña visible: General → KPIs, Equipo → desempeño por vendedor, Cobertura → cobertura; Rutas no tiene reporte) y descarga del detalle en `SellerDetailSheet`.
+
+Contrato real: `docs/REPORTS_API.md` de `PragmaCRM-Api`. Solo `Administrador` (403 para Vendedor).
+
+- **El éxito es el archivo, no el envelope.** `apiDownload` (`lib/api/apiClient.ts`) pide con `responseType: 'blob'` y toma el nombre de `Content-Disposition` (`pragma-crm_<reporte>_<from>_<to>.<xlsx|pdf>`; la API lo expone por CORS). Los errores siguen siendo el envelope JSON, pero con `blob` llegan como `Blob`: el interceptor de response los lee (`readErrorBody`) antes de armar el `ApiError`, para no perder el `message` ni la distinción 401 de API key / 401 de sesión.
+- Todos aceptan `from`, `to` y `format=xlsx|pdf`. El catálogo vive en `reportsApi.ts` (`REPORTS`): cada entrada declara qué filtros aplica y `downloadReport` manda solo esos.
+- **Dos familias:**
+  - **Panel (PCRM-162)**: `kpis`, `sellers`, `sellers/:id`, `trends` (`granularity`), `coverage`, `products` (`limit`), `purchase-frequency`. Espejan `/metrics` y **solo filtran por fechas**. Se consumen tal cual; no se les agregan filtros.
+  - **Gerenciales (PCRM-159)**: `sales/:group` (`seller|customer|municipality|route|zone|product`), `sales/sellers-comparison`, `abc/:entity` (`customer|product`), `rankings` (`limit`), `goals` (solo vendedor), `visits/planned-vs-done`, `visits/effectiveness`, `customers/new|recovered|no-purchase`, `collections`, `overdue-portfolio` (foto al día de hoy). Aceptan además `zone`, `user_id` y `route_id`, combinados con AND. Un id inexistente → 404 con `message`.
+- **Zona y municipio son los de la ruta** a la que se atribuye la venta o la visita (`route.zone`): el importador no llena los del cliente. Por eso el selector de zona de `/reportes` lista las zonas distintas de `GET /api/v1/routes`, sin distinguir mayúsculas, igual que compara la API.
+- Filtros y rango viven en la URL (`?desde=&hasta=&zona=&vendedor=&ruta=`, más `agrupar=` de tendencias). Cuando hay un filtro elegido que un reporte no aplica, su fila lo dice ("No aplica: …").
 
 ## Cosas a tener presentes durante la integración
 

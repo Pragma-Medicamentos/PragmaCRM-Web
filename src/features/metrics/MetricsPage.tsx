@@ -12,6 +12,19 @@ import { PeriodPicker } from './PeriodPicker'
 import { RoutesTab } from './RoutesTab'
 import { TeamTab } from './TeamTab'
 import { type MetricsTab, useMetricsSearch } from './useMetricsSearch'
+import { ReportDownloadMenu } from '../reports/ReportDownloadMenu'
+import { downloadReport, reportById } from '../reports/reportsApi'
+
+/**
+ * Reporte de /api/v1/reports que exporta lo que muestra cada pestaña
+ * (PCRM-159, "Descargar PDF"). Rutas no tiene reporte del panel: sin botón.
+ */
+const TAB_REPORTS: Record<MetricsTab, string | null> = {
+  general: 'panel-kpis',
+  equipo: 'panel-sellers',
+  rutas: null,
+  cobertura: 'panel-coverage',
+}
 
 /**
  * Panel de métricas (RF-09): reúne las variantes del wireframe en pestañas
@@ -28,7 +41,20 @@ export function MetricsPage() {
       <PageHeader
         title="Panel de métricas"
         subtitle={`${describeRange(range)} · comparado con ${formatRange(previousRange(range))}`}
-        actions={<PeriodPicker value={range} onChange={setRange} />}
+        actions={
+          <>
+            <PeriodPicker value={range} onChange={setRange} />
+            {TAB_REPORTS[tab] && (
+              <ReportDownloadMenu
+                label="Descargar PDF"
+                formats={['pdf']}
+                download={(format, { signal }) =>
+                  downloadReport(reportById(TAB_REPORTS[tab]!), { range, format, granularity }, { signal })
+                }
+              />
+            )}
+          </>
+        }
       />
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as MetricsTab)} className="gap-6">

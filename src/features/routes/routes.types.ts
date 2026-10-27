@@ -21,6 +21,17 @@ export interface CreateRouteInput {
   zone?: string
 }
 
+// PATCH /api/v1/routes/:id — subconjunto de campos, al menos uno. `active:
+// false` es el "eliminar" del dashboard: la API no tiene DELETE de ruta, y una
+// ruta inactiva deja de listarse en el planificador y de generar paradas
+// (generate-stops.sql.ts filtra r.active), conservando el historial.
+export interface UpdateRouteInput {
+  name?: string
+  municipality?: string
+  zone?: string
+  active?: boolean
+}
+
 // Ancla: `route_user` (RF-04). Contrato real: RouteAssignmentRecord en
 // route.service.ts, expuesto en GET/POST /api/v1/routes/:id/assignments,
 // POST /api/v1/routes/:id/reassign y DELETE .../assignments/:day.
