@@ -143,9 +143,23 @@ Contrato real contra `PragmaCRM-Api` (`src/presentation/routes/`, `src/services/
 
 No hay un endpoint "asignaciones por vendedor": la vista semanal por vendedor se arma en el cliente (`useRoutePlanner.ts`) pidiendo todas las rutas activas y las asignaciones de cada una en paralelo.
 
-**Paradas extra (PCRM-158) en el planificador.** Cada día de la semana representa su próxima fecha (hoy incluido): muestra las paradas extra de esa fecha y "+ Parada extra" (solo días con ruta), que abre `AddExtraStopDialog` con esa fecha precargada; otra fecha se elige dentro del diálogo. El vendedor elegido vive en `?vendedor=`. Las extras salen de `GET /api/v1/sellers/:id/daily-route?date=` para cada día con ruta (`useWeekExtraStops.ts`); se quitan con `DELETE .../extra-stops/:stopId`. Ya no existe la pantalla `/vendedores/:id/ruta`.
+**Paradas extra (PCRM-158) en el planificador.** Cada día de la semana representa su próxima fecha (hoy incluido): muestra las paradas extra de esa fecha y "+ Parada extra" (solo días con ruta), que abre `AddExtraStopDialog` con esa fecha precargada; otra fecha se elige dentro del diálogo. El vendedor elegido vive en `?vendedor=`. Las extras salen de `GET /api/v1/sellers/:id/daily-route?date=` para cada día con ruta (`useWeekExtraStops.ts`); se quitan con `DELETE .../extra-stops/:stopId`. Ya no existe la pantalla `/vendedores/:id/ruta`. El diálogo permite elegir **Cliente o Prospecto** (body con `customer_id` o `prospect_id`, nunca ambos); sobre un prospecto el tipo queda fijo en Visita y solo se listan prospectos con GPS. El vendedor la ve en la app, pero todavía no puede confirmarla: `visit` no admite prospectos (decisión abierta B-8 en `PragmaCRM-Api`).
 
 **Entrada a las paradas de una ruta.** Clic (o Enter) en la tarjeta de "Rutas guardadas", o en el chip de la ruta dentro de un día, abre `/rutas/:id/paradas`. Arrastrar (o Espacio con teclado) sigue asignando. El planificador pasa su URL en `location.state.from` y `RouteStopsPage` vuelve ahí, con el mismo vendedor.
+
+## Contrato de `/api/v1/reports` (RF-09 · PCRM-159)
+
+**Implementado en este repo:** pantalla `/reportes` (`src/features/reports/`, protegida por `AdminRoute`, entrada "Reportes" en el sidebar, grupo Operación), botón "Descargar PDF" en `/metricas` (exporta la pestaña visible: General → KPIs, Equipo → desempeño por vendedor, Cobertura → cobertura; Rutas no tiene reporte) y descarga del detalle en `SellerDetailSheet`.
+
+Contrato real: `docs/REPORTS_API.md` de `PragmaCRM-Api`. Solo `Administrador` (403 para Vendedor).
+
+- **El éxito es el archivo, no el envelope.** `apiDownload` (`lib/api/apiClient.ts`) pide con `responseType: 'blob'` y toma el nombre de `Content-Disposition` (`pragma-crm_<reporte>_<from>_<to>.<xlsx|pdf>`; la API lo expone por CORS). Los errores siguen siendo el envelope JSON, pero con `blob` llegan como `Blob`: el interceptor de response los lee (`readErrorBody`) antes de armar el `ApiError`, para no perder el `message` ni la distinción 401 de API key / 401 de sesión.
+- Todos aceptan `from`, `to` y `format=xlsx|pdf`. El catálogo vive en `reportsApi.ts` (`REPORTS`): cada entrada declara qué filtros aplica y `downloadReport` manda solo esos.
+- **Dos familias:**
+  - **Panel (PCRM-162)**: `kpis`, `sellers`, `sellers/:id`, `trends` (`granularity`), `coverage`, `products` (`limit`), `purchase-frequency`. Espejan `/metrics` y **solo filtran por fechas**. Se consumen tal cual; no se les agregan filtros.
+  - **Gerenciales (PCRM-159)**: `sales/:group` (`seller|customer|municipality|route|zone|product`), `sales/sellers-comparison`, `abc/:entity` (`customer|product`), `rankings` (`limit`), `goals` (solo vendedor), `visits/planned-vs-done`, `visits/effectiveness`, `customers/new|recovered|no-purchase`, `collections`, `overdue-portfolio` (foto al día de hoy). Aceptan además `zone`, `user_id` y `route_id`, combinados con AND. Un id inexistente → 404 con `message`.
+- **Zona y municipio son los de la ruta** a la que se atribuye la venta o la visita (`route.zone`): el importador no llena los del cliente. Por eso el selector de zona de `/reportes` lista las zonas distintas de `GET /api/v1/routes`, sin distinguir mayúsculas, igual que compara la API.
+- Filtros y rango viven en la URL (`?desde=&hasta=&zona=&vendedor=&ruta=`, más `agrupar=` de tendencias). Cuando hay un filtro elegido que un reporte no aplica, su fila lo dice ("No aplica: …").
 
 ## Cosas a tener presentes durante la integración
 

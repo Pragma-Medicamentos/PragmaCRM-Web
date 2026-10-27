@@ -36,13 +36,13 @@ export interface DailyRoute {
   stops: DailyRouteStop[]
 }
 
-export interface AddExtraStopInput {
+// Exactamente uno de customer_id / prospect_id. Sobre un prospecto, stop_type solo puede ser 'visit'.
+export type AddExtraStopInput = {
   date: string // YYYY-MM-DD
-  customer_id: string
   stop_type: StopType
   route_id?: string
   reason?: string
-}
+} & ({ customer_id: string; prospect_id?: never } | { prospect_id: string; customer_id?: never })
 
 export interface ExtraStopCreated {
   id: string
@@ -51,8 +51,10 @@ export interface ExtraStopCreated {
   route_id: string
   route_name: string
   date: string
-  customer_id: string
-  customer_name: string
+  customer_id: string | null
+  customer_name: string | null
+  prospect_id: string | null
+  prospect_name: string | null
   stop_type: StopType
   reason: string | null
   is_extra: boolean

@@ -5,6 +5,9 @@ import type {
   CustomerCreditsPage,
   CustomerProfile,
   Paginated,
+  UpdateCustomerCommercialProfileInput,
+  UpdateCustomerContactInput,
+  UpdateCustomerFiscalDataInput,
   UpdateCustomerLocationInput,
 } from './customers.types'
 
@@ -37,4 +40,22 @@ export function updateCustomerLocation(
   if (input.place_id !== undefined) body.place_id = input.place_id
 
   return apiRequest<CustomerCore>(`/api/v1/customers/${id}/location`, { method: 'PATCH', data: body })
+}
+
+// PATCH /api/v1/customers/:id/contact — teléfono y nombre comercial (el JSON de Efactsoft no los trae).
+export function updateCustomerContact(id: string, input: UpdateCustomerContactInput): Promise<CustomerCore> {
+  return apiRequest<CustomerCore>(`/api/v1/customers/${id}/contact`, { method: 'PATCH', data: input })
+}
+
+// PATCH /api/v1/customers/:id/commercial-profile — RF-12: personalidad y potencial.
+export function updateCustomerCommercialProfile(
+  id: string,
+  input: UpdateCustomerCommercialProfileInput
+): Promise<CustomerCore> {
+  return apiRequest<CustomerCore>(`/api/v1/customers/${id}/commercial-profile`, { method: 'PATCH', data: input })
+}
+
+// PATCH /api/v1/customers/:id/fiscal-data — PCRM-185: registro sanitario, NRC, NIT y correo.
+export function updateCustomerFiscalData(id: string, input: UpdateCustomerFiscalDataInput): Promise<CustomerCore> {
+  return apiRequest<CustomerCore>(`/api/v1/customers/${id}/fiscal-data`, { method: 'PATCH', data: input })
 }

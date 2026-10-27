@@ -1,10 +1,20 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { MapPin, MapPinPlus, Plus } from 'lucide-react'
+import { MapPin, MapPinPlus, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { AppShell } from '../../components/AppShell'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { ApiError } from '../../lib/api/apiClient'
 import { PageHeader } from '../../components/PageHeader'
 import { PendingBackendNotice } from '../../components/PendingBackendNotice'
 import { Button } from '../../components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu'
 import {
   Table,
   TableBody,
@@ -16,6 +26,8 @@ import {
 import { useProspects } from './useProspects'
 import { CreateProspectDialog } from './CreateProspectDialog'
 import { SetProspectLocationDialog } from './SetProspectLocationDialog'
+import { EditProspectDialog } from './EditProspectDialog'
+import { deleteProspect } from './prospectsApi'
 import type { Prospect } from './prospects.types'
 
 const dateFormatter = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium', timeStyle: 'short' })
@@ -28,9 +40,11 @@ function formatDate(value: string): string {
 interface ProspectsTableProps {
   prospects: Prospect[]
   onSetLocation: (prospect: Prospect) => void
+  onEdit: (prospect: Prospect) => void
+  onDelete: (prospect: Prospect) => void
 }
 
-function ProspectsTable({ prospects, onSetLocation }: ProspectsTableProps) {
+function ProspectsTable({ prospects, onSetLocation, onEdit, onDelete }: ProspectsTableProps) {
   if (prospects.length === 0) {
     return <p className="py-10 text-center text-sm text-muted-foreground">No hay prospectos registrados.</p>
   }
@@ -44,6 +58,9 @@ function ProspectsTable({ prospects, onSetLocation }: ProspectsTableProps) {
           <TableHead>GPS</TableHead>
           <TableHead className="hidden md:table-cell">Vendedor</TableHead>
           <TableHead className="hidden lg:table-cell">Detectado</TableHead>
+          <TableHead className="w-12">
+            <span className="sr-only">Acciones</span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -72,6 +89,31 @@ function ProspectsTable({ prospects, onSetLocation }: ProspectsTableProps) {
             </TableCell>
             <TableCell className="hidden text-muted-foreground md:table-cell">{prospect.seller_name ?? prospect.user_id}</TableCell>
             <TableCell className="hidden text-muted-foreground lg:table-cell">{formatDate(prospect.created_at)}</TableCell>
+            <TableCell className="text-right">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon-sm" aria-label={`Acciones de ${prospect.name}`}>
+                    <MoreHorizontal />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onSelect={() => onEdit(prospect)}>
+                      <Pencil /> Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onSetLocation(prospect)}>
+                      <MapPinPlus /> {prospect.location ? 'Corregir ubicación' : 'Agregar ubicación'}
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem variant="destructive" onSelect={() => onDelete(prospect)}>
+                      <Trash2 /> Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -85,6 +127,27 @@ export function ProspectsPage() {
   const prospects = state.status === 'ready' ? state.prospects : []
   const [createOpen, setCreateOpen] = useState(false)
   const [settingLocation, setSettingLocation] = useState<Prospect | null>(null)
+  const [editing, setEditing] = useState<Prospect | null>(null)
+  const [deleting, setDeleting] = useState<Prospect | null>(null)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+
+  async function handleDelete(prospect: Prospect) {
+    setDeleteSubmitting(true)
+    try {
+      const { removed_stops } = await deleteProspect(prospect.id)
+      const stopsNote =
+        removed_stops > 0
+          ? ` Se ${removed_stops === 1 ? 'quitó 1 parada pendiente' : `quitaron ${removed_stops} paradas pendientes`}.`
+          : ''
+      toast.success(`${prospect.name}: prospecto eliminado.${stopsNote}`)
+      reload()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'No se pudo eliminar el prospecto.')
+    } finally {
+      setDeleteSubmitting(false)
+      setDeleting(null)
+    }
+  }
 
   return (
     <AppShell>
@@ -108,7 +171,12 @@ export function ProspectsPage() {
 
       {state.status === 'ready' && (
         <div className="overflow-hidden rounded-xl border border-border bg-background">
-          <ProspectsTable prospects={prospects} onSetLocation={setSettingLocation} />
+          <ProspectsTable
+            prospects={prospects}
+            onSetLocation={setSettingLocation}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+          />
         </div>
       )}
 
@@ -132,6 +200,30 @@ export function ProspectsPage() {
             toast.success(`${prospect.name}: ubicación guardada.`)
             reload()
           }}
+        />
+      )}
+
+      {editing && (
+        <EditProspectDialog
+          prospect={editing}
+          onClose={() => setEditing(null)}
+          onUpdated={(prospect) => {
+            setEditing(null)
+            toast.success(`${prospect.name}: cambios guardados.`)
+            reload()
+          }}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title={`Eliminar ${deleting.name}`}
+          message="El prospecto sale del listado y se quitan sus paradas pendientes de la ruta del vendedor. Las visitas ya registradas se conservan."
+          confirmLabel="Eliminar prospecto"
+          destructive
+          submitting={deleteSubmitting}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => handleDelete(deleting)}
         />
       )}
     </AppShell>

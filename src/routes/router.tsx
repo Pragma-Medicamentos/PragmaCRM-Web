@@ -15,6 +15,7 @@ import { CustomerProfilePage } from '../features/customers/CustomerProfilePage'
 import { ProductsPage } from '../features/products/ProductsPage'
 import { ProspectsPage } from '../features/prospects/ProspectsPage'
 import { ImportPage } from '../features/uploads/ImportPage'
+import { ReportsPage } from '../features/reports/ReportsPage'
 
 export function AppRouter() {
   return (
@@ -50,6 +51,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <ProductsNoMovementPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/reportes"
+          element={
+            <AdminRoute>
+              <ReportsPage />
             </AdminRoute>
           }
         />

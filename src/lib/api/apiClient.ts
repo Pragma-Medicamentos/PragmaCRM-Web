@@ -116,6 +116,18 @@ function expireSession(): Promise<unknown> {
   return signingOut
 }
 
+// Con `responseType: 'blob'` (descargas, ver `apiDownload`) el envelope de
+// error también llega como Blob: sin leerlo se pierde el `message`, y con él
+// la distinción entre 401 por API key y 401 por sesión.
+async function readErrorBody(data: unknown): Promise<unknown> {
+  if (!(data instanceof Blob) || !data.type.includes('json')) return data
+  try {
+    return JSON.parse(await data.text())
+  } catch {
+    return undefined
+  }
+}
+
 // Normaliza todo fallo a `ApiError` con el `status` HTTP y el `message` del
 // envelope ({ success, message, data?, errors? }), para que el llamador
 // distinga 401 (sin sesión válida) de 403 (sesión válida, usuario sin
@@ -128,7 +140,7 @@ api.interceptors.response.use(undefined, async (error: unknown) => {
   if (!axios.isAxiosError(error)) throw error
 
   const status = error.response?.status ?? 0
-  const data = error.response?.data
+  const data = await readErrorBody(error.response?.data)
   // nginx responde 413/502/504 con HTML, no con el envelope.
   const message =
     data && typeof data === 'object' && typeof (data as ApiEnvelope<unknown>).message === 'string'
@@ -182,4 +194,27 @@ export async function apiRequest<T>(path: string, config?: AxiosRequestConfig): 
 export async function apiCall(path: string, config?: AxiosRequestConfig): Promise<string> {
   const response = await api.request<ApiEnvelope<unknown>>({ url: path, ...config })
   return response.data?.message ?? ''
+}
+
+/**
+ * Para endpoints cuyo éxito es un archivo y no el envelope (/api/v1/reports):
+ * lo descarga en el navegador con el nombre que manda la API en
+ * `Content-Disposition` (expuesto por CORS), o `fallbackName` si no viene.
+ * Los errores siguen llegando como envelope y salen como `ApiError`.
+ */
+export async function apiDownload(path: string, fallbackName: string, config?: AxiosRequestConfig): Promise<void> {
+  const response = await api.request<Blob>({ url: path, responseType: 'blob', ...config })
+  const disposition = response.headers['content-disposition']
+  const filename =
+    (typeof disposition === 'string' && /filename="([^"]+)"/.exec(disposition)?.[1]) || fallbackName
+
+  const url = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  // Sin esto el blob queda retenido hasta que se recargue la pestaña.
+  URL.revokeObjectURL(url)
 }
