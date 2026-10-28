@@ -18,16 +18,8 @@
       href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script>
-      // Evita flash claro→oscuro: aplica `dark` antes del bundle.
-      (function () {
-        try {
-          if (localStorage.getItem('pragma-theme') === 'dark') {
-            document.documentElement.classList.add('dark');
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Archivo externo y no inline: la CSP de nginx no permite scripts inline. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
