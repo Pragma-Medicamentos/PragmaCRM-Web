@@ -36,7 +36,9 @@ import {
 import { Toaster } from './ui/sonner'
 import { TooltipProvider } from './ui/tooltip'
 import brandWordmark from '../assets/brand-wordmark.png'
+import brandWordmarkDark from '../assets/brand-wordmark-dark.png'
 import brandIcon from '../assets/brand-icon.png'
+import brandIconDark from '../assets/brand-icon-dark.png'
 
 interface NavItem {
   to: string
@@ -94,7 +96,9 @@ function AppSidebar({ name, email }: { name: string; email: string | null }) {
     // floating: panel de vidrio despegado del borde (ver `glass` en sidebar.tsx).
     <Sidebar variant="floating" className="p-3">
       <SidebarHeader className="h-20 justify-center px-5">
-        <img src={brandWordmark} alt="Farmacia Pragma" className="h-7 w-auto self-start" />
+        {/* El logo tiene "PRAGMA" en negro: en modo oscuro va la versión con texto y contorno en blanco. */}
+        <img src={brandWordmark} alt="Droguería Pragma" className="h-10 w-auto self-start dark:hidden" />
+        <img src={brandWordmarkDark} alt="Droguería Pragma" className="hidden h-10 w-auto self-start dark:block" />
       </SidebarHeader>
       <SidebarSeparator className="mx-0 bg-primary/10" />
 
@@ -199,7 +203,8 @@ function TopBar() {
       ) : (
         <SidebarTrigger className="-ml-2 text-muted-foreground" aria-label="Mostrar u ocultar menú" />
       )}
-      <img src={brandIcon} alt="Farmacia Pragma" className="h-6 w-auto lg:hidden" />
+      <img src={brandIcon} alt="Droguería Pragma" className="h-6 w-auto lg:hidden dark:hidden" />
+      <img src={brandIconDark} alt="Droguería Pragma" className="hidden h-6 w-auto dark:max-lg:block" />
       <div className="ml-auto">
         <Button
           type="button"
