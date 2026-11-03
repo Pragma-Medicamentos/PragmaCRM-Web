@@ -18,6 +18,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '../../components/ui/input
 import { Spinner } from '../../components/ui/spinner'
 import { cn } from '../../lib/utils'
 import brandWordmark from '../../assets/brand-wordmark.png'
+import brandWordmarkDark from '../../assets/brand-wordmark-dark.png'
 
 const MIN_PASSWORD_LENGTH = 8
 const OTP_LENGTH = 6
@@ -153,7 +154,9 @@ export function LoginPage() {
         <main className="flex items-center justify-center px-1 py-6 sm:px-6 lg:py-4">
           <div className="flex w-full max-w-sm flex-col gap-7">
             <div className="flex flex-col gap-3">
-              <img src={brandWordmark} alt="Farmacia Pragma" className="h-7 w-auto self-start" />
+              {/* El logo tiene "PRAGMA" en negro: en modo oscuro va la versión con texto y contorno en blanco. */}
+              <img src={brandWordmark} alt="Droguería Pragma" className="h-10 w-auto self-start dark:hidden" />
+              <img src={brandWordmarkDark} alt="Droguería Pragma" className="hidden h-10 w-auto self-start dark:block" />
               <div className="flex flex-col gap-1">
                 <h1 className="font-heading text-3xl font-bold text-foreground">{headline(step)}</h1>
                 <p className="text-sm text-muted-foreground">{subheadline(step)}</p>
