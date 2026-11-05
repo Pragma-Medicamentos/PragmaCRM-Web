@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { ApiError } from '../../lib/api/apiClient'
+import { changedFiscal, fiscalValuesFrom, validateFiscal, type FiscalErrors } from '../../lib/fiscal'
+import { FiscalFieldsInputs } from '../../components/FiscalFieldsInputs'
 import { useVendors } from '../vendors/useVendors'
 import { createProspect } from './prospectsApi'
 import type { Prospect } from './prospects.types'
@@ -16,14 +18,16 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog'
 
-interface FormErrors {
+interface FormErrors extends FiscalErrors {
   name?: string
   phone?: string
   user_id?: string
 }
 
-function validate(name: string, phone: string, userId: string): FormErrors {
-  const errors: FormErrors = {}
+const EMPTY_FISCAL = fiscalValuesFrom({})
+
+function validate(name: string, phone: string, userId: string, fiscal: typeof EMPTY_FISCAL): FormErrors {
+  const errors: FormErrors = validateFiscal(fiscal)
   if (!name.trim()) errors.name = 'El nombre es obligatorio.'
   if (!phone.trim()) errors.phone = 'El teléfono es obligatorio.'
   if (!userId) errors.user_id = 'Elegí a qué vendedor se le atribuye.'
@@ -48,13 +52,14 @@ export function CreateProspectDialog({ onClose, onCreated }: CreateProspectDialo
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [userId, setUserId] = useState('')
+  const [fiscal, setFiscal] = useState(EMPTY_FISCAL)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const fieldErrors = validate(name, phone, userId)
+    const fieldErrors = validate(name, phone, userId, fiscal)
     setErrors(fieldErrors)
     if (Object.keys(fieldErrors).length > 0) return
 
@@ -65,6 +70,8 @@ export function CreateProspectDialog({ onClose, onCreated }: CreateProspectDialo
         user_id: userId,
         name: name.trim(),
         phone: phone.trim(),
+        // Contra el form vacío: solo viajan los campos fiscales que se llenaron.
+        ...changedFiscal(EMPTY_FISCAL, fiscal),
       })
       onCreated(prospect)
     } catch (err) {
@@ -75,13 +82,13 @@ export function CreateProspectDialog({ onClose, onCreated }: CreateProspectDialo
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
             <DialogTitle>Nuevo prospecto</DialogTitle>
             <DialogDescription>
               Para leads que llegan por teléfono, redes o en oficina. La ubicación GPS se puede agregar después
-              desde el listado.
+              desde el listado. Los datos fiscales son opcionales.
             </DialogDescription>
           </DialogHeader>
 
@@ -136,6 +143,8 @@ export function CreateProspectDialog({ onClose, onCreated }: CreateProspectDialo
                 <p className="mt-1 text-sm text-muted-foreground">No hay vendedores activos.</p>
               )}
             </Field>
+
+            <FiscalFieldsInputs idPrefix="prospect" values={fiscal} errors={errors} onChange={setFiscal} />
           </div>
 
           <DialogFooter>
