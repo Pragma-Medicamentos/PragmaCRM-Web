@@ -14,6 +14,7 @@ import { CustomersPage } from '../features/customers/CustomersPage'
 import { CustomerProfilePage } from '../features/customers/CustomerProfilePage'
 import { ProductsPage } from '../features/products/ProductsPage'
 import { ProspectsPage } from '../features/prospects/ProspectsPage'
+import { OffCatalogPage } from '../features/off-catalog/OffCatalogPage'
 import { ImportPage } from '../features/uploads/ImportPage'
 import { ReportsPage } from '../features/reports/ReportsPage'
 
@@ -131,6 +132,14 @@ export function AppRouter() {
           element={
             <AdminRoute>
               <ProspectsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/fuera-de-catalogo"
+          element={
+            <AdminRoute>
+              <OffCatalogPage />
             </AdminRoute>
           }
         />
